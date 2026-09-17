@@ -2,12 +2,14 @@
 
 **컴퓨팅 사고력이 자라는 특별한 프로그래밍 수업**
 
-학생이 코드를 **직접 입력**해 문제를 푸는 수업 도구입니다.
+학생이 코드를 **직접 입력**해 문제를 푸는 **공교육의 정보수업**을 위한 도구입니다.
 
 학생들이 AI 가 만든 코드를 붙여넣어 문제를 푸는 일이 늘었습니다.
 KAIT-CLASS 는 AI 사용 자체를 막으려는 것이 아니라, **코드를 직접 손으로 입력하여 자신의 생각을 프로그래밍 언어로 잘 표현할 수 있도록** 하기 위해 만들었습니다.
 
+
 ---
+
 
 ## 주요 기능
 
@@ -22,7 +24,9 @@ KAIT-CLASS 는 AI 사용 자체를 막으려는 것이 아니라, **코드를 �
 - **운영** — 공지, 사이트 이름·로고, 채점 대기열 확인과 재채점, 언어 관리
 - **간단한 설치** — 단 한 줄의 명령어로 설치할 수 있으며, 도메인이 있다면 https(SSL)까지 붙입니다.
 
+
 ---
+
 
 ## 필요한 것
 
@@ -41,7 +45,9 @@ KAIT-CLASS 는 AI 사용 자체를 막으려는 것이 아니라, **코드를 �
 `Install third-party software for graphics and Wi-Fi hardware` 에 **체크**하고,
 설치 뒤 뜨는 **소프트웨어 업데이트 창은 누르지 마세요** (설치 스크립트가 필요한 기능을 설치합니다).
 
+
 ---
+
 
 ## 설치
 
@@ -90,7 +96,9 @@ cd /var/www/html && sudo -u www-data php reset-admin.php
 
 그 뒤 브라우저로 접속해 로그인하고, **운영 > 설정** 에서 사이트 이름과 로고를 바꿀 수 있습니다.
 
+
 ---
+
 
 ## 도메인과 https
 
@@ -113,7 +121,9 @@ cd /var/www/html && sudo -u www-data php reset-admin.php
 
 그 밖의 옵션은 `sudo bash install.sh --help` 로 볼 수 있습니다.
 
+
 ---
+
 
 ## 업데이트
 
@@ -129,7 +139,9 @@ sudo bash install.sh
 
 바뀐 내용은 [CHANGELOG.md](CHANGELOG.md) 에 있습니다.
 
+
 ---
+
 
 ## 쓰실 때 알아 둘 것
 
@@ -137,7 +149,9 @@ sudo bash install.sh
 - **백업** — 수행평가 기록이 쌓이면 DB 파일(`/var/www/kait-class-data/kait-class.db`)을 주기적으로 다른 곳에 복사해 두세요.
 - 관리자 비밀번호를 잊었다면 위의 `reset-admin.php` 를 다시 실행하면 됩니다.
 
+
 ---
+
 
 ## 문제가 생겼을 때
 
@@ -158,7 +172,9 @@ sudo bash install.sh
 sudo less /var/log/kait-class-install.log
 ```
 
+
 ---
+
 
 ## 이용 조건
 
@@ -176,12 +192,18 @@ KAIT-CLASS 는 **[PolyForm Noncommercial 1.0.0](LICENSE)** 으로 소스를 공�
 
 자세한 내용: [이용 조건 안내](LICENSE-안내.md)
 
+
 ---
+
 
 ## 만든 곳
 
 © 2026 [한국정보교사연합회(KAIT)](https://kait.re.kr) · [newnnewer](https://github.com/newnnewer)
 문의: <newnnewer@gmail.com>
+
+
+---
+
 
 ### 사용된 외부 도구
 
@@ -196,4 +218,5 @@ KAIT-CLASS 는 **[PolyForm Noncommercial 1.0.0](LICENSE)** 으로 소스를 공�
 
 
 ### 감사의 글
+
 Online Judge를 개발하고 보급하여 우리나라 정보교육의 발전에 위대한 기여를 해주셨으며, KAIT-CLASS를 만드는 데 커다란 영감을 제공해주신 정종광 선생님, 전현석 선생님, 배준호 선생님께 깊은 존경과 감사의 말씀을 전합니다.
