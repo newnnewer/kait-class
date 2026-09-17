@@ -1,0 +1,26 @@
+# /etc/systemd/system/judge-worker.service
+# 채점 워커를 상시 실행한다. 죽으면 자동으로 다시 뜬다.
+#   systemctl start|stop|restart judge-worker
+#   journalctl -u judge-worker -f      로그 보기
+
+[Unit]
+Description=Judge worker (Judge0 채점)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 웹과 같은 계정으로 돌아야 SQLite 파일 소유권이 어긋나지 않는다
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html
+ExecStart=/usr/bin/php /var/www/html/judge-worker.php
+Restart=always
+RestartSec=3
+# 로그는 journal 로 보낸다
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=judge-worker
+
+[Install]
+WantedBy=multi-user.target

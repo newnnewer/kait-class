@@ -1,0 +1,736 @@
+/* ═══════════════════════════════════════════════
+   style.css — 채점 시스템 공용 스타일
+
+   [색] 파랑 한 톤(hue 220)으로 전부 만든다.
+        회색조차 이 색조를 살짝 머금게 해서 화면이 따로 놀지 않게 한다.
+        판정 색(AC/오답)만 의미가 달라 예외로 둔다.
+
+   [글꼴] --sans 한 줄만 바꾸면 전체가 바뀐다.
+          한글 글꼴을 서버에 올린다면 여기 맨 앞에 이름을 넣으면 된다.
+   ═══════════════════════════════════════════════ */
+
+/* ═══ 글꼴 ═══════════════════════════════════════
+   Pretendard (SIL Open Font License 1.1) — 서버에 직접 올려 쓴다.
+   학교망에서 외부 CDN 이 막힐 수 있고, 한 번 받으면 브라우저가 캐시한다.
+   한글 2,780자를 담은 서브셋이라 굵기 하나에 260KB 안팎이다.
+   글꼴을 바꾸려면 아래 @font-face 와 --sans 만 손보면 된다. */
+@font-face{
+  font-family:'Pretendard'; font-style:normal; font-weight:400; font-display:swap;
+  src:url('fonts/Pretendard-Regular.subset.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Pretendard'; font-style:normal; font-weight:500; font-display:swap;
+  src:url('fonts/Pretendard-Medium.subset.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Pretendard'; font-style:normal; font-weight:600; font-display:swap;
+  src:url('fonts/Pretendard-SemiBold.subset.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Pretendard'; font-style:normal; font-weight:700; font-display:swap;
+  src:url('fonts/Pretendard-Bold.subset.woff2') format('woff2');
+}
+
+:root{
+  /* ── 파랑 램프 ── */
+  --b25:#F6F9FD;
+  --b50:#EEF3FB;
+  --b100:#DFE8F7;
+  --b200:#C4D4EE;
+  --b300:#9DB5DF;
+  --b400:#6D8DCA;
+  --b500:#4266B4;
+  --b600:#2F51A0;   /* 주 색 */
+  --b700:#243F80;
+  --b800:#1B2F5E;
+  --b900:#131F3D;
+
+  /* ── 텍스트·선 (같은 색조를 머금은 중성색) ── */
+  --ink:#111A2B;
+  --ink-2:#4A5872;
+  --ink-3:#7C89A3;
+  --line:#D8E0EE;
+  --line-2:#EAEFF7;
+  --fill:var(--b25);
+
+  --accent:var(--b600);
+  --accent-soft:var(--b100);
+
+  /* ── 판정 ── */
+  --ok:#0A7A45;      --ok-soft:#DFF3E8;
+  --bad:#C0322F;     --bad-soft:#FBE9E8;
+  --warn:#8A5A00;    --warn-soft:#FBF0DC;
+
+  --sans:Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI",
+         "Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  /* 코드는 고정폭으로. 한글 주석은 고정폭 글꼴에 없으므로 Pretendard 로 떨어진다. */
+  --mono:"D2Coding","Cascadia Mono",Consolas,"DejaVu Sans Mono",Pretendard,monospace;
+
+  --w:1120px;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:#fff; color:var(--ink);
+  font:15px/1.68 var(--sans); letter-spacing:0;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--b500); outline-offset:2px}
+
+/* ── 상단바 ─────────────────────────────────── */
+.top{background:var(--b25); border-bottom:1px solid var(--b100)}
+.top-in{max-width:var(--w); margin:0 auto; padding:0 20px;
+        display:flex; align-items:center; gap:20px; min-height:56px; flex-wrap:wrap}
+.brand{font-weight:700; font-size:16.5px; color:var(--b800); letter-spacing:-.02em}
+.brand:hover{text-decoration:none; color:var(--b600)}
+/* 로고를 올리면 이미지로 바뀐다. 높이로 맞추고 가로는 비율대로 —
+   가로 상한을 두지 않으면 가로로 긴 로고가 메뉴를 밀어낸다. */
+.brand.haslogo{display:inline-flex; align-items:center; line-height:0}
+.brand.haslogo img{height:26px; width:auto; max-width:190px; object-fit:contain; display:block}
+.mainnav{display:flex; gap:2px; flex:1; flex-wrap:wrap}
+.mainnav a{padding:6px 12px; border-radius:6px; color:var(--ink-2); font-size:14.5px; font-weight:500}
+.mainnav a:hover{background:var(--b100); text-decoration:none; color:var(--b700)}
+.mainnav a.on{background:var(--b600); color:#fff; font-weight:600}
+.who{font-size:13.5px; color:var(--ink-2); white-space:nowrap}
+.who b{color:var(--b800); font-weight:700}
+.top .util{display:flex; gap:13px; align-items:center}
+.top .util a{font-size:13.5px; color:var(--ink-2)}
+.top .util a:hover{color:var(--b600)}
+
+/* ── 레이아웃 ───────────────────────────────── */
+.wrap{max-width:var(--w); margin:0 auto; padding:30px 20px 80px}
+.wrap.narrow{max-width:820px}
+
+.phead{display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:22px}
+.phead h1{margin:0; font-size:23px; font-weight:700; letter-spacing:-.025em; color:var(--b900)}
+.phead .sub{color:var(--ink-3); font-size:14px; font-weight:500}
+.phead .grow{flex:1}
+
+/* 문제 번호 — 이 시스템의 고유 식별자라 항상 고정폭으로 */
+.pno{font-family:var(--mono); color:var(--b400); font-size:.92em; letter-spacing:-.02em}
+
+/* ── 표 ─────────────────────────────────────── */
+table.list{width:100%; border-collapse:collapse}
+table.list th{
+  text-align:left; font-size:12.5px; font-weight:700; color:var(--b500);
+  padding:0 12px 9px; border-bottom:1.5px solid var(--b200);
+}
+table.list td{padding:11px 12px; border-bottom:1px solid var(--line-2); vertical-align:middle}
+table.list tr:hover td{background:var(--b25)}
+table.list td.num{font-family:var(--mono); font-size:13px; color:var(--b500);
+                  font-weight:600; white-space:nowrap}
+table.list td.right,table.list th.right{text-align:right}
+table.list td.center,table.list th.center{text-align:center}
+table.list .title{font-weight:500}
+table.list .title a{color:var(--b700)}
+.empty{padding:56px 20px; text-align:center; color:var(--ink-3); font-size:14.5px;
+       background:var(--b25); border-radius:10px}
+
+/* ── 태그 ───────────────────────────────────── */
+.tag{
+  display:inline-block; font-size:12px; font-weight:500; padding:2px 9px; margin:0 4px 3px 0;
+  background:var(--b50); border:1px solid var(--b200); border-radius:20px; color:var(--b600);
+}
+a.tag:hover{background:var(--b600); border-color:var(--b600); color:#fff; text-decoration:none}
+
+/* 제목 앞 이모지 */
+.emo{margin-right:.35em; font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif; font-weight:400}
+
+/* ── 판정 배지 ──────────────────────────────── */
+.v{
+  display:inline-block; font-family:var(--mono); font-size:12px; font-weight:700;
+  padding:2px 8px; border-radius:4px; letter-spacing:-.02em; white-space:nowrap;
+}
+.v-AC{background:var(--ok); color:#fff}
+.v-WA,.v-RE,.v-TLE,.v-MLE{background:var(--bad-soft); color:var(--bad)}
+.v-CE,.v-IE{background:var(--warn-soft); color:var(--warn)}
+.v-wait{background:var(--b100); color:var(--b500)}
+.v-open{background:var(--b600); color:#fff}   /* 묶음 '진행중' — 초록(완료·정답)과 구분 */
+
+/* ── 폼 ─────────────────────────────────────── */
+.field{margin-bottom:18px}
+.field > label{display:block; font-size:13.5px; font-weight:700; margin-bottom:6px; color:var(--b800)}
+.field .hint{font-size:12.5px; color:var(--ink-3); font-weight:400; margin-left:6px}
+input[type=text],input[type=number],input[type=password],input[type=search],
+input[type=date],input[type=time],input[type=datetime-local],
+input[type=file],select,textarea{
+  width:100%; font:14.5px/1.6 var(--sans); color:var(--ink);
+  padding:8px 11px; border:1px solid var(--line); border-radius:7px; background:#fff;
+}
+
+/* 날짜·시간 칸은 브라우저가 그리는 부분이 많아 그대로 두면 겉돈다.
+   바꿀 수 있는 것(틀·글꼴·높이·달력 단추 색)만 나머지와 맞춘다. */
+input[type=datetime-local],input[type=date],input[type=time]{
+  font-family:var(--mono); font-size:13.5px; min-height:39px;
+  appearance:none; -webkit-appearance:none;
+}
+input[type=datetime-local]::-webkit-calendar-picker-indicator,
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=time]::-webkit-calendar-picker-indicator{
+  cursor:pointer; opacity:.55; padding:2px; border-radius:4px;
+}
+input[type=datetime-local]::-webkit-calendar-picker-indicator:hover,
+input[type=date]::-webkit-calendar-picker-indicator:hover,
+input[type=time]::-webkit-calendar-picker-indicator:hover{
+  opacity:1; background:var(--b100);
+}
+input[type=datetime-local]::-webkit-datetime-edit,
+input[type=date]::-webkit-datetime-edit{color:var(--ink)}
+input[type=datetime-local]:invalid::-webkit-datetime-edit,
+input[type=date]:invalid::-webkit-datetime-edit{color:var(--b300)}
+/* 파일 고르기 단추도 우리 단추와 비슷하게 */
+input[type=file]{font-size:13.5px; padding:6px 10px}
+input[type=file]::file-selector-button{
+  font:13px/1 var(--sans); font-weight:600; color:var(--b700);
+  background:#fff; border:1px solid var(--b200); border-radius:6px;
+  padding:7px 12px; margin-right:10px; cursor:pointer;
+}
+input[type=file]::file-selector-button:hover{background:var(--b50); border-color:var(--b300)}
+textarea{resize:vertical}
+textarea.code,input.code{font-family:var(--mono); font-size:13px}
+input:focus,select:focus,textarea:focus{border-color:var(--b500); outline:none;
+  box-shadow:0 0 0 3px rgba(47,81,160,.15)}
+::placeholder{color:var(--b300)}
+.row{display:flex; gap:14px; flex-wrap:wrap}
+.row > .field{flex:1; min-width:150px}
+
+/* ── 버튼 ───────────────────────────────────── */
+.btn{
+  display:inline-block; font:14px/1 var(--sans); font-weight:600;
+  padding:9px 16px; border-radius:7px; border:1px solid var(--b200);
+  background:#fff; color:var(--b700); cursor:pointer;
+}
+.btn:not(:disabled):hover{background:var(--b50); border-color:var(--b300); text-decoration:none}
+.btn.primary{background:var(--b600); border-color:var(--b600); color:#fff}
+.btn.primary:not(:disabled):hover{background:var(--b700); border-color:var(--b700)}
+.btn.danger{color:var(--bad); border-color:#F0D3D2}
+.btn.danger:not(:disabled):hover{background:var(--bad-soft); border-color:#E4B5B3}
+.btn.sm{font-size:13px; padding:6px 11px}
+.btn:disabled{opacity:.5; cursor:default}
+.actions{display:flex; gap:10px; align-items:center; margin-top:26px;
+         padding-top:20px; border-top:1.5px solid var(--b100)}
+.actions .grow{flex:1}
+
+/* ── 알림 ───────────────────────────────────── */
+.note{padding:11px 15px; border-radius:7px; font-size:14.5px; margin-bottom:18px; font-weight:500}
+.note.ok{background:var(--ok-soft); color:var(--ok)}
+.note.err{background:var(--bad-soft); color:var(--bad)}
+.note.info{background:var(--b50); color:var(--b700)}
+
+/* ── 섹션 ───────────────────────────────────── */
+.sec{margin-top:36px}
+.sec > h2{font-size:17px; font-weight:700; margin:0 0 5px; letter-spacing:-.02em; color:var(--b800)}
+.sec > .desc{font-size:13.5px; color:var(--ink-3); margin:0 0 15px}
+
+/* ── 마크다운 편집(입력 | 미리보기) ─────────── */
+.mdedit{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.mdedit textarea{min-height:300px; font-family:var(--mono); font-size:13px; line-height:1.65}
+.mdprev{
+  border:1px solid var(--b100); border-radius:7px; padding:13px 17px;
+  background:var(--b25); overflow:auto; min-height:300px;
+}
+.mdedit .cap{font-size:12px; color:var(--b500); font-weight:600; margin-bottom:5px}
+@media(max-width:860px){ .mdedit{grid-template-columns:1fr} }
+
+.mdtools{display:flex; gap:9px; align-items:center; margin-bottom:9px}
+.mdtools .status{font-size:12.5px; color:var(--b500)}
+
+/* 렌더된 마크다운 본문 */
+.md{font-size:15px; line-height:1.78}
+.md > :first-child{margin-top:0}
+.md > :last-child{margin-bottom:0}
+.md h1,.md h2,.md h3{line-height:1.4; margin:1.4em 0 .5em; letter-spacing:-.02em; color:var(--b900)}
+.md h1{font-size:1.35em} .md h2{font-size:1.18em} .md h3{font-size:1.05em}
+.md p{margin:.7em 0}
+.md ul,.md ol{padding-left:1.4em; margin:.7em 0}
+.md li{margin:.25em 0}
+.md code{font-family:var(--mono); font-size:.88em; background:var(--b100);
+         color:var(--b800); padding:1px 6px; border-radius:4px}
+.md pre{background:#fff; border:1px solid var(--b200); border-radius:7px;
+        padding:12px 14px; overflow-x:auto; margin:.9em 0}
+.md pre code{background:none; padding:0; font-size:13px; line-height:1.6; color:var(--ink)}
+.md img{max-width:100%; height:auto; border-radius:5px}
+.md table{border-collapse:collapse; margin:.9em 0; font-size:14px}
+.md th,.md td{border:1px solid var(--b200); padding:6px 11px}
+.md th{background:var(--b50); color:var(--b700); font-weight:700}
+.md blockquote{margin:.9em 0; padding:2px 15px; border-left:3px solid var(--b300); color:var(--ink-2)}
+
+/* ── 테스트케이스 ───────────────────────────── */
+.tc{border:1px solid var(--line); border-radius:9px; margin-bottom:12px; background:#fff;
+    overflow:hidden}
+.tc-head{
+  display:flex; align-items:center; gap:12px; padding:8px 13px;
+  border-bottom:1px solid var(--line-2); background:var(--b25); font-size:13.5px;
+}
+.tc-head .n{font-family:var(--mono); font-weight:700; color:var(--b500)}
+.tc-head .grow{flex:1}
+.tc-head label{display:flex; align-items:center; gap:6px; color:var(--ink-2); cursor:pointer}
+.tc-body{display:grid; grid-template-columns:1fr 1fr; gap:0}
+.tc-body > div{padding:11px 13px}
+.tc-body > div:first-child{border-right:1px solid var(--line-2)}
+.tc-body .cap{font-size:12px; color:var(--b500); font-weight:600; margin-bottom:5px}
+.tc-body textarea{font-family:var(--mono); font-size:13px; min-height:90px;
+                  border-color:var(--line-2)}
+@media(max-width:760px){
+  .tc-body{grid-template-columns:1fr}
+  .tc-body > div:first-child{border-right:0; border-bottom:1px solid var(--line-2)}
+}
+.tc.sample{border-color:var(--b300)}
+.tc.sample .tc-head{background:var(--b100)}
+.tc.sample .tc-head .n{color:var(--b700)}
+
+/* ── 기타 ───────────────────────────────────── */
+.muted{color:var(--ink-2)}
+.small{font-size:13.5px}
+.mono{font-family:var(--mono)}
+.nowrap{white-space:nowrap}
+.searchbar{display:flex; gap:9px; margin-bottom:18px; flex-wrap:wrap}
+.searchbar input[type=text]{max-width:280px}
+.searchbar select{max-width:190px}
+
+/* ═══ 학생 화면 ═══════════════════════════════ */
+
+/* 문제 상단 제한 정보 */
+.limits{display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+        font-size:12.5px; color:var(--ink-3); margin:-8px 0 20px}
+.limits b{color:var(--ink-2); font-weight:600}
+.limits .tag{font-size:11.5px; padding:1px 8px}
+
+/* 문제 | 제출 두 칸 */
+.split{display:grid; grid-template-columns:1fr 1fr; gap:26px; align-items:start}
+@media(max-width:980px){ .split{grid-template-columns:1fr} }
+.pane{min-width:0}
+h2.ph{font-size:15px; font-weight:700; color:var(--b800); margin:28px 0 8px;
+      padding-bottom:6px; border-bottom:1.5px solid var(--b100)}
+
+/* 예시 입출력 — 입력과 출력을 위아래로 놓는다 */
+.sample{display:flex; flex-direction:column; gap:12px; margin-bottom:18px}
+.sample .cap{display:flex; align-items:center; gap:8px;
+             font-size:12px; font-weight:600; color:var(--b500); margin-bottom:5px}
+.sample pre{margin:0; background:var(--b25); border:1px solid var(--b100); border-radius:7px;
+            padding:10px 12px; font-family:var(--mono); font-size:13px; line-height:1.55;
+            overflow-x:auto; white-space:pre-wrap; word-break:break-all}
+
+/* 제출 영역 */
+.subhead{display:flex; align-items:center; gap:10px; margin-bottom:9px}
+.subhead label{font-size:13.5px; font-weight:700; color:var(--b800)}
+.subhead .grow{flex:1}
+textarea.editor{
+  width:100%; min-height:340px; font-family:var(--mono); font-size:13.5px; line-height:1.6;
+  padding:12px 14px; border:1px solid var(--line); border-radius:8px;
+  tab-size:4; white-space:pre; overflow-wrap:normal; overflow-x:auto;
+}
+
+/* 채점 결과 상자 */
+.rbox{margin-top:16px; border:1px solid var(--line); border-radius:9px; overflow:hidden}
+.rbox.ok{border-color:#A9DCC1} .rbox.bad{border-color:#EFC3C1}
+.rbox .rhead{display:flex; align-items:center; gap:10px; padding:11px 15px; font-size:14.5px}
+.rbox.ok  .rhead{background:var(--ok-soft);  color:var(--ok)}
+.rbox.bad .rhead{background:var(--bad-soft); color:var(--bad)}
+.rbox.wait .rhead{background:var(--b50); color:var(--b600)}
+.rbox .rmeta{padding:9px 15px; font-size:13.5px; color:var(--ink-2);
+             font-family:var(--mono); border-top:1px solid var(--line-2)}
+.rbox .rmsg{margin:0; padding:11px 15px; background:#fff; border-top:1px solid var(--line-2);
+            font-family:var(--mono); font-size:12.5px; line-height:1.55;
+            white-space:pre-wrap; word-break:break-all; max-height:260px; overflow:auto}
+
+/* 좁은 표 (내 제출) */
+table.list.compact td{padding:7px 10px; font-size:13px}
+
+/* 채점 결과 화면 */
+table.list tr.me td{background:var(--b50)}
+table.list tr.me:hover td{background:var(--b100)}
+.chk{display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-2);
+     white-space:nowrap}
+.detail{border:1px solid var(--b200); border-radius:9px; margin-bottom:22px; overflow:hidden}
+.detail .dhead{display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+               padding:11px 15px; background:var(--b25); border-bottom:1px solid var(--b100)}
+.detail .dhead .grow{flex:1}
+.detail .cap{font-size:12px; font-weight:600; color:var(--b500); padding:10px 16px 0}
+pre.codeview{margin:0; padding:14px 16px; font-family:var(--mono); font-size:13px;
+             line-height:1.6; overflow-x:auto; background:#fff; white-space:pre}
+pre.codeview.msg{background:var(--b25); border-top:1px solid var(--line-2); white-space:pre-wrap}
+
+/* 코드를 볼 수 있다는 표시 */
+a.codelink{text-decoration:underline; text-underline-offset:2px;
+           text-decoration-color:var(--b300)}
+a.codelink:hover{text-decoration-color:var(--b600)}
+
+/* ═══ 수업 · 평가 ═════════════════════════════ */
+
+/* 종류 전환 탭 */
+.tabbar{display:flex; gap:4px; margin-bottom:18px; border-bottom:1.5px solid var(--b100)}
+.tabbar a{padding:8px 16px; font-size:14.5px; font-weight:600; color:var(--ink-2);
+          border-bottom:2.5px solid transparent; margin-bottom:-1.5px}
+.tabbar a:hover{color:var(--b600); text-decoration:none}
+.tabbar a.on{color:var(--b700); border-bottom-color:var(--b600)}
+
+/* 반 고르기 */
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{display:flex; align-items:center; gap:7px; padding:6px 12px; cursor:pointer;
+      border:1px solid var(--line); border-radius:20px; font-size:13.5px; background:#fff}
+.chip:hover{border-color:var(--b300); background:var(--b25)}
+.chip:has(input:checked){background:var(--b100); border-color:var(--b400); color:var(--b800);
+                         font-weight:600}
+
+/* 학생: 수업·평가 목록 */
+.setlist{display:flex; flex-direction:column; gap:10px}
+.setrow{display:flex; align-items:center; gap:14px; padding:14px 17px;
+        border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink)}
+.setrow:hover{border-color:var(--b400); background:var(--b25); text-decoration:none}
+.setrow.off{background:var(--fill); color:var(--ink-2)}
+.setrow .sinfo{flex:1; min-width:0}
+.setrow .stitle{font-size:15.5px; font-weight:700; color:var(--b800); letter-spacing:-.015em}
+.setrow.off .stitle{color:var(--ink-2)}
+.setrow .smeta{margin-top:5px; font-size:12.5px; color:var(--ink-3); font-family:var(--mono)}
+.setrow .sbadges{display:flex; align-items:center; gap:7px; flex-wrap:wrap; justify-content:flex-end}
+
+.donebox{margin-top:20px}
+.donebox > summary{cursor:pointer; font-size:13.5px; color:var(--ink-2); padding:6px 2px;
+                   list-style:none}
+.donebox > summary::-webkit-details-marker{display:none}
+.donebox > summary::before{content:'▸ '; color:var(--b400)}
+.donebox[open] > summary::before{content:'▾ '}
+.donebox > summary:hover{color:var(--b600)}
+.donebox .setlist{margin-top:10px}
+
+/* 관리자 목록의 줄 단위 버튼 */
+table.list.sets td.rowbtns{white-space:nowrap; text-align:right}
+table.list.sets td.rowbtns form{display:inline}
+table.list.sets td.rowbtns > *{margin-left:4px}
+table.list tr.dim td{background:var(--fill); color:var(--ink-2)}
+table.list tr.dim .title a{color:var(--ink-2)}
+.lockmark{margin-left:6px; font-size:12px}
+
+/* 진행률 막대 */
+.prog{display:flex; align-items:center; gap:9px}
+.prog .bar{flex:1; height:7px; background:var(--b100); border-radius:4px; overflow:hidden}
+.prog .bar span{display:block; height:100%; background:var(--b500); border-radius:4px}
+
+/* 현황표 */
+.scrollx{overflow-x:auto; border:1px solid var(--line-2); border-radius:9px}
+table.list.grid{min-width:600px}
+table.list.grid th,table.list.grid td{white-space:nowrap}
+table.list.grid th.center,table.list.grid td.center{text-align:center; padding-left:6px; padding-right:6px}
+table.list.grid th .need{font-size:11px; color:var(--ink-3); font-weight:500}
+table.list.grid td sup{font-size:9px; color:var(--ok)}
+td.c-done{background:var(--ok-soft); color:var(--ok); font-weight:700}
+td.c-part{background:var(--warn-soft); color:var(--warn); font-weight:700}
+td.c-try{color:var(--ink-3)}
+table.list.grid tr:hover td.c-done{background:#CFEBDC}
+
+/* 붙여넣기 차단 안내 */
+.warnmsg{min-height:20px; color:var(--bad); font-weight:600}
+
+/* 평가: 통과 뒤 다음 회차 안내 */
+.rbox .rnext{display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+             padding:12px 15px; background:#fff; border-top:1px solid var(--line-2)}
+.rbox .rnext b{color:var(--b800); font-size:14px}
+.rbox .rnext .btn{margin-left:auto}
+
+/* 제출 버튼 줄 */
+.btnrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.btnrow #afterBtns{display:flex; align-items:center; gap:10px}
+
+/* 복사 버튼 — 라벨 바로 옆 */
+.copybtn{width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center;
+         border:1px solid var(--b200); border-radius:5px; background:#fff;
+         color:var(--b500); cursor:pointer; padding:0; vertical-align:middle}
+.copybtn:hover{background:var(--b100); color:var(--b700); border-color:var(--b400)}
+.copybtn.done{background:var(--ok); border-color:var(--ok); color:#fff}
+.copybtn.done svg{display:none}
+.copybtn.done::after{content:'✓'; font-size:12px; font-weight:700}
+
+/* 관리자 수업·평가 표 — 머리글이 세로로 접히지 않게 */
+table.list.sets th{white-space:nowrap}
+table.list.sets td{white-space:nowrap}
+table.list.sets td.title{white-space:normal}
+
+/* 테스트케이스 ZIP 올리기 */
+.tcupload{margin-top:18px; padding:14px 16px; border:1px dashed var(--b300);
+          border-radius:9px; background:var(--b25)}
+.tcupload .cap{font-size:13px; font-weight:700; color:var(--b700); margin-bottom:4px}
+.tcupload p{margin:4px 0 10px}
+.tcupload code{font-family:var(--mono); font-size:12px; background:#fff;
+               border:1px solid var(--b200); border-radius:4px; padding:1px 5px}
+.tcupload-row{display:flex; align-items:center; gap:11px; flex-wrap:wrap}
+.tcupload-row input[type=file]{width:auto; max-width:340px; background:#fff}
+
+/* ═══ 접었다 펴는 판 ═════════════════════════ */
+.panel{border:1px solid var(--line); border-radius:9px; margin-bottom:12px; background:#fff}
+.panel > summary{cursor:pointer; padding:11px 16px; font-size:14px; font-weight:600;
+                 color:var(--b800); list-style:none; display:flex; align-items:center; gap:8px}
+.panel > summary::-webkit-details-marker{display:none}
+.panel > summary::before{content:'▸'; color:var(--b400); font-size:11px}
+.panel[open] > summary::before{content:'▾'}
+.panel > summary:hover{background:var(--b25); border-radius:9px}
+.panel[open] > summary{border-bottom:1px solid var(--line-2); border-radius:9px 9px 0 0}
+.panel-b{padding:15px 16px 17px}
+.panel-b .field:last-child{margin-bottom:0}
+
+/* 문제 번호 일괄 수정 */
+.renum-errs{margin:8px 0 0; padding-left:20px; font-weight:400}
+.renum-scroll{max-height:340px; overflow:auto; margin-bottom:10px}
+.renum-preview h2{font-size:16px}
+.inline{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+
+/* 반 목록 */
+.grouplist{display:flex; flex-direction:column; gap:7px; margin-top:14px}
+.grouprow{display:flex; align-items:center; gap:10px; padding:8px 12px;
+          border:1px solid var(--line-2); border-radius:7px; background:var(--b25)}
+.grouprow .gname{font-weight:600; color:var(--b700)}
+
+/* 선택 후 일괄 처리 줄 */
+.bulkbar{display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+         padding:9px 14px; margin-bottom:12px;
+         background:var(--b50); border:1px solid var(--b100); border-radius:8px}
+.bulkbar .grow{flex:1}
+
+/* 회원 표 */
+table.list.users td{white-space:nowrap}
+table.list.users td.rowbtns{text-align:right}
+table.list.users td.rowbtns > *{margin-left:4px}
+table.list tr.isadmin td{background:var(--b25)}
+
+.ok-text{color:var(--ok); font-weight:600}
+.bad-text{color:var(--bad); font-weight:600}
+
+/* ═══ 바닥글 ═════════════════════════════════ */
+/* 첫 화면은 1920×1080 화면(브라우저 안쪽 높이 약 900px)에서 스크롤 없이 보이게
+   위아래 여백을 줄인다. 다른 화면은 그대로. */
+.foot{margin-top:60px; border-top:1px solid var(--line); background:var(--b25)}
+.wrap.home{padding-top:20px; padding-bottom:24px}
+.wrap.home ~ .foot{margin-top:24px}
+.foot-in{max-width:var(--w); margin:0 auto; padding:22px 20px 30px;
+         display:flex; flex-direction:column; gap:8px;
+         font-size:13px; color:var(--ink-3)}
+/* 관리자가 넣는 안내 — 마크다운이라 문단·목록·링크가 올 수 있다 */
+.foot-extra{color:var(--ink-2); margin-bottom:4px}
+.foot-extra p{margin:0 0 4px}
+.foot-extra p:last-child{margin-bottom:0}
+.foot-lic{color:var(--ink-3)}
+.foot-in b{color:var(--b700)}
+.foot-in a{color:var(--ink-2)}
+.foot-in a:hover{color:var(--b600)}
+.foot .sep{margin:0 7px; color:var(--b300)}
+
+/* ═══ 로그인 ═════════════════════════════════ */
+.loginwrap{max-width:420px; padding-top:60px}
+.logincard{border:1px solid var(--line); border-radius:12px; padding:28px 28px 30px; background:#fff}
+.logincard h1{margin:0 0 22px; font-size:20px; font-weight:700; color:var(--b900);
+              letter-spacing:-.02em; text-align:center}
+.btn.big{font-size:15px; padding:12px 22px; width:100%; text-align:center}
+
+/* 문제 화면의 로그인 안내 */
+.loginbox{border:1px dashed var(--b300); border-radius:10px; padding:20px 22px;
+          background:var(--b25); text-align:center}
+.loginbox b{display:block; font-size:15px; color:var(--b800); margin-bottom:6px}
+.loginbox p{margin:0 0 14px}
+.loginbox .btn{width:auto}
+
+/* ═══ 첫 화면 ═══════════════════════════════ */
+.hero{text-align:center; padding:22px 20px 24px}
+.hero h1{margin:0; font-size:64px; font-weight:800; letter-spacing:-.04em; color:var(--b700);
+         line-height:1}
+.hero p{margin:14px 0 0; font-size:17px; color:var(--b500)}
+.hero p b{color:var(--b700); font-weight:700}
+.hero.small{padding:26px 20px 22px}
+.hero.small h1{font-size:34px}
+.hero.small p{font-size:14.5px; margin-top:8px}
+.herobtns{display:flex; gap:10px; justify-content:center; margin-top:24px; flex-wrap:wrap}
+.herobtns .btn{width:auto; min-width:150px}
+
+.homecols{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:10px}
+@media(max-width:860px){ .homecols{grid-template-columns:1fr} }
+.homecol{border:1px solid var(--line); border-radius:11px; overflow:hidden; background:#fff}
+.homecol > h2{margin:0; padding:12px 17px; font-size:14.5px; font-weight:700; color:var(--b800);
+              background:var(--b25); border-bottom:1px solid var(--line-2)}
+.homebody{padding:14px 17px; min-height:120px}
+.homebody > p{margin:0}
+.homeitem{display:flex; align-items:center; gap:10px; padding:8px 0;
+          border-bottom:1px solid var(--line-2); color:var(--ink)}
+.homeitem:last-child{border-bottom:0}
+.homeitem:hover{text-decoration:none; color:var(--b600)}
+.homeitem .t{flex:1; font-size:14px; font-weight:500;
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+/* 페이지 링크 */
+.pager{display:flex; justify-content:center; align-items:center; gap:5px;
+       margin-top:22px; flex-wrap:wrap}
+.pager .btn.on{background:var(--b600); border-color:var(--b600); color:#fff; cursor:default}
+.pager .btn[aria-disabled]{opacity:.4; cursor:default}
+.pager .gap{color:var(--ink-3); padding:0 2px}
+.sepline{width:1px; height:20px; background:var(--b200); margin:0 4px}
+
+/* ═══ 공지사항 ═══════════════════════════════ */
+.notice{border-bottom:1px solid var(--line); padding-bottom:26px; margin-bottom:8px}
+.notice > header{padding-bottom:14px; border-bottom:1px solid var(--line-2); margin-bottom:22px}
+.notice h1{margin:0; font-size:22px; font-weight:700; letter-spacing:-.02em; color:var(--b900);
+           line-height:1.4}
+.notice .nmeta{margin-top:9px; font-size:13px; color:var(--ink-3); font-family:var(--mono)}
+.notice .nmeta .sep{margin:0 7px; color:var(--b300)}
+.notice .nbody{min-height:120px}
+
+.nnav{display:flex; justify-content:space-between; gap:16px; margin-top:18px; font-size:13.5px}
+.nnav a{color:var(--ink-2); max-width:46%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.nnav a:hover{color:var(--b600)}
+
+/* 첫 화면 칼럼 머리의 더보기 */
+.homecol > h2 .more{float:right; font-size:12.5px; font-weight:500; color:var(--ink-3)}
+.homecol > h2 .more:hover{color:var(--b600); text-decoration:none}
+
+/* 관리자가 학생 화면을 보고 있을 때 */
+.top .util a.viewmark{color:var(--warn); font-weight:600}
+.top .util a.viewmark::before{content:'● '; font-size:9px; vertical-align:2px}
+
+/* 스크롤바가 생기고 사라지면서 화면이 좌우로 흔들리지 않게 */
+html{scrollbar-gutter:stable}
+
+/* 운영 화면 */
+.subhead2{margin:0; font-size:17px; font-weight:700; color:var(--b800); letter-spacing:-.02em}
+.statgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:8px}
+@media(max-width:760px){ .statgrid{grid-template-columns:repeat(2,1fr)} }
+.stat{border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:#fff}
+.stat .k{font-size:12.5px; color:var(--ink-3); font-weight:600}
+.stat .v{font-size:26px; font-weight:700; color:var(--b800); font-family:var(--mono);
+         letter-spacing:-.03em; margin:4px 0 2px}
+.stat .v.ok{color:var(--ok)} .stat .v.bad{color:var(--bad)} .stat .v.warn{color:var(--warn)}
+.stat .s{font-size:12px; color:var(--ink-3)}
+
+/* 살펴볼 만한 제출 */
+table.list tr.flagged td{background:#FEF6F5}
+table.list tr.flagged:hover td{background:#FCEBE9}
+table.list.grid td a{color:inherit}
+table.list.grid td.c-done a,table.list.grid td.c-part a{color:inherit; font-weight:700}
+
+/* ═══ 직접 실행 ═════════════════════════════ */
+.runbox{margin-top:14px; padding:14px 16px; border:1px dashed var(--b300);
+        border-radius:9px; background:var(--b25)}
+.runbox > .cap{font-size:12px; font-weight:600; color:var(--b500); margin-bottom:5px}
+.runbox textarea{font-family:var(--mono); font-size:13px; background:#fff}
+#runToggle.on{background:var(--b600); border-color:var(--b600); color:#fff}
+.rbox .rlab{font-size:12px; font-weight:600; color:var(--b500);
+            padding:10px 15px 0; background:#fff}
+.rbox .rhead .small{margin-left:auto; font-family:var(--mono)}
+.rbox pre.rmsg.empty{color:var(--ink-3)}
+
+/* 수업·평가의 문제 목록 */
+table.list.setitems td.ordbtns > button{padding:2px 7px; font-size:11px; line-height:1.4}
+table.list.setitems td.ordbtns > button:disabled{opacity:.3}
+/* 빼기로 표시하면 저장했을 때 어떻게 되는지 미리 보인다 */
+table.list.setitems tr:has(.delmark input:checked) td{background:var(--bad-soft)}
+table.list.setitems tr:has(.delmark input:checked) .title a{text-decoration:line-through; color:var(--bad)}
+table.list.setitems tr:has(.delmark input:checked) .num{text-decoration:line-through; color:var(--bad)}
+.delmark input:checked + *{color:var(--bad)}
+
+/* ═══ 틀렸을 때 보여주는 차이 ═══════════════ */
+.diffbox{border-top:1px solid var(--line-2); background:#fff}
+.diffbox .dhead{padding:11px 15px 0; font-size:13px; font-weight:700; color:var(--b800)}
+.diffbox .dsec{padding:10px 15px 12px; min-width:0}
+.diffbox .dcap{font-size:12px; font-weight:600; color:var(--b500); margin-bottom:5px}
+.diffbox .dcols{display:grid; grid-template-columns:1fr 1fr; gap:0}
+.diffbox .dcols .dsec:first-child{border-right:1px solid var(--line-2)}
+@media(max-width:700px){
+  .diffbox .dcols{grid-template-columns:1fr}
+  .diffbox .dcols .dsec:first-child{border-right:0; border-bottom:1px solid var(--line-2)}
+}
+.diffbox .dpre{margin:0; padding:8px 10px; background:var(--b25); border:1px solid var(--b100);
+               border-radius:6px; font-family:var(--mono); font-size:12.5px; line-height:1.55;
+               white-space:pre-wrap; word-break:break-all; max-height:160px; overflow:auto}
+.dlines{border:1px solid var(--b100); border-radius:6px; overflow:auto; max-height:260px;
+        background:var(--b25)}
+.dline{display:flex; font-family:var(--mono); font-size:12.5px; line-height:1.65}
+.dline .dn{flex:0 0 34px; text-align:right; padding-right:8px; color:var(--b300);
+           user-select:none; background:#fff; border-right:1px solid var(--b100)}
+.dline .dt{padding:0 10px; white-space:pre-wrap; word-break:break-all; min-width:0}
+.dline.on{background:var(--bad-soft)}
+.dline.on .dt{color:var(--bad); font-weight:600}
+.dline i{color:var(--ink-3); font-style:italic}
+.dmore{padding:2px 10px; color:var(--b300); font-family:var(--mono); font-size:12px}
+.diffbox .dnote{margin:0; padding:0 15px 12px; font-size:12.5px; color:var(--ink-3)}
+
+/* 표 안의 버튼은 줄바꿈되지 않게 */
+table.list td .btn, table.list th.nowrap, table.list td.nowrap{white-space:nowrap}
+
+/* ═══ 학생 활동 ═══════════════════════════════ */
+a.who:hover{text-decoration:none}
+a.who:hover b{color:var(--b600)}
+
+/* 분류별 성취 */
+.tagbars{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:8px 18px}
+.tagbar{display:flex; align-items:center; gap:10px; padding:7px 2px; color:var(--ink)}
+.tagbar:hover{text-decoration:none}
+.tagbar:hover .tb-name{color:var(--b600)}
+.tagbar .tb-name{flex:0 0 34%; font-size:13.5px; overflow:hidden;
+                 text-overflow:ellipsis; white-space:nowrap}
+.tagbar .bar{flex:1; height:7px; background:var(--b100); border-radius:4px; overflow:hidden}
+.tagbar .bar span{display:block; height:100%; background:var(--ok); border-radius:4px}
+.tagbar .tb-num{flex:0 0 58px; text-align:right; color:var(--ink-3)}
+
+/* 푼 문제 번호 모음 */
+.solvedlist{display:flex; flex-wrap:wrap; gap:6px}
+a.solved{display:inline-block; min-width:52px; text-align:center; padding:5px 8px;
+         font-family:var(--mono); font-size:12.5px; font-weight:600;
+         background:var(--ok-soft); color:var(--ok); border:1px solid #BFE6D0;
+         border-radius:6px}
+a.solved:hover{background:var(--ok); color:#fff; border-color:var(--ok); text-decoration:none}
+
+.who .sub2{margin-left:5px; font-size:12.5px; color:var(--ink-3); font-weight:500}
+a.who:hover .sub2{color:var(--b600)}
+
+/* ═══ 첫 화면 코드 연출 ═══════════════════════ */
+.codeplay{display:flex; flex-direction:column; align-items:center; gap:10px}
+
+/* 작은 편집기 창 */
+.cpwin{width:min(420px,92vw); text-align:left; background:#fff;
+       border:1px solid var(--b200); border-radius:10px; overflow:hidden;
+       box-shadow:0 1px 3px rgba(19,31,61,.06)}
+.cpbar{display:flex; align-items:center; gap:5px; padding:7px 11px;
+       background:var(--b25); border-bottom:1px solid var(--b100)}
+.cpbar i{width:8px; height:8px; border-radius:50%; background:var(--b200)}
+.cpbar b{margin-left:auto; font-size:11.5px; font-weight:600; color:var(--b500);
+         font-family:var(--mono)}
+.cpcode{margin:0; padding:12px 14px; min-height:88px;
+        font-family:var(--mono); font-size:13px; line-height:1.6; color:var(--ink);
+        white-space:pre; overflow-x:auto; text-align:left}
+.cpcode code{font:inherit}
+.cpcaret{display:inline-block; width:2px; height:1.05em; vertical-align:-2px;
+         background:var(--b600); animation:cpblink 1s steps(1) infinite}
+@keyframes cpblink{50%{opacity:0}}
+
+/* 문법 색은 편집기와 같은 계열 */
+.cpcode .t-k{color:#8B3FA8}
+.cpcode .t-s{color:#1A7F4B}
+.cpcode .t-f{color:#2B6CB0}
+.cpcode .t-n{color:#B4531F}
+.cpcode .t-c{color:#7C89A3; font-style:italic}
+
+/* 실행 화살표 */
+.cparrow{font-size:11.5px; font-weight:600; color:var(--b300); letter-spacing:.04em;
+         opacity:0; transform:translateY(-4px); transition:opacity .25s, transform .25s}
+.cparrow::before{content:'↓ '}
+.codeplay.ran .cparrow{opacity:1; transform:none; color:var(--b500)}
+
+/* 출력 — 이것이 곧 제목이다 */
+.hero .codeplay h1{margin:2px 0 0}
+.hero .codeplay h1 span{display:inline-block; opacity:1}
+/* 자바스크립트가 준비되면 숨겼다가 한 글자씩 나타낸다 */
+.codeplay.ready h1 span{opacity:0; transform:translateY(10px) scale(.9)}
+.codeplay.ready h1 span.on{opacity:1; transform:none;
+  transition:opacity .18s ease-out, transform .34s cubic-bezier(.2,1.5,.4,1)}
+.codeplay h1.done span{animation:cppop .5s ease-out}
+@keyframes cppop{0%{text-shadow:0 0 0 rgba(47,81,160,0)}
+                 40%{text-shadow:0 6px 22px rgba(47,81,160,.28)}
+                 100%{text-shadow:0 0 0 rgba(47,81,160,0)}}
+
+/* 로그인한 뒤에는 자리를 덜 차지하게 */
+.hero.small .cpwin{width:min(340px,92vw)}
+.hero.small .cpcode{min-height:62px; font-size:12px; padding:9px 12px}
+.hero.small .cparrow{font-size:10.5px}
+
+@media(prefers-reduced-motion: reduce){
+  .cpcaret{animation:none}
+  .codeplay.ready h1 span{opacity:1; transform:none}
+}

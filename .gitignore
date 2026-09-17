@@ -1,0 +1,12 @@
+# 설치할 때마다 달라지는 것
+config.php
+
+# 데이터 — 저장소에 올리지 않는다
+/kait-class-data/
+data/
+uploads/
+
+# 편집기·OS 부스러기
+.DS_Store
+*.swp
+*~

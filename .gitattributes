@@ -1,0 +1,10 @@
+# 줄바꿈은 언제나 LF 로 저장한다.
+# 윈도우에서 올려도 install.sh 등이 CRLF 로 바뀌어 우분투에서 깨지는 일이 없게 한다.
+* text=auto eol=lf
+
+*.sh      text eol=lf
+*.woff2   binary
+*.png     binary
+*.jpg     binary
+*.ico     binary
+*.zip     binary

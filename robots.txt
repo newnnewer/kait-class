@@ -1,0 +1,15 @@
+# 문제와 분류는 검색에 잡혀도 좋다. 나머지는 색인할 이유가 없다.
+User-agent: *
+Allow: /$
+Allow: /problems.php
+Allow: /problem.php
+Allow: /tags.php
+Disallow: /admin/
+Disallow: /results.php
+Disallow: /set.php
+Disallow: /lessons.php
+Disallow: /assessments.php
+Disallow: /login.php
+Disallow: /api.php
+Disallow: /api.php
+Disallow: /data/
