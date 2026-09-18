@@ -176,6 +176,8 @@ placeholder="10101,pass1234,김코딩,1학년 1반
         <?php endforeach; ?>
       </select>
       <button class="btn" type="button" onclick="moveSelected()">이 반으로 옮기기</button>
+      <span class="sepline"></span>
+      <button class="btn danger" type="button" onclick="deleteSelected()">선택한 학생 삭제</button>
     </div>
 
     <table class="list users">
@@ -187,7 +189,7 @@ placeholder="10101,pass1234,김코딩,1학년 1반
           <th class="center" style="width:130px">반</th>
           <th class="center" style="width:80px">권한</th>
           <th class="center" style="width:100px">가입일</th>
-          <th class="center" style="width:260px">관리</th>
+          <th class="center" style="width:330px">관리</th>
         </tr>
       </thead>
       <tbody>
@@ -206,7 +208,8 @@ placeholder="10101,pass1234,김코딩,1학년 1반
         <tr class="<?= $u['role'] === 'admin' ? 'isadmin' : '' ?>">
           <td>
             <?php if ($u['role'] === 'student'): ?>
-              <input type="checkbox" class="pick" value="<?= (int)$u['id'] ?>">
+              <input type="checkbox" class="pick" value="<?= (int)$u['id'] ?>"
+                     data-who="<?= h($u['login_id'] . ($u['name'] !== '' ? ' ' . $u['name'] : '')) ?>">
             <?php endif; ?>
           </td>
           <td class="num"><a href="../user.php?id=<?= rawurlencode($u['login_id']) ?>"><?= h($u['login_id']) ?></a></td>
@@ -233,6 +236,8 @@ placeholder="10101,pass1234,김코딩,1학년 1반
               <button class="btn sm" type="button"<?= $off ?>
                       onclick="setRole(<?= (int)$u['id'] ?>, <?= $j ?>, 'admin')">관리자로</button>
             <?php endif; ?>
+            <button class="btn sm" type="button"
+                    onclick="renameUser(<?= (int)$u['id'] ?>, <?= $j ?>, <?= h(json_encode($u['name'])) ?>)">이름</button>
             <button class="btn sm" type="button"
                     onclick="resetPw(<?= (int)$u['id'] ?>, <?= $j ?>)">비밀번호</button>
             <button class="btn sm danger" type="button"<?= $off ?>
@@ -284,6 +289,13 @@ function setRole(id, loginId, role){
     ? `[${loginId}] 계정을 관리자로 올릴까요?\n관리자는 회원·문제·수업·평가를 모두 관리할 수 있습니다.`
     : `[${loginId}] 계정의 관리자 권한을 내릴까요?`);
 }
+async function renameUser(id, loginId, name){
+  const v = prompt(`[${loginId}] 이름을 바꿉니다`, name);
+  if (v === null) return;
+  if (v.trim() === '' || v === name) return;
+  try { await api('user_set_name', {id, name: v}); location.reload(); }
+  catch(e){ alert(e.message); }
+}
 async function resetPw(id, loginId){
   const pw = prompt(`[${loginId}] 새 비밀번호 (4자 이상)`);
   if (!pw) return;
@@ -315,6 +327,27 @@ function delUser(id, loginId){
     refresh();
   };
   document.querySelectorAll('.pick').forEach(c => c.addEventListener('change', refresh));
+  /* 되돌릴 수 없는 일이라 '삭제' 를 직접 치게 한다 */
+  window.deleteSelected = function(){
+    const picked = Array.from(picks());
+    if (!picked.length) { alert('삭제할 학생을 먼저 선택하세요.'); return; }
+    const ids   = picked.map(c => +c.value);
+    const names = picked.slice(0, 5).map(c => c.dataset.who).join(', ')
+                + (picked.length > 5 ? ` 외 ${picked.length - 5}명` : '');
+    const ans = prompt(
+      `학생 ${ids.length}명을 삭제합니다.\n${names}\n\n`
+      + `이 학생들의 제출 기록도 함께 사라집니다. 되돌릴 수 없습니다.\n`
+      + `계속하려면 아래에 삭제 라고 입력하세요.`);
+    if (ans === null) return;
+    if (ans.trim() !== '삭제') { alert('삭제하지 않았습니다.'); return; }
+    api('users_delete_bulk', {ids})
+      .then(j => {
+        if (j.kept && j.kept.length) alert('건너뛴 계정: ' + j.kept.join(', '));
+        location.reload();
+      })
+      .catch(e => alert(e.message));
+  };
+
   window.moveSelected = function(){
     const ids = picks().map(c => +c.value);
     if (!ids.length) { alert('옮길 학생을 먼저 선택하세요.'); return; }

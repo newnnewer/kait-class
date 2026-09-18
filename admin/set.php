@@ -167,6 +167,14 @@ if ($id) {
   $items = [];
   $sel = [];
 }
+
+/* 문제 관리에서 '수업·평가 만들기'로 넘어온 경우: 고른 번호를 아래 '문제 번호로 추가'에 채워 둔다.
+   저장을 눌러야 실제로 만들어진다. */
+$preNos = '';
+if (!$id && ($_GET['nos'] ?? '') !== '') {
+  $preNos = implode(', ', array_slice(
+    array_unique(array_filter(array_map('intval', preg_split('/[^0-9]+/', (string)$_GET['nos'])))), 0, 300));
+}
 $isAssess = $s['set_type'] === 'assessment';
 $groups = groups_all();
 
@@ -349,10 +357,18 @@ page_head(['title' => ($id ? '수정' : '새로 만들기'), 'root' => '../', 'u
         <div class="note info">아직 담긴 문제가 없습니다.</div>
       <?php endif; ?>
 
+      <?php if ($preNos !== ''): ?>
+        <div class="note info">
+          문제 관리에서 고른 문제를 아래에 담았습니다.
+          위에서 이름·기간·공개 대상을 정하고 저장하면 만들어집니다.
+        </div>
+      <?php endif; ?>
+
       <div class="row" style="margin-top:16px">
         <div class="field" style="flex:3">
           <label for="add_nos">문제 번호로 추가</label>
-          <input class="code" type="text" id="add_nos" name="add_nos" placeholder="1001, 1003 1007">
+          <input class="code" type="text" id="add_nos" name="add_nos" placeholder="1001, 1003 1007"
+                 value="<?= h($preNos) ?>">
         </div>
         <?php if ($isAssess): ?>
           <div class="field" style="max-width:170px">

@@ -324,6 +324,17 @@ switch ($action) {
     db()->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
     jout(['ok' => true]);
   }
+  /* 이름만 바꾼다. 아이디는 학생이 로그인에 쓰는 값이라 바꾸지 않는다. */
+  case 'user_set_name': {
+    require_admin();
+    $id   = (int)($in['id'] ?? 0);
+    $name = trim((string)($in['name'] ?? ''));
+    if ($name === '')            jerr('이름을 입력하세요');
+    if (mb_strlen($name) > 30)   jerr('이름이 너무 깁니다 (30자까지)');
+    if (!one("SELECT 1 FROM users WHERE id = ?", [$id])) jerr('없는 회원입니다');
+    db()->prepare("UPDATE users SET name = ? WHERE id = ?")->execute([$name, $id]);
+    jout(['ok' => true, 'name' => $name]);
+  }
   case 'user_set_role': {
     $adm = require_admin();
     $id = (int)($in['id'] ?? 0);
@@ -369,6 +380,33 @@ switch ($action) {
       foreach ($ids as $id) $st->execute([$gid > 0 ? $gid : null, $id]);
     });
     jout(['ok' => true, 'n' => count($ids)]);
+  }
+
+  /* 선택한 학생을 한꺼번에 지운다. 제출 기록도 함께 사라진다 (users 의 ON DELETE CASCADE).
+     자기 자신과 최초 관리자는 건너뛴다. 관리자 계정은 골라지지 않는다. */
+  case 'users_delete_bulk': {
+    $adm = require_admin();
+    $ids = array_values(array_filter(array_map('intval', (array)($in['ids'] ?? []))));
+    if (!$ids) jerr('학생을 먼저 선택하세요');
+    $kept = [];
+    $done = tx(function (PDO $d) use ($ids, $adm, &$kept) {
+      $n = 0;
+      $find = $d->prepare("SELECT id, login_id, role FROM users WHERE id = ?");
+      $del  = $d->prepare("DELETE FROM users WHERE id = ?");
+      foreach ($ids as $id) {
+        $find->execute([$id]);
+        $row = $find->fetch();
+        if (!$row) continue;
+        if ((int)$row['id'] === (int)$adm['id'] || is_root_admin((int)$row['id']) || $row['role'] !== 'student') {
+          $kept[] = $row['login_id'];
+          continue;
+        }
+        $del->execute([$id]);
+        $n++;
+      }
+      return $n;
+    });
+    jout(['ok' => true, 'n' => $done, 'kept' => $kept]);
   }
 
   /* ═══════════ 관리자: 반 ═══════════ */

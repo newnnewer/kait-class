@@ -9,21 +9,28 @@ $id  = (int)($_GET['id'] ?? 0);
 $msg = '';
 $err = '';
 
-/* ── 삭제 ───────────────────────────────────── */
+/* ── 삭제 ─────────────────────────────────────
+   수업·평가에 들어 있으면 지울 수 없다 (먼저 그 수업·평가에서 뺀다).
+   제출 기록은 문제와 함께 지운다. 남겨 두면 어느 문제의 제출인지 알 수 없어진다. */
 if ($id && ($_POST['do'] ?? '') === 'delete') {
-  $used = (int)col("SELECT COUNT(*) FROM submissions WHERE problem_id = ?", [$id]);
-  $inset = (int)col("SELECT COUNT(*) FROM set_problems WHERE problem_id = ?", [$id]);
-  if ($used || $inset) {
-    $err = '제출 기록이나 수업·평가에 쓰이고 있어 삭제할 수 없습니다.';
+  $sets = all("SELECT s.title FROM set_problems sp JOIN sets s ON s.id = sp.set_id
+               WHERE sp.problem_id = ?", [$id]);
+  if ($sets) {
+    $err = '수업·평가에 쓰이고 있어 삭제할 수 없습니다 — '
+         . implode(', ', array_column($sets, 'title'))
+         . '. 먼저 그 수업·평가에서 뺀 뒤 다시 시도하세요.';
   } else {
     tx(function (PDO $d) use ($id) {
-      $d->prepare("DELETE FROM testcases WHERE problem_id = ?")->execute([$id]);
+      $d->prepare("DELETE FROM submissions  WHERE problem_id = ?")->execute([$id]);
+      $d->prepare("DELETE FROM runs         WHERE problem_id = ?")->execute([$id]);
+      $d->prepare("DELETE FROM testcases    WHERE problem_id = ?")->execute([$id]);
       $d->prepare("DELETE FROM problem_tags WHERE problem_id = ?")->execute([$id]);
-      $d->prepare("DELETE FROM problems WHERE id = ?")->execute([$id]);
+      $d->prepare("DELETE FROM problems     WHERE id = ?")->execute([$id]);
     });
     header('Location: problems.php'); exit;
   }
 }
+$subCnt = $id ? (int)col("SELECT COUNT(*) FROM submissions WHERE problem_id = ?", [$id]) : 0;
 
 
 /* ── 저장 ───────────────────────────────────── */
@@ -223,7 +230,7 @@ page_head(['title' => $id ? '문제 수정' : '새 문제', 'root' => '../', 'us
       <div class="grow"></div>
       <?php if ($id): ?>
         <button class="btn danger" type="submit" form="delform"
-                onclick="return confirm('이 문제를 삭제할까요? 되돌릴 수 없습니다.')">문제 삭제</button>
+                onclick="return confirmDelProblem(<?= $subCnt ?>)">문제 삭제</button>
       <?php endif; ?>
     </div>
   </form>
@@ -231,6 +238,15 @@ page_head(['title' => $id ? '문제 수정' : '새 문제', 'root' => '../', 'us
 </div>
 
 <script>
+/* 삭제는 되돌릴 수 없다. 제출 기록이 함께 사라지는 경우에는 '삭제' 를 직접 치게 한다. */
+function confirmDelProblem(subs){
+  if (!subs) return confirm('이 문제를 삭제할까요? 되돌릴 수 없습니다.');
+  var ans = prompt('이 문제를 삭제합니다.\n\n학생 제출 기록 ' + subs + '건도 함께 사라집니다. '
+                 + '되돌릴 수 없습니다.\n계속하려면 아래에 삭제 라고 입력하세요.');
+  if (ans === null) return false;
+  if (ans.trim() !== '삭제') { alert('삭제하지 않았습니다.'); return false; }
+  return true;
+}
 (function(){
   var apiUrl = window.API;
 

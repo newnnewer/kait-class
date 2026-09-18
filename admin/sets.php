@@ -66,8 +66,7 @@ $rows = all("SELECT s.*,
                    s.visibility = 'all'
                    OR us.group_id IN (SELECT group_id FROM set_targets t3 WHERE t3.set_id = s.id)
                )) AS student_cnt
-             FROM sets s WHERE s.set_type = ?
-             ORDER BY COALESCE(s.start_at, s.created_at) DESC, s.id DESC", [$type]);
+             FROM sets s WHERE s.set_type = ? " . SET_ORDER_SQL, [$type]);
 
 $live = []; $done = [];
 foreach ($rows as $r) { if (set_state($r) === 'after') $done[] = $r; else $live[] = $r; }

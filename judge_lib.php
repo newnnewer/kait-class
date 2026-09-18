@@ -287,6 +287,12 @@ function set_open(array $s): bool { return !set_locked($s) && set_state($s) === 
    ★ 예전에는 '대상 반이 없으면 전체 공개' 였다. 회원가입이 생기면서
      그 규칙은 위험해졌다 — 반을 안 고른 평가가 외부 회원에게 그대로 열린다.
      그래서 고르지 않은 것은 '아직 아무에게도'로 뜻을 뒤집었다. */
+/* 수업·평가 목록의 차례.
+   끝나는 날이 먼 것일수록 위에 둔다. 끝나는 날을 정하지 않은 것(계속 열려 있는 것)이 가장 위.
+   같으면 나중에 만든 것을 위에. 학생 목록과 관리자 목록이 같은 차례를 쓴다. */
+const SET_ORDER_SQL =
+  "ORDER BY (NULLIF(s.end_at, '') IS NULL) DESC, s.end_at DESC, s.id DESC";
+
 const SET_VISIBLE_SQL =
   "( s.visibility = 'all'
      OR EXISTS(SELECT 1 FROM set_targets t WHERE t.set_id = s.id AND t.group_id = :gid) )";
@@ -296,8 +302,7 @@ function sets_for_student(array $u, string $type): array {
                 (SELECT COUNT(*) FROM set_problems sp WHERE sp.set_id = s.id) AS problem_cnt
               FROM sets s
               WHERE s.set_type = :ty AND s.active = 1
-                AND " . SET_VISIBLE_SQL . "
-              ORDER BY COALESCE(s.start_at, s.created_at) DESC, s.id DESC",
+                AND " . SET_VISIBLE_SQL . " " . SET_ORDER_SQL,
              [':ty' => $type, ':gid' => $u['group_id']]);
 }
 

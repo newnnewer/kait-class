@@ -50,7 +50,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.0.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '1.1.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
