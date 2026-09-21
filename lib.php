@@ -57,8 +57,7 @@ const APP_REPO    = 'https://github.com/newnnewer/kait-class';
    KAIT 와 문광식의 공동 저작물. PolyForm Noncommercial 1.0.0.
    ★ 라이선스(Required Notice)에 따라 이 표기는 지우면 안 된다.
      꼬리말에 나가며 운영 > 설정으로도 지울 수 없다. 원문은 저장소의 LICENSE.
-   ※ 화면에는 실명 대신 아이디(newnnewer)를 쓰고 메일 링크를 건다.
-     LICENSE 의 Required Notice 에는 실명(문광식 Moon Kwangsik)을 그대로 둔다. 같은 사람이다. */
+   ※ 화면에는 실명 대신 아이디(newnnewer)를 쓰고 메일 링크를 건다. */
 const APP_COPYRIGHT_YEAR = '2026';
 const APP_OWNERS = [
   ['name' => '한국정보교사연합회(KAIT)', 'url' => 'https://kait.re.kr'],
