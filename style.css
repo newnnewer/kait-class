@@ -737,3 +737,7 @@ a.who:hover .sub2{color:var(--b600)}
   .cpcaret{animation:none}
   .codeplay.ready h1 span{opacity:1; transform:none}
 }
+
+/* 체험 서버 안내 띠 (config.php 의 demo) */
+.demobar{background:#FFF4C2; color:#6B4E00; border-bottom:1px solid #F1D98A; text-align:center;
+  font-size:13px; font-weight:600; padding:7px 16px; line-height:1.5}

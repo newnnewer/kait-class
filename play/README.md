@@ -5,7 +5,8 @@
 - **KAIT-CLASS 와 함께 설치**됩니다 (KAIT-CLASS `install.sh` 14단계). 주소는 언제나 KAIT-CLASS 주소 뒤의 `/play/`.
 - KAIT-PLAY 만 설치 · 업데이트: KAIT-CLASS 소스 폴더에서 `sudo bash play/install.sh`
 - 설치 · 운영 안내: [deploy/INSTALL.md](deploy/INSTALL.md)
-- 현재 버전: **v0.9.0** — KAIT-CLASS 1.2 에 이식. 주소 `/game/` → `/play/`, 설치 위치 `/opt/kait-play`, 컨테이너 `kait-play`,
+- 현재 버전: **v0.10.0** — 체험 서버 모드(`.env` 의 `DEMO=1`: 교사 비밀번호 바꾸기 막기 · 체험 표시) · `deploy/demo-reset.sh`(체험 서버 매일 되돌리기)
+- v0.9.0 — KAIT-CLASS 1.2 에 이식. 주소 `/game/` → `/play/`, 설치 위치 `/opt/kait-play`, 컨테이너 `kait-play`,
   브라우저 저장 `cg.` → `kp.`(예전 값은 한 번 옮김), 화면 아래 저작권 표기, 쓰지 않는 글꼴(Black Han Sans) 정리
 - 이전: v0.8.0 — 이름을 KAIT-PLAY로 바꾸고(예전 이름: 코딩 대항전) 색상을 KAIT-CLASS에 맞춤 · v0.8.1: 부하 시험 도구 보강
 - 교사 화면: `/play/teacher` (처음 비밀번호는 `/opt/kait-play/.env` 의 `ADMIN_PASSWORD`, KAIT-CLASS 관리자 비밀번호와 따로)

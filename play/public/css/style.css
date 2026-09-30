@@ -736,3 +736,9 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 /* 가운데 정렬 화면(교사 로그인)에서는 표기가 카드를 밀어 올리지 않게 아래에 붙인다 */
 .screen.center { position: relative; }
 .screen.center > .credit { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; padding: 0 16px; }
+
+/* v0.10.0 — 체험 서버 표시 (.env DEMO=1). 게임 화면에서는 가린다 */
+.demo-pill { position: fixed; right: 14px; bottom: 12px; z-index: 50; pointer-events: none;
+  padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800;
+  background: #FFD84D; color: #3A2A00; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+body.in-game .demo-pill { display: none; }

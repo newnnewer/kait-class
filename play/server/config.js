@@ -33,6 +33,8 @@ module.exports = {
   dbFile: process.env.DB_FILE || require('path').join(__dirname, '..', 'data', 'game.db'),
   // 게임 시작 카운트다운 (학생 방 · 수업 게임 모두, v0.7.6). 0 이면 바로 시작 (자동 시험용)
   countdownMs: parseInt(process.env.COUNTDOWN_MS || '5000', 10),
+  // 체험(데모) 서버 (.env 의 DEMO=1): 교사 비밀번호 바꾸기를 막고 화면에 '체험 서버' 표시 (v0.10.0)
+  demo: /^(1|true|yes|on)$/i.test(String(process.env.DEMO || '').trim()),
   // 수업 게임: 이만큼 아무 일이 없으면 자동으로 닫힘 (3시간)
   classIdleMs: parseInt(process.env.CLASS_IDLE_MS || String(3 * 3600 * 1000), 10),
 };

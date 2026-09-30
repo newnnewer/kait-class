@@ -59,6 +59,7 @@ switch ($action) {
   /* 문제 설명에 넣을 이미지 업로드 */
   case 'upload_image': {
     require_admin();
+    if (DEMO_MODE) jerr(DEMO_BLOCKED);
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
       jerr('파일을 받지 못했습니다');
     }
@@ -356,6 +357,7 @@ switch ($action) {
   }
   case 'user_setpw': {
     require_admin();
+    if (DEMO_MODE) jerr(DEMO_BLOCKED);
     $pw = $in['pw'] ?? '';
     if (ustrlen($pw) < 4) jerr('비밀번호는 4자 이상이어야 합니다');
     db()->prepare("UPDATE users SET pw_hash = ? WHERE id = ?")

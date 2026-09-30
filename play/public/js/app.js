@@ -46,6 +46,7 @@
   function show(name) {
     current = name;
     screens.forEach(function (s) { $('screen-' + s).hidden = s !== name; });
+    document.body.classList.toggle('in-game', name === 'game');
     if (name !== 'game') { $('idle').hidden = true; }
     if (name === 'game') { if (document.activeElement) document.activeElement.blur(); layout(); }
   }
@@ -79,6 +80,7 @@
       if (res.colors) COLORS = res.colors;
       if (res.options) OPTIONS = res.options;
       if (res.bankTags) BANK_TAGS = res.bankTags;
+      if ($('demo-pill')) $('demo-pill').hidden = !res.demo;   // 체험 서버 표시 (v0.10.0)
       if (res.me) { ME = res.me; enter.nick = res.me.nick; return; } // 서버가 로비·대기실·게임을 보내 준다
       enter.nick = res.nick;
       showEnter();

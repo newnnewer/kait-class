@@ -265,6 +265,20 @@ docker run --rm -it --network host kait-play:latest node scripts/loadtest.js --u
    grep -E "worker_(processes|rlimit_nofile|connections)" /etc/nginx/nginx.conf
    ```
 
+## 체험(데모) 서버로 쓸 때
+
+누구에게나 교사 비밀번호를 알려 주는 체험 서버라면:
+
+1. `/opt/kait-play/.env` 에 `DEMO=1` 을 넣고 `cd /opt/kait-play && sudo docker compose up -d`
+   → 교사 화면의 **비밀번호 바꾸기**가 없어지고(서버에서도 거절), 화면 구석에 "체험 서버" 표시.
+   (KAIT-CLASS 쪽은 `/var/www/html/config.php` 에 `'demo' => true,` — 저장소 README 참고)
+2. 매일 되돌리기: KAIT-CLASS 의 `kait-class-restore.service`(매일 새벽 4시)가 있는 서버에서, **보여 주고 싶은 상태를 만든 뒤**
+   ```bash
+   cd ~/kait-class-버전 && sudo bash play/deploy/demo-reset.sh setup
+   ```
+   → 지금의 game.db 를 `/root/kait-play-snapshot/` 에 뜨고, KAIT-CLASS 를 되돌린 다음 KAIT-PLAY 도 되돌리도록 붙입니다.
+   기준을 새로 뜨기: `sudo /usr/local/sbin/kait-play-demo-reset.sh snapshot` · 지금 되돌려 보기: `… restore`
+
 ## 3. KAIT-CLASS 를 업데이트한 뒤
 
 따로 할 일이 없습니다. KAIT-CLASS 1.2 부터는 nginx 사이트 설정을 새로 써도 '추가 프로그램 자리'

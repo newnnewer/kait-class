@@ -19,7 +19,68 @@ require_once __DIR__ . '/Parsedown.php';
 function md(?string $src): string {
   static $pd = null;
   if ($pd === null) { $pd = new Parsedown(); $pd->setBreaksEnabled(true); }
-  return $pd->text((string)$src);
+  $html = $pd->text((string)$src);
+  /* 체험 서버에서는 누구나 관리자로 들어오므로, 쓴 HTML 중 안전한 것만 남긴다 */
+  return DEMO_MODE ? safe_html($html) : $html;
+}
+
+/* HTML 에서 안전한 것만 남긴다 (체험 서버용).
+   글자 색 · 크기 같은 꾸밈은 살리고, 스크립트가 돌 수 있는 것은 모두 뺀다.
+     · 허용한 태그만 남기고, 나머지 태그는 껍데기만 벗겨 글자는 살린다
+     · script · style · iframe 처럼 내용째 위험한 태그는 통째로 지운다
+     · on… 이벤트 속성, 허용하지 않은 속성을 지운다
+     · href · src 는 http(s) · mailto · 같은 사이트 주소만. style 에서는 url() · expression 을 막는다 */
+function safe_html(string $html): string {
+  if (trim($html) === '' || !class_exists('DOMDocument')) return $html === '' ? '' : h(strip_tags($html));
+  static $keep = ['p','br','hr','b','strong','i','em','u','s','del','ins','mark','small','sub','sup','span','font',
+                  'div','blockquote','pre','code','kbd','samp','h1','h2','h3','h4','h5','h6',
+                  'ul','ol','li','dl','dt','dd','table','thead','tbody','tfoot','tr','th','td','caption','colgroup','col',
+                  'a','img','figure','figcaption','details','summary','center'];
+  static $drop = ['script','style','iframe','frame','frameset','object','embed','applet','form','input','button',
+                  'select','textarea','option','svg','math','link','meta','base','noscript','template','audio','video','source','canvas'];
+  static $attrs = ['href','src','alt','title','width','height','style','class','colspan','rowspan','align','valign',
+                   'color','size','face','start','type','open','lang','dir'];
+
+  $doc = new DOMDocument();
+  $prev = libxml_use_internal_errors(true);
+  $doc->loadHTML('<?xml encoding="utf-8"?><div id="__safe">' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+  libxml_clear_errors();
+  libxml_use_internal_errors($prev);
+  $root = $doc->getElementById('__safe');
+  if (!$root) return h(strip_tags($html));
+
+  $okUrl = function (string $u): bool {
+    $u = trim(preg_replace('/[\x00-\x20]+/', '', html_entity_decode($u, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+    if ($u === '' || $u[0] === '#' || $u[0] === '/' || $u[0] === '?' || str_starts_with($u, './') || str_starts_with($u, '../')) return true;
+    return (bool)preg_match('#^(https?:|mailto:)#i', $u) || !preg_match('#^[a-z][a-z0-9+.-]*:#i', $u);
+  };
+  $clean = function (DOMNode $node) use (&$clean, $keep, $drop, $attrs, $okUrl): void {
+    for ($c = $node->firstChild; $c !== null; $c = $next) {
+      $next = $c->nextSibling;
+      if ($c instanceof DOMComment || $c instanceof DOMProcessingInstruction) { $node->removeChild($c); continue; }
+      if (!($c instanceof DOMElement)) continue;
+      $tag = strtolower($c->tagName);
+      if (in_array($tag, $drop, true)) { $node->removeChild($c); continue; }
+      $clean($c);
+      if (!in_array($tag, $keep, true)) {           /* 껍데기만 벗긴다 */
+        while ($c->firstChild) $node->insertBefore($c->firstChild, $c);
+        $node->removeChild($c);
+        continue;
+      }
+      foreach (iterator_to_array($c->attributes) as $a) {
+        $n = strtolower($a->name); $v = $a->value;
+        $bad = !in_array($n, $attrs, true)
+            || (($n === 'href' || $n === 'src') && !$okUrl($v))
+            || ($n === 'style' && preg_match('/url\s*\(|expression|javascript:|behavior|@import|-moz-binding/i', html_entity_decode($v)));
+        if ($bad) $c->removeAttribute($a->name);
+      }
+      if ($tag === 'a' && $c->hasAttribute('href')) { $c->setAttribute('rel', 'noopener nofollow'); }
+    }
+  };
+  $clean($root);
+  $out = '';
+  foreach (iterator_to_array($root->childNodes) as $ch) $out .= $doc->saveHTML($ch);
+  return $out;
 }
 
 /* ★ 정적 자원 주소에 파일이 바뀐 시각을 붙인다.
@@ -110,6 +171,9 @@ function page_head(array $o): void {
 </head>
 <body>
 
+<?php if (DEMO_MODE): ?>
+<div class="demobar">체험 서버입니다 · 매일 새벽 4시에 처음 상태로 돌아갑니다 · 비밀번호 바꾸기 · 사이트 설정 · 파일 올리기는 쓸 수 없습니다</div>
+<?php endif; ?>
 <header class="top">
   <div class="top-in">
     <?php $logo = site_image_url('logo', $root); ?>

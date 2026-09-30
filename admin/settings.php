@@ -66,7 +66,9 @@ function drop_site_image(string $key): void {
 $err = [];
 $saved = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (DEMO_MODE && $_SERVER['REQUEST_METHOD'] === 'POST') {
+  $err[] = DEMO_BLOCKED;
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   /* 지우기 단추는 저장과 따로 논다 */
   if (($_POST['drop'] ?? '') === 'logo')    { drop_site_image('logo');    header('Location: settings.php?saved=1'); exit; }

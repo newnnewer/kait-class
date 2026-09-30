@@ -77,9 +77,13 @@
   };
 
   var pwSource = 'env';
+  var DEMO = false;
   function loggedIn(res) {
     OPTIONS = res.options; BANK_TAGS = res.bankTags || BANK_TAGS;
     pwSource = res.pwSource || pwSource;
+    DEMO = !!res.demo;
+    $('demo-pill').hidden = !DEMO;
+    $('btn-pw').hidden = DEMO;                  // 체험 서버: 비밀번호 바꾸기 없음
     allowRooms = res.allowRooms !== false;
     classes = res.classes || [];
     // 새로고침 전에 보던 수업 게임으로 돌아간다
@@ -114,7 +118,7 @@
     $('tab-records').hidden = tab !== 'records';
     $('tab-bank').hidden = tab !== 'bank';
     $('home-rooms').setAttribute('aria-pressed', String(allowRooms));
-    $('pw-warn').hidden = pwSource !== 'env';
+    $('pw-warn').hidden = DEMO || pwSource !== 'env';
     var box = $('class-list');
     box.innerHTML = '';
     if (!classes.length) {

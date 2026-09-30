@@ -7,7 +7,9 @@ $u = need_login();
 
 $err = ''; $msg = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if (DEMO_MODE) {
+  $err = DEMO_BLOCKED;
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $cur = (string)($_POST['cur'] ?? '');
   $pw  = (string)($_POST['pw'] ?? '');
   $pw2 = (string)($_POST['pw2'] ?? '');

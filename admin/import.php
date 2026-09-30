@@ -9,7 +9,9 @@ $err = ''; $warn = []; $done = null;
 $mode = (string)($_POST['mode'] ?? 'new');
 if (!in_array($mode, ['new', 'skip', 'overwrite'], true)) $mode = 'new';
 
-if (($_POST['do'] ?? '') === 'import') {
+if (DEMO_MODE && ($_POST['do'] ?? '') === 'import') {
+  $err = DEMO_BLOCKED;
+} elseif (($_POST['do'] ?? '') === 'import') {
   $upErr = $_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE;
   if ($upErr !== UPLOAD_ERR_OK) {
     $err = ($upErr === UPLOAD_ERR_INI_SIZE || $upErr === UPLOAD_ERR_FORM_SIZE)

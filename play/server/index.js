@@ -57,6 +57,7 @@ router.get('/healthz', (req, res) => {
     matches: playing, sockets: io.engine ? io.engine.clientsCount : null,
     memMB: Math.round(m.rss / 1048576), heapMB: Math.round(m.heapUsed / 1048576),
     lagMs: lag.now, lagMaxMs: lag.max, // 최근 10초 가장 크게 밀린 시간
+    demo: config.demo,
   });
 });
 // 전광판 (교사가 로그인한 브라우저에서만 — 화면 안에서 관리자 열쇠로 확인)
@@ -186,7 +187,7 @@ io.on('connection', (socket) => {
     const t = msg && msg.token;
     if (!players.validToken(t)) return ok(cb, { ok: false, error: '잘못된 요청' });
     token = t;
-    const base = { ok: true, chars: CHARS, colors: COLORS, options: OPTIONS, bankTags: bankTags() };
+    const base = { ok: true, chars: CHARS, colors: COLORS, options: OPTIONS, bankTags: bankTags(), demo: config.demo };
     const p = players.get(token);
     if (p) {
       bind(p);
@@ -268,7 +269,7 @@ io.on('connection', (socket) => {
   const admin = () => (adminKey && auth.check(adminKey) ? true : (adminKey = null, false));
   let watching = null; // 교사 화면이 보고 있는 수업 게임
   const cls = () => (watching ? hub.get(watching) : null);
-  const adminBase = () => ({ ok: true, classes: hub.list(), allowRooms: hub.allowRooms, options: OPTIONS, bankTags: bankTags(), version: VERSION, pwSource: auth.source() });
+  const adminBase = () => ({ ok: true, classes: hub.list(), allowRooms: hub.allowRooms, options: OPTIONS, bankTags: bankTags(), version: VERSION, pwSource: auth.source(), demo: config.demo });
   function watch(code) {
     if (watching) socket.leave('teach:' + watching);
     watching = null;
@@ -300,6 +301,8 @@ io.on('connection', (socket) => {
   });
   adminOn('admin:logout', () => { auth.logout(adminKey); adminKey = null; return { ok: true }; });
   adminOn('admin:password', m => {
+    // 체험 서버: 비밀번호를 여럿이 함께 쓰므로 바꾸지 못하게 한다 (서버 명령 admin-password.js 는 됨)
+    if (config.demo) return { ok: false, error: '체험 서버에서는 비밀번호를 바꿀 수 없어요' };
     const r = auth.change(m.old, m.new);
     if (r.ok) adminKey = r.key; // 이 화면은 새 열쇠로 계속 로그인 (다른 곳은 로그아웃)
     return r.ok ? { ok: true, key: r.key, pwSource: auth.source() } : r;

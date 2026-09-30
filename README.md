@@ -178,6 +178,23 @@ sudo bash install.sh
 ---
 
 
+## 체험 서버로 열 때
+
+여러 선생님께 같은 계정을 알려 주고 써 보게 하는 **체험 서버**라면 `/var/www/html/config.php` 에 한 줄을 넣습니다.
+
+```php
+  'demo' => true,
+```
+
+- 문제 설명 · 공지의 HTML 은 안전한 것만 남기고(스크립트 등 제거), 비밀번호 바꾸기 · 운영 > 설정 저장 · 이미지 올리기 · 문제 가져오기를 막습니다
+- 화면 맨 위에 '체험 서버' 안내 띠가 나옵니다
+- KAIT-PLAY 도 체험 서버로: `/opt/kait-play/.env` 에 `DEMO=1` (자세히는 [play/deploy/INSTALL.md](play/deploy/INSTALL.md))
+- 매일 처음 상태로 되돌리는 일은 서버에서 따로 정합니다 (KAIT-PLAY 는 `play/deploy/demo-reset.sh`)
+
+
+---
+
+
 ## 쓰실 때 알아 둘 것
 
 - **노트북을 서버로 쓸 때** — 설치 스크립트가 절전을 막아 둡니다. 덮개를 닫아도 절전모드로 진입하지 않습니다.

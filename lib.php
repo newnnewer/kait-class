@@ -30,6 +30,7 @@ $CFG += [
   'log_path'   => dirname(__DIR__) . '/kait-class-data/php-error.log',
   'judge0_url' => 'http://127.0.0.1:2358',
   'timezone'   => 'Asia/Seoul',
+  'demo'       => false,
 ];
 
 date_default_timezone_set((string)$CFG['timezone']);
@@ -37,6 +38,11 @@ date_default_timezone_set((string)$CFG['timezone']);
 define('DB_PATH',    (string)$CFG['db_path']);
 define('DATA_DIR',   dirname((string)$CFG['db_path']));   /* 워커 표시 파일 등이 여기 쌓인다 */
 define('JUDGE0_URL', rtrim((string)$CFG['judge0_url'], '/'));
+
+/* 체험(데모) 서버 — config.php 의 'demo' => true. 화면에서는 바꿀 수 없다.
+   막는 기능마다 이 문구를 보여 준다. */
+define('DEMO_MODE', (bool)$CFG['demo']);
+const DEMO_BLOCKED = '체험 서버에서는 이 기능을 쓸 수 없습니다.';
 
 /* 문제 설명에 넣는 이미지. 웹에서 보여야 하므로 문서 루트 안에 있어야 하고,
    이미 저장된 설명들이 /uploads/... 주소를 그대로 담고 있으므로 옮기지 않는다. */
@@ -50,7 +56,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.2.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '1.3.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
