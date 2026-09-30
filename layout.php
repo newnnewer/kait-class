@@ -127,6 +127,9 @@ function page_head(array $o): void {
         ?>
         <a class="<?= $nav === $k ? 'on' : '' ?>" href="<?= h($root . $href) ?>"><?= h($label) ?></a>
       <?php endforeach; ?>
+      <?php if (play_menu_on()): /* KAIT-PLAY 는 로그인 없이 쓰므로 누구에게나 보인다. 새 탭으로 연다 */ ?>
+        <a class="navplay" href="/play/" target="_blank" rel="noopener" title="KAIT-PLAY 코딩 게임 (새 탭)">KAIT-PLAY<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2H2v8h8V7.5M7 2h3v3M10 2 5.5 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <?php endif; ?>
     </nav>
     <?php if ($u): ?>
       <a class="who" href="<?= h($root) ?>user.php"

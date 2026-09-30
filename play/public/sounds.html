@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAIT-PLAY · 소리 미리듣기</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .snd-page { max-width: 980px; }
+  .snd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .snd-grid button { height: 58px; border-radius: 12px; border: 2px solid var(--panel-line); background: var(--panel); color: #fff; font-family: var(--body); font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; padding: 0 14px; }
+  .snd-grid button:hover { border-color: var(--blue); }
+  .snd-grid small { display: block; color: var(--muted); font-weight: 400; font-size: 12px; }
+</style>
+</head>
+<body>
+<!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
+<svg class="kp-sprite" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="kp-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7AA0FF"/><stop offset=".45" stop-color="#7B45F5"/><stop offset="1" stop-color="#F0409A"/></linearGradient>
+  <linearGradient id="kp-y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD84A"/><stop offset="1" stop-color="#F5AE1A"/></linearGradient>
+  <symbol id="kp-icon" viewBox="0 0 100 100">
+    <rect width="100" height="100" rx="26" fill="url(#kp-g)"/>
+    <circle cx="18" cy="17" r="5" fill="#C9C8FF"/><circle cx="31" cy="17" r="5" fill="#C9C8FF"/><circle cx="44" cy="17" r="5" fill="#FFD84A"/>
+    <rect x="20" y="34" width="26" height="22" rx="5" fill="#fff"/><rect x="52" y="34" width="26" height="22" rx="5" fill="#fff" opacity=".55"/>
+    <rect x="20" y="61" width="26" height="22" rx="5" fill="#fff" opacity=".55"/><rect x="52" y="61" width="26" height="22" rx="5" fill="url(#kp-y)"/>
+  </symbol>
+</defs></svg>
+<main class="screen page snd-page">
+  <header class="top"><span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span><span class="pill ghost">소리 미리듣기</span></header>
+  <p class="muted">게임에서 나는 소리예요. 누르면 들려요 (학생 기기는 이보다 작게, 전광판은 이 크기로 나요).</p>
+  <h2>학생 기기 효과음</h2>
+  <div class="snd-grid" id="fx"></div>
+  <h2>전광판</h2>
+  <div class="snd-grid" id="board"></div>
+</main>
+<script src="js/sound.js"></script>
+<script>
+(function () {
+  var S = window.CGSound; S.setVolume(0.6);
+  var FX = [['occupy', '블록 점유'], ['type', '타자음'], ['correct', '정답'], ['autoFill', '자동완성 채우기'], ['wrong', '오답 · 시간 초과'], ['bossAppear', '보스 등장'], ['gather', '집결 보스 등장'], ['chat', '대기실 한마디'], ['alarm', '공격이 들어오는 중'], ['bossWin', '보스 격파'],
+    ['good', '좋은 아이템'], ['bomb', '폭탄'], ['laser', '가로 · 세로 레이저'], ['shield', '방패'], ['attackSend', '방해 발사'], ['hit', '공격 받음'], ['bad', '페널티'],
+    ['ice', '얼음'], ['cloud', '먹구름'], ['tick', '마지막 10초'], ['tickLast', '마지막 3초'], ['start', '게임 시작'], ['clear', '판 완성'], ['win', '1위 · 성공'], ['end', '게임 끝']];
+  function btn(box, label, sub, fn) {
+    var b = document.createElement('button'); b.type = 'button';
+    b.textContent = label; var s = document.createElement('small'); s.textContent = sub; b.appendChild(s);
+    b.onclick = fn; document.getElementById(box).appendChild(b);
+  }
+  FX.forEach(function (x) { btn('fx', x[1], x[0], function () { S.unlock(); S.play(x[0]); }); });
+  var on = false, fast = false;
+  btn('board', '배경음 켜기 / 끄기', '게임 중 반복', function () { S.unlock(); on = !on; S.bgm(on, fast); });
+  btn('board', '배경음 빠르게 / 보통', '마지막 30초', function () { fast = !fast; if (on) { S.bgm(false); S.bgm(true, fast); } });
+})();
+</script>
+</body>
+</html>

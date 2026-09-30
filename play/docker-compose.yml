@@ -1,0 +1,29 @@
+# KAIT-PLAY — 설치: sudo bash play/install.sh (KAIT-CLASS 소스 폴더에서) → /opt/kait-play
+# 설정값은 같은 폴더의 .env 파일에서 읽는다 (.env.example 참고)
+services:
+  play:
+    build: .
+    image: kait-play:latest
+    container_name: kait-play
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      BASE_PATH: "/play"   # 주소는 언제나 /play/ (nginx 설정과 짝)
+      MAX_PLAYERS: "${MAX_PLAYERS:-300}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+    ports:
+      # 이 서버 안(127.0.0.1)에서만 열림 — 바깥에서는 nginx 를 거쳐서만 들어온다
+      - "127.0.0.1:${GAME_PORT:-3100}:3000"
+    volumes:
+      - ./data:/app/data
+    mem_limit: 300m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000$${BASE_PATH}/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

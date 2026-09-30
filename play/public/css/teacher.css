@@ -1,0 +1,179 @@
+/* KAIT-PLAY — 교사 화면 (시안 "Teacher" 기준)
+   v0.8.0: KAIT-CLASS 처럼 밝은 화면 — 색 변수만 밝게 바꾸고, 흰 글자처럼 어두운 바탕을 전제한 곳은 아래 '밝은 화면' 묶음에서 고친다 */
+body.teacher {
+  --bg: #F6F9FD; --dot: #E4EBF6; --panel: #FFFFFF; --panel-line: #D8E0EE; --panel-deep: #EEF3FB; --line: #C4D4EE;
+  --text: #111A2B; --muted: #7C89A3; --soft: #4A5872; --ink: #111A2B;
+  --accent: #2F51A0; --accent-dark: #243F80; --accent-soft: #DFE8F7;
+  color: var(--text);
+}
+.teacher .page { max-width: 1480px; }
+.t-input { height: 52px; background: #fff; border: 2px solid var(--line); border-radius: 12px; padding: 0 16px; font-size: 18px; color: var(--text); width: 100%; font-family: var(--body); }
+.t-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.login-card { width: min(420px, 92vw); align-items: stretch; gap: 14px; padding: 28px 30px; }
+.login-card .logo { text-align: center; }
+.login-card .pill { align-self: center; }
+.login-card .error { text-align: center; }
+
+.switch-row { display: flex; align-items: center; gap: 12px; }
+.switch-row > span { display: flex; flex-direction: column; }
+.switch-row b { font-size: 14px; color: var(--text); }
+.switch-row small { font-size: 12px; }
+
+.home-body { display: flex; flex-direction: column; gap: 16px; }
+.home-head { display: flex; align-items: center; gap: 12px; }
+.class-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.class-list .empty, .records .empty { grid-column: 1 / -1; height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 3px dashed var(--panel-line); border-radius: 18px; color: var(--muted); }
+.class-list .empty b, .records .empty b { font-family: var(--display); font-weight: 800; font-size: 24px; color: var(--soft); }
+.class-card { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 2px solid #2D3B86; border-radius: 18px; padding: 16px 18px; }
+.cc-mid { flex-grow: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cc-mid b { font-size: 16px; color: var(--text); }
+.cc-mid span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.rec-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.rec-table th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 700; padding: 8px 10px; border-bottom: 2px solid var(--panel-line); }
+.rec-table td { padding: 10px; border-bottom: 1px solid var(--panel-line); vertical-align: top; color: var(--text); }
+.rec-table .nowrap { white-space: nowrap; }
+.rec-table .mono { font-family: var(--mono); font-weight: 800; }
+.rec-teams { display: flex; flex-wrap: wrap; gap: 6px; }
+.rec-chip { font-size: 13px; color: var(--soft); background: var(--panel-deep); border: 1px solid var(--panel-line); border-radius: 8px; padding: 3px 8px; }
+.rec-chip b { color: var(--text); }
+.rec-chip.first { border-color: var(--accent); background: var(--accent-soft); }
+.rec-chip.first b { color: var(--accent); }
+
+/* 진행 화면 */
+.tclass { gap: 16px; }
+.head-info { font-size: 14px; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; }
+.head-info b { color: var(--text); }
+.btn.mid { height: 44px; padding: 0 18px; font-size: 15px; border-radius: 12px; border-width: 2px; }
+.btn.mid.on { color: var(--ink); background: var(--yellow); border-color: var(--yellow); }
+.danger { color: #FF7AA2 !important; border-color: #7A1238 !important; }
+.start-btn { height: 50px; padding: 0 28px; font-family: var(--display); font-weight: 800; font-size: 21px; }
+.timer.paused { color: #C25E00; animation: blink 1s linear infinite; }
+.join-help { font-size: 14px; color: var(--soft); background: var(--panel-deep); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 16px; }
+.join-help b { color: var(--text); }
+.join-help .mono { font-family: var(--mono); }
+.join-help .pixel { font-size: 13px; color: var(--accent); letter-spacing: 2px; }
+
+.tclass-body { display: flex; gap: 20px; align-items: flex-start; }
+.t-teams.wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.set-summary { font-size: 13px; color: var(--muted); padding: 0 4px; margin-top: -6px; }
+.t-settings { width: 400px; flex-shrink: 0; gap: 16px; padding: 20px 22px; }
+.t-settings.locked .field { opacity: .55; }
+.t-settings .field h3 small { font-weight: 400; margin-left: 6px; }
+.t-settings .seg-row .seg-btn { min-width: 58px; }
+.t-settings .seg-btn:disabled, .t-settings .tag-btn:disabled, .t-settings .toggle:disabled { cursor: default; }
+.t-teams-col { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.t-teams { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.tteam { padding: 14px 16px; gap: 8px; }
+.tteam.unassigned { background: var(--panel-deep); border: 2px dashed var(--line); }
+.tt-head { display: flex; align-items: center; gap: 10px; }
+.tt-name { font-family: var(--display); font-weight: 800; font-size: 22px; color: var(--text); }
+.tteam.unassigned .tt-name { font-size: 19px; color: var(--muted); }
+.tt-pct { font-family: var(--pixel); font-size: 12px; color: var(--text); }
+.tt-pct.done { color: #0A7A45; font-family: var(--display); font-size: 16px; font-weight: 800 }
+.tt-bar { display: block; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.tt-bar b { display: block; height: 100%; background: var(--blue); transition: width .4s; }
+.person { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.person .av { width: 30px; height: 30px; flex-shrink: 0; }
+.person.off { opacity: .6; }
+.pwho { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.pname { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pstate { font-size: 11px; white-space: nowrap; color: var(--muted); }
+.pstate.ok { color: #0A7A45; }
+.pstate.off { color: #C25E00; }
+.pstate.hot { color: #A06A00; }
+.pstate.boss { color: #6B2BD9; }
+.move-sel { width: 66px; flex-shrink: 0; height: 28px; background: #fff; color: var(--text); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-family: var(--body); padding: 0 4px; }
+.kick-btn { height: 28px; padding: 0 10px; border: 1px solid #7A1238; border-radius: 8px; background: transparent; color: #FF7AA2; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: var(--body); }
+.kick-btn.armed { background: #7A1238; color: #fff; }
+.t-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; background: var(--panel); border: 2px solid var(--panel-line); border-radius: 16px; padding: 12px 18px; }
+.t-result .rs-title { font-size: 40px; }
+.pw-warn { margin: 0; font-size: 14px; color: #6B4A00; background: #FFF5CC; border: 1px solid #F2C94C; border-radius: 12px; padding: 10px 16px; }
+.pw-warn b { color: var(--text); }
+.pw-warn .linklike { font-size: 14px; color: var(--accent); text-decoration: underline; }
+#pw-form h2 { font-size: 24px; }
+#pw-form code { font-family: var(--mono); font-size: 11px; color: var(--soft); }
+.bot-badge { font-size: 10px; font-weight: 800; color: #062041; background: #8ACBFF; border-radius: 5px; padding: 1px 5px; margin-right: 5px; vertical-align: 1px; }
+.person.is-bot .av { opacity: .8; }
+.add-bot { align-self: flex-start; height: 28px; padding: 0 10px; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: #8ACBFF; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--body); }
+.add-bot:hover { border-color: #8ACBFF; }
+
+@media (max-width: 1200px) {
+  .tclass-body { flex-direction: column; align-items: stretch; }
+  .t-settings { width: auto; }
+  .t-teams, .class-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* 문제 은행 (6단계) */
+.bk-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.bk-bar .tag-btn { height: 34px; }
+.bk-search { width: 260px; height: 42px; font-size: 15px; }
+.bk-list { display: flex; flex-direction: column; gap: 6px; }
+.bk-list .empty { height: 140px; display: flex; align-items: center; justify-content: center; border: 3px dashed var(--panel-line); border-radius: 16px; color: var(--muted); }
+.bk-row { display: flex; align-items: center; gap: 16px; text-align: left; background: var(--panel); border: 2px solid var(--panel-line); border-radius: 12px; padding: 10px 16px; cursor: pointer; color: var(--text); font-family: var(--body); }
+.bk-row:hover, .bk-row:focus-visible { border-color: var(--blue); outline: none; }
+.bk-row.boss { flex-wrap: wrap; row-gap: 6px; }
+.bk-row .tagline { margin-left: auto; flex-shrink: 0; }
+.bk-code-view { font-family: var(--mono); font-weight: 700; font-size: 15px; white-space: pre; overflow: hidden; text-overflow: ellipsis; min-width: 0; color: var(--text); }
+.bk-row.boss .bk-code-view { flex-basis: 100%; order: 3; font-size: 13px; color: var(--soft); background: var(--panel-deep); border-radius: 8px; padding: 8px 10px; }
+.bk-head { display: flex; align-items: baseline; gap: 10px; }
+.bk-head b { font-size: 16px; color: var(--text); }
+.bk-type { font-style: normal; font-size: 12px; font-weight: 700; color: #D9A6FF; }
+.bk-ans { order: 4; font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--green); }
+.bk-dialog { width: min(760px, 94vw); max-height: 92vh; overflow: auto; gap: 12px; padding: 22px 26px; }
+.bk-dialog.wide-dialog { width: min(1180px, 96vw); }
+.bk-dialog h2 { font-size: 24px; }
+.bk-dialog h3 { margin: 10px 0 4px; font-size: 14px; color: var(--text); }
+.bk-boss-only { display: none; }
+#bk-edit.is-boss .bk-boss-only { display: flex; }
+.bk-code { font-family: var(--mono); font-size: 16px; height: auto; min-height: 48px; padding: 10px 14px; resize: vertical; line-height: 1.5; white-space: pre; }
+.mono-input { font-family: var(--mono); }
+.bk-try { background: var(--panel-deep); border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.bk-try .t-input { height: 42px; font-size: 15px; }
+.bk-try-out { white-space: nowrap; font-size: 14px; }
+.bk-try-out.good { color: var(--green); }
+.bk-try-out.bad { color: var(--orange); }
+.bk-add-body { display: flex; gap: 16px; min-height: 420px; }
+.bk-paste { flex: 1; height: auto; min-height: 420px; font-family: var(--mono); font-size: 14px; line-height: 1.5; padding: 12px 14px; resize: vertical; white-space: pre; }
+.bk-preview { flex: 1; min-width: 0; max-height: 60vh; overflow: auto; background: var(--panel-deep); border-radius: 12px; padding: 14px 16px; font-size: 14px; }
+.bk-preview ul { margin: 0; padding-left: 18px; color: var(--soft); }
+.bk-preview .mono-list li { font-family: var(--mono); font-size: 13px; }
+.bk-sum { display: flex; gap: 16px; flex-wrap: wrap; font-size: 15px; }
+.bk-sum b { font-family: var(--pixel); font-weight: 400; font-size: 16px; }
+.bk-sum .good { color: var(--green); }
+.bk-sum .bad { color: var(--orange); }
+.bk-sum .muted { color: var(--muted); }
+.bk-errs li { color: #FFB066; }
+.bk-done { margin: 8px 0 0; color: var(--green); font-weight: 800; }
+.bk-try .btn { flex-shrink: 0; white-space: nowrap; }
+
+
+/* ── 밝은 화면 (v0.8.0): 학생 화면과 같이 쓰는 style.css 규칙 중 어두운 바탕을 전제한 것 ── */
+body.teacher h2, body.teacher .page h1, body.teacher .page-title, body.teacher .field h3, body.teacher .stepper b,
+body.teacher .step-num span, body.teacher .summary dd, body.teacher .timer, body.teacher .me-chip .who b,
+body.teacher .rs-stats b, body.teacher .rs-players b, body.teacher .rs-teams b, body.teacher .rt-rank,
+body.teacher .ghost-btn:hover, body.teacher .step-btn, body.teacher .step-num input { color: var(--text); }
+body.teacher .logo { color: #18236A; }                     /* KAIT 는 KAIT-CLASS 로고와 같은 남색 */
+body.teacher .logo .lg-icon { filter: none; }
+body.teacher .pixel, body.teacher .code-chip { color: var(--accent); }
+body.teacher .code-chip { background: #fff; border-color: var(--accent-soft); }
+body.teacher .step-btn, body.teacher .step-num input { background: #fff; }
+body.teacher .step-num input:focus { border-color: var(--accent); }
+body.teacher .card { box-shadow: 0 1px 2px rgba(17,26,43,.04); }
+body.teacher .ghost-btn { color: var(--soft); border-color: var(--line); background: #fff; }
+body.teacher .ghost-btn:hover { border-color: var(--accent); }
+body.teacher .ghost-btn:disabled { color: #A8B3C9; border-color: var(--line-2, #EAEFF7); }
+body.teacher .tag-info { color: #0A7A45; }
+body.teacher .tag-info.warn { color: #C25E00; }
+/* KAIT-CLASS 처럼: 고른 것 · 주 버튼은 KAIT 남색 파랑 (학생 화면은 게임 색 그대로) */
+body.teacher .seg button[aria-pressed="true"],
+body.teacher .tag-btn[aria-pressed="true"], body.teacher .seg-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+body.teacher .tag-btn[aria-pressed="true"] small, body.teacher .tag-btn[aria-pressed="true"] span { color: #DFE8F7; }
+body.teacher .btn.yellow { background: var(--accent); color: #fff; box-shadow: inset 0 -4px 0 var(--accent-dark), 0 3px 0 rgba(17,26,43,.18); }
+body.teacher .btn.yellow:hover { background: #2A4A94; }
+body.teacher .toggle[aria-pressed="true"] { background: var(--accent); }
+
+/* v0.8.2 — '열기' 버튼이 좁아져 두 줄이 되지 않게 */
+body.teacher .join-btn { flex-shrink: 0; white-space: nowrap; }
+/* v0.8.2 — 조 수 · 제한 시간 · 블록 수 숫자를 다른 글자와 같은 글꼴(프리텐다드)로 */
+body.teacher .stepper b, body.teacher .step-num input { font-family: var(--body); font-weight: 800; font-size: 20px; }

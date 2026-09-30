@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAIT-PLAY · 전광판</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/board.css">
+</head>
+<body class="board-page">
+<!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
+<svg class="kp-sprite" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="kp-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7AA0FF"/><stop offset=".45" stop-color="#7B45F5"/><stop offset="1" stop-color="#F0409A"/></linearGradient>
+  <linearGradient id="kp-y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD84A"/><stop offset="1" stop-color="#F5AE1A"/></linearGradient>
+  <symbol id="kp-icon" viewBox="0 0 100 100">
+    <rect width="100" height="100" rx="26" fill="url(#kp-g)"/>
+    <circle cx="18" cy="17" r="5" fill="#C9C8FF"/><circle cx="31" cy="17" r="5" fill="#C9C8FF"/><circle cx="44" cy="17" r="5" fill="#FFD84A"/>
+    <rect x="20" y="34" width="26" height="22" rx="5" fill="#fff"/><rect x="52" y="34" width="26" height="22" rx="5" fill="#fff" opacity=".55"/>
+    <rect x="20" y="61" width="26" height="22" rx="5" fill="#fff" opacity=".55"/><rect x="52" y="61" width="26" height="22" rx="5" fill="url(#kp-y)"/>
+  </symbol>
+</defs></svg>
+<!-- 1920×1080 무대를 창 크기에 맞춰 늘리고 줄인다 (프로젝터 해상도가 달라도 같은 모양) -->
+<div class="stage" id="stage">
+  <header class="sb-head">
+    <span class="logo sb-logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill blue sb-pill">블록 점령전</span>
+    <span class="sb-join" id="sb-join"></span>
+    <span class="grow"></span>
+    <button type="button" class="sb-sound" id="sb-sound" aria-pressed="false">🔈 소리 켜기</button>
+    <span class="sb-attacks" id="sb-attacks">방해 아이템 ON</span>
+    <div class="sb-time"><span id="sb-time-label">남은 시간</span><b id="sb-time">--:--</b></div>
+  </header>
+
+  <!-- 게임 전 · 한 판이 끝난 뒤 -->
+  <section class="sb-wait" id="sb-wait" hidden>
+    <div class="sb-joinbox">
+      <span class="sb-step">① 주소로 들어가 캐릭터 고르기</span>
+      <b class="sb-addr" id="sb-addr"></b>
+      <span class="sb-step">② 로비의 <em>수업 게임 코드</em> 칸에</span>
+      <b class="sb-code" id="sb-code">0000</b>
+      <span class="sb-step">③ 조를 고르고 기다리기</span>
+    </div>
+    <div class="sb-side">
+      <div class="sb-result" id="sb-result" hidden>
+        <h2 id="sb-result-title">지난 판 결과</h2>
+        <ol id="sb-result-list"></ol>
+      </div>
+      <div class="sb-teamlist" id="sb-teamlist"></div>
+    </div>
+  </section>
+
+  <!-- 게임 중 -->
+  <section class="sb-play" id="sb-play" hidden>
+    <div class="sb-band" id="sb-band"><span class="sb-band-kind" id="sb-band-kind">BATTLE</span><b id="sb-band-main">보스를 잡아 아이템을 얻으세요!</b><span id="sb-band-sub"></span></div>
+    <div class="sb-grid" id="sb-grid"></div>
+  </section>
+
+  <footer class="sb-feed"><b>전장 소식</b><div id="sb-feed"></div></footer>
+
+  <div class="sb-cover" id="sb-paused" hidden><b>일시정지</b><span>선생님이 잠시 멈췄어요</span></div>
+</div>
+
+<div class="overlay" id="sb-msg" hidden><div class="dialog"><b id="sb-msg-title">전광판</b><span id="sb-msg-text"></span></div></div>
+
+<script src="socket.io/socket.io.min.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/board.js"></script>
+</body>
+</html>

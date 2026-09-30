@@ -1,0 +1,30 @@
+/* KAIT-PLAY 로고 글자 (v0.8.0): Archivo 넓은 굵은 글꼴 — 'KAITPLY-' 글자만 담아 4KB (SIL OFL 1.1) */
+@font-face { font-family: 'Archivo KP'; src: url('../fonts/archivo-logo.woff2') format('woff2'); font-weight: 100 900; font-stretch: 62% 125%; font-display: block; }
+/* 글꼴은 모두 이 서버에서 내려받는다 (학교망에서 외부 글꼴이 막혀도 동작) — @fontsource, SIL OFL */
+/* jetbrains-mono-latin-700-normal */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url(../fonts/jetbrains-mono-latin-700-normal.woff2) format("woff2");
+}
+/* jetbrains-mono-latin-800-normal */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 800;
+  src: url(../fonts/jetbrains-mono-latin-800-normal.woff2) format("woff2");
+}
+/* press-start-2p-latin-400-normal */
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(../fonts/press-start-2p-latin-400-normal.woff2) format("woff2");
+}
+@font-face{font-family:"Pretendard";font-weight:400;font-display:swap;src:url(../fonts/Pretendard-Regular.subset.woff2) format("woff2")}
+@font-face{font-family:"Pretendard";font-weight:700;font-display:swap;src:url(../fonts/Pretendard-Bold.subset.woff2) format("woff2")}
+@font-face{font-family:"Pretendard";font-weight:800;font-display:swap;src:url(../fonts/Pretendard-ExtraBold.subset.woff2) format("woff2")}

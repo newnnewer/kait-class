@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     setting_set('hero_on',      empty($_POST['hero_on'])   ? '0' : '1');
     setting_set('signup_on',    empty($_POST['signup_on']) ? '0' : '1');
     setting_set('footer_extra', nl_clean((string)($_POST['footer_extra'] ?? '')));
+    setting_set('play_menu',    empty($_POST['play_menu']) ? '0' : '1');
     if ($logoName !== null) setting_set('logo',    $logoName);
     if ($favName  !== null) setting_set('favicon', $favName);
     header('Location: settings.php?saved=1'); exit;
@@ -174,6 +175,25 @@ page_head(['title' => '설정', 'root' => '../', 'user' => $me, 'nav' => 'ops'])
       <div class="small muted">가입한 계정은 <b>반이 없고</b>, 관리자가 승인해야 쓸 수 있습니다.
         반이 없으므로 공개 대상이 &lsquo;지정한 반&rsquo;인 수업·평가에는 들어가지 못합니다.
         우리 학교 학생은 이 기능 대신 <a href="users.php">운영 &gt; 회원</a>에서 일괄 등록하세요.</div>
+    </div>
+
+    <div class="field">
+      <label>KAIT-PLAY (코딩 게임)</label>
+      <?php if (play_installed()): ?>
+        <div class="chips">
+          <label class="chip">
+            <input type="checkbox" name="play_menu" value="1" <?= $v('play_menu') === '1' ? 'checked' : '' ?>>
+            <span>위쪽 메뉴에 KAIT-PLAY 링크 보이기</span>
+          </label>
+        </div>
+        <div class="small muted">누르면 새 탭에서 <a href="/play/" target="_blank" rel="noopener">/play/</a> 가 열립니다.
+          학생은 계정 없이 닉네임으로 들어갑니다. 교사 화면은 <a href="/play/teacher" target="_blank" rel="noopener">/play/teacher</a>
+          — 비밀번호는 KAIT-CLASS 관리자 비밀번호와 <b>따로</b>입니다.</div>
+      <?php else: ?>
+        <input type="hidden" name="play_menu" value="<?= h(setting('play_menu')) ?>">
+        <div class="small muted">이 서버에는 설치되어 있지 않습니다.
+          소스 폴더에서 <code>sudo bash play/install.sh</code> 로 설치할 수 있습니다.</div>
+      <?php endif; ?>
     </div>
 
     <div class="field">

@@ -93,6 +93,9 @@ a:hover{text-decoration:underline}
 .mainnav a{padding:6px 12px; border-radius:6px; color:var(--ink-2); font-size:14.5px; font-weight:500}
 .mainnav a:hover{background:var(--b100); text-decoration:none; color:var(--b700)}
 .mainnav a.on{background:var(--b600); color:#fff; font-weight:600}
+/* KAIT-PLAY (코딩 게임) — 새 탭으로 열리는 바깥 링크. 다른 메뉴와 구분되게 보라 글자 + 바깥 링크 표시 */
+.mainnav a.navplay{display:inline-flex; align-items:center; gap:4px; font-weight:700; color:#6D4BD8}
+.mainnav a.navplay svg{opacity:.7}
 .who{font-size:13.5px; color:var(--ink-2); white-space:nowrap}
 .who b{color:var(--b800); font-weight:700}
 .top .util{display:flex; gap:13px; align-items:center}

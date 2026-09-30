@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAIT-PLAY · 교사</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/teacher.css">
+</head>
+<body class="teacher">
+<!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
+<svg class="kp-sprite" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="kp-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7AA0FF"/><stop offset=".45" stop-color="#7B45F5"/><stop offset="1" stop-color="#F0409A"/></linearGradient>
+  <linearGradient id="kp-y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD84A"/><stop offset="1" stop-color="#F5AE1A"/></linearGradient>
+  <symbol id="kp-icon" viewBox="0 0 100 100">
+    <rect width="100" height="100" rx="26" fill="url(#kp-g)"/>
+    <circle cx="18" cy="17" r="5" fill="#C9C8FF"/><circle cx="31" cy="17" r="5" fill="#C9C8FF"/><circle cx="44" cy="17" r="5" fill="#FFD84A"/>
+    <rect x="20" y="34" width="26" height="22" rx="5" fill="#fff"/><rect x="52" y="34" width="26" height="22" rx="5" fill="#fff" opacity=".55"/>
+    <rect x="20" y="61" width="26" height="22" rx="5" fill="#fff" opacity=".55"/><rect x="52" y="61" width="26" height="22" rx="5" fill="url(#kp-y)"/>
+  </symbol>
+</defs></svg>
+
+<!-- 연결 중 -->
+<main id="screen-loading" class="screen center">
+  <div class="logo big" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></div>
+  <p class="muted">서버에 연결하는 중…</p>
+</main>
+
+<!-- 로그인 -->
+<main id="screen-login" class="screen center" hidden>
+  <form class="card login-card" id="login-form" autocomplete="off">
+    <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill ghost">교사 · 관리자</span>
+    <label for="login-pw" class="label">관리자 비밀번호</label>
+    <input id="login-pw" class="t-input" type="password" autocomplete="current-password" required>
+    <button type="submit" class="btn yellow wide" id="btn-login">로그인</button>
+    <p class="error" id="login-error" role="alert"></p>
+  </form>
+  <footer class="credit">
+    <div>KAIT-PLAY · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
+    <div>글꼴 Pretendard · JetBrains Mono · Press Start 2P · Archivo (SIL OFL 1.1) · 실시간 연결 Socket.IO (MIT)</div>
+  </footer>
+</main>
+
+<!-- 수업 게임 목록 · 지난 기록 -->
+<main id="screen-home" class="screen page" hidden>
+  <header class="top">
+    <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill ghost">교사</span>
+    <div class="seg" role="group" aria-label="보기" id="home-tabs">
+      <button type="button" data-tab="classes" aria-pressed="true">수업 게임</button>
+      <button type="button" data-tab="records" aria-pressed="false">지난 기록</button>
+      <button type="button" data-tab="bank" aria-pressed="false">문제 은행</button>
+    </div>
+    <span class="grow"></span>
+    <div class="switch-row">
+      <span><b>학생 방 만들기 허용</b><small class="muted">끄면 학생이 자유 대전 방을 새로 만들 수 없어요</small></span>
+      <button type="button" class="toggle" id="home-rooms" aria-pressed="true" aria-label="학생 방 만들기 허용"><span></span></button>
+    </div>
+    <a class="btn small ghost-btn" href="sounds.html" target="_blank" rel="noopener" style="text-decoration:none">소리 미리듣기</a>
+    <button type="button" class="btn small ghost-btn" id="btn-pw">비밀번호 바꾸기</button>
+    <button type="button" class="btn small ghost-btn" id="btn-logout">로그아웃</button>
+  </header>
+
+  <p class="pw-warn" id="pw-warn" hidden>지금은 설치할 때 정한 <b>처음 비밀번호</b>(.env)를 쓰고 있어요. <button type="button" class="linklike" id="btn-pw2">비밀번호 바꾸기</button>로 나만 아는 비밀번호로 바꿔 주세요.</p>
+  <section id="tab-classes" class="home-body">
+    <div class="home-head">
+      <h1>열려 있는 수업 게임</h1>
+      <span class="grow"></span>
+      <button type="button" class="btn yellow big-btn" id="btn-new-class">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>
+        새 수업 게임</button>
+    </div>
+    <div class="class-list" id="class-list"></div>
+    <p class="muted">수업 게임은 '수업 끝내기'를 누르거나 3시간 동안 쓰지 않으면 닫혀요. 서버를 다시 시작해도 닫혀요.</p>
+  </section>
+
+  <section id="tab-records" class="home-body" hidden>
+    <div class="home-head"><h1>지난 기록</h1><span class="muted">최근 30판</span></div>
+    <div class="records" id="records"></div>
+  </section>
+
+  <section id="tab-bank" class="home-body" hidden>
+    <div class="home-head">
+      <h1>문제 은행</h1>
+      <span class="muted" id="bk-count"></span>
+      <span class="grow"></span>
+      <button type="button" class="btn small ghost-btn" id="btn-bk-export" title="문제 은행 전체를 bank.txt 형식으로 내려받아요 (백업 · 다른 서버로 옮기기)">내려받기 (bank.txt)</button>
+      <button type="button" class="btn yellow big-btn" id="btn-bk-add">붙여넣기로 추가</button>
+    </div>
+    <div class="bk-bar">
+      <div class="seg" role="group" aria-label="문제 종류" id="bk-kind">
+        <button type="button" data-kind="normal" aria-pressed="true">일반 문제</button>
+        <button type="button" data-kind="boss" aria-pressed="false">보스 문제</button>
+      </div>
+      <div class="tag-list" id="bk-tags"></div>
+      <span class="grow"></span>
+      <label class="sr" for="bk-q">검색</label>
+      <input id="bk-q" class="t-input bk-search" type="search" placeholder="코드 · 제목 검색" autocomplete="off">
+    </div>
+    <p class="muted small">고친 문제는 <b>다음에 시작하는 게임부터</b> 나와요 · 코드와 정답에는 한글을 쓸 수 없어요 · 문제는 서버의 data/game.db 에 저장돼요</p>
+    <div class="bk-list" id="bk-list"></div>
+    <button type="button" class="btn small ghost-btn" id="btn-bk-more" hidden>더 보기</button>
+  </section>
+  <footer class="credit">
+    <div>KAIT-PLAY · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
+    <div>글꼴 Pretendard · JetBrains Mono · Press Start 2P · Archivo (SIL OFL 1.1) · 실시간 연결 Socket.IO (MIT)</div>
+  </footer>
+</main>
+
+<!-- 문제 고치기 -->
+<div class="overlay" id="bk-edit" hidden>
+  <form class="card bk-dialog" id="bk-edit-form" autocomplete="off">
+    <h2 id="bk-edit-title">문제 고치기</h2>
+    <div class="bk-boss-only field"><label class="label" for="bk-f-title">보스 제목 (한글 가능)</label><input id="bk-f-title" class="t-input"></div>
+    <div class="field"><label class="label" for="bk-f-code" id="bk-f-code-label">코드</label>
+      <textarea id="bk-f-code" class="t-input bk-code" spellcheck="false" rows="1"></textarea>
+      <span class="muted small bk-boss-only">빈칸은 ___ (밑줄 세 개, 한 문제에 하나). 빈칸이 없으면 '출력 결과 맞히기' 문제가 돼요</span></div>
+    <div class="bk-boss-only field"><label class="label" for="bk-f-input">학생에게 보여 줄 입력 (없으면 비워 두기)</label><input id="bk-f-input" class="t-input"></div>
+    <div class="bk-boss-only field"><label class="label" for="bk-f-answers">정답 (여러 개는 | 로 나눠요)</label><input id="bk-f-answers" class="t-input mono-input"></div>
+    <div class="field"><span class="label">태그</span><div class="tag-list" id="bk-f-tags"></div></div>
+    <div class="bk-try">
+      <label class="label" for="bk-try-in">채점 시험 — 학생이 칠 법한 답을 넣어 보세요 (게임과 같은 채점 규칙)</label>
+      <div class="row"><input id="bk-try-in" class="t-input mono-input" placeholder="예: print( 'hello' )"><button type="button" class="btn small ghost-btn" id="btn-bk-try">채점</button><b id="bk-try-out" class="bk-try-out"></b></div>
+    </div>
+    <p class="error" id="bk-edit-error" role="alert"></p>
+    <div class="row">
+      <button type="button" class="btn small ghost-btn danger" id="btn-bk-del">이 문제 지우기</button>
+      <span class="grow"></span>
+      <button type="button" class="btn ghost-btn mid" id="btn-bk-cancel">취소</button>
+      <button type="submit" class="btn yellow" id="btn-bk-save">저장</button>
+    </div>
+  </form>
+</div>
+
+<!-- 붙여넣기로 추가 -->
+<div class="overlay" id="bk-add" hidden>
+  <div class="card bk-dialog wide-dialog">
+    <h2>붙여넣기로 추가</h2>
+    <span class="muted small">문제 은행 파일과 같은 형식이에요. 이미 있는 문제(띄어쓰기 무시)는 새로 넣지 않고 태그만 더해요.</span>
+    <div class="bk-add-body">
+      <textarea id="bk-add-text" class="t-input bk-paste" spellcheck="false" placeholder="[일반 문제]
+# 출력, 변수
+name = 'Kim'
+print(name)
+
+[보스 문제]
+=== 두 배 만들기 # 연산자
+x = 4
+print(x ___ 2)
+정답: *
+
+=== 출력 맞히기 # 반복문
+for i in range(3):
+    print(i, end='')
+정답: 012"></textarea>
+      <div class="bk-preview" id="bk-preview"><span class="muted">왼쪽에 붙여넣고 '미리보기'를 누르세요.</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn ghost-btn mid" id="btn-bk-add-cancel">닫기</button>
+      <span class="grow"></span>
+      <button type="button" class="btn ghost-btn mid" id="btn-bk-preview">미리보기</button>
+      <button type="button" class="btn yellow" id="btn-bk-apply" disabled>추가하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 수업 게임 진행 -->
+<main id="screen-class" class="screen page tclass" hidden>
+  <header class="top">
+    <button type="button" class="linklike back" id="btn-back">◀ 목록</button>
+    <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill ghost">교사 · 게임 진행</span>
+    <span class="head-info">방 코드 <b class="code-chip" id="c-code">0000</b></span>
+    <span class="head-info" id="c-counts"></span>
+    <span class="grow"></span>
+    <button type="button" class="btn ghost-btn mid" id="btn-board" title="프로젝터로 띄울 전광판을 새 창으로 열어요">전광판 열기</button>
+    <b class="timer" id="c-timer" hidden>00:00</b>
+    <button type="button" class="btn ghost-btn mid" id="btn-pause" hidden>일시정지</button>
+    <button type="button" class="btn ghost-btn mid danger" id="btn-stop" hidden>게임 종료</button>
+    <button type="button" class="btn yellow start-btn" id="btn-start">게임 시작</button>
+  </header>
+
+  <div class="join-help" id="c-help"></div>
+  <div class="set-summary" id="c-summary" hidden></div>
+
+  <div class="tclass-body">
+    <section class="card t-settings" id="c-settings">
+      <div class="field-head"><h2>게임 설정</h2><span class="muted small" id="c-set-note">판과 판 사이에만 바꿀 수 있어요</span></div>
+      <div class="field">
+        <h3>출제 태그 <small class="muted">숫자는 일반·보스 문제 수</small></h3>
+        <div class="tag-list" id="c-tags"></div>
+        <span class="tag-info" id="c-taginfo"></span>
+      </div>
+      <div class="field"><h3>조 수</h3>
+        <div class="stepper"><button type="button" class="step-btn" id="c-teams-down" aria-label="조 줄이기">−</button><b id="c-teams">4</b><button type="button" class="step-btn" id="c-teams-up" aria-label="조 늘리기">+</button><span class="muted">2 ~ 8조</span></div></div>
+      <div class="field"><h3>제한 시간</h3>
+        <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="제한 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="제한 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="제한 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
+      <div class="field-sep" aria-hidden="true"></div>
+      <div class="field"><h3>블록 수 (조마다 같음)</h3>
+        <div class="stepper"><button type="button" class="seg-btn" id="c-auto" aria-pressed="true">자동</button><button type="button" class="step-btn" id="c-blk-down" aria-label="블록 줄이기">−</button><b id="c-blk">자동</b><button type="button" class="step-btn" id="c-blk-up" aria-label="블록 늘리기">+</button></div>
+        <span class="muted small" id="c-blkhelp"></span></div>
+      <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="c-occ"></div></div>
+      <div class="field-sep" aria-hidden="true"></div>
+      <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div><span class="muted small">게임 시작부터 이 간격마다 모든 조에 같은 보스</span></div>
+      <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div><span class="muted small">아무도 잡지 않으면 달아나기까지</span></div>
+      <div class="field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
+      <div class="field-sep" aria-hidden="true"></div>
+      <div class="field"><h3>봇 속도</h3><div class="seg-row" id="c-botspeed"></div><span class="muted small">봇이 블록 하나를 푸는 데 걸리는 시간 (걷는 시간 포함, 가끔 틀림 · 보스는 안 잡음)</span></div>
+      <div class="field-sep" aria-hidden="true"></div>
+      <div class="field"><h3>페널티 아이템</h3>
+        <div class="row"><button type="button" class="toggle" id="c-pen" aria-pressed="true" aria-label="페널티 아이템"><span></span></button><span class="muted" id="c-pentext"></span></div></div>
+      <p class="error" id="c-set-error" role="alert"></p>
+    </section>
+
+    <section class="t-teams-col">
+      <div class="field-head">
+        <h2>조 현황</h2>
+        <span class="muted" id="c-teams-note"></span>
+        <span class="grow"></span>
+        <button type="button" class="btn small ghost-btn" id="btn-autoassign">조 미선택 학생 자동 배정</button>
+        <button type="button" class="btn small ghost-btn" id="btn-botfill" title="모든 조를 가장 큰 조 인원까지 봇으로 채워요 (아무도 없는 조는 빼고)">봇으로 인원 맞추기</button>
+        <button type="button" class="btn small ghost-btn" id="btn-botclear" hidden>봇 모두 빼기</button>
+      </div>
+      <div class="t-teams" id="c-teams-grid"></div>
+      <div class="t-foot">
+        <div class="switch-row">
+          <span><b>방해 아이템</b><small class="muted">게임 중에도 바로 켜고 끌 수 있어요</small></span>
+          <button type="button" class="toggle" id="c-attacks" aria-pressed="true" aria-label="방해 아이템"><span></span></button>
+        </div>
+        <div class="switch-row">
+          <span><b>학생 효과음</b><small class="muted">끄면 모든 학생 기기가 조용해져요</small></span>
+          <button type="button" class="toggle" id="c-sfx" aria-pressed="true" aria-label="학생 효과음"><span></span></button>
+        </div>
+        <div class="switch-row">
+          <span><b>전광판 배경음</b><small class="muted">전광판의 '소리 켜기'도 눌러야 나요</small></span>
+          <button type="button" class="toggle" id="c-bgm" aria-pressed="true" aria-label="전광판 배경음"><span></span></button>
+        </div>
+        <div class="switch-row">
+          <span><b>학생 방 만들기 허용</b><small class="muted">수업 중에는 꺼 두면 좋아요</small></span>
+          <button type="button" class="toggle" id="c-rooms" aria-pressed="true" aria-label="학생 방 만들기 허용"><span></span></button>
+        </div>
+        <span class="grow"></span>
+        <button type="button" class="btn small ghost-btn danger" id="btn-close">수업 끝내기</button>
+      </div>
+      <p class="error" id="c-error" role="alert"></p>
+    </section>
+  </div>
+</main>
+
+<!-- 결과 -->
+<!-- 비밀번호 바꾸기 -->
+<div class="overlay" id="pw-dialog" hidden>
+  <form class="card login-card" id="pw-form" autocomplete="off">
+    <h2>비밀번호 바꾸기</h2>
+    <label for="pw-old" class="label">지금 비밀번호</label>
+    <input id="pw-old" class="t-input" type="password" autocomplete="current-password" required>
+    <label for="pw-new" class="label">새 비밀번호 (6자 이상, 띄어쓰기 없이)</label>
+    <input id="pw-new" class="t-input" type="password" autocomplete="new-password" minlength="6" required>
+    <label for="pw-new2" class="label">새 비밀번호 한 번 더</label>
+    <input id="pw-new2" class="t-input" type="password" autocomplete="new-password" minlength="6" required>
+    <span class="muted small">바꾸면 다른 컴퓨터에 열려 있던 교사 화면은 로그아웃돼요. 잊으면 서버에서 <code>docker exec kait-play node scripts/admin-password.js</code> 로 새로 만들 수 있어요.</span>
+    <p class="error" id="pw-error" role="alert"></p>
+    <div class="row"><button type="button" class="btn ghost-btn mid" id="btn-pw-cancel">취소</button><span class="grow"></span><button type="submit" class="btn yellow" id="btn-pw-save">바꾸기</button></div>
+  </form>
+</div>
+
+<div class="overlay" id="t-result" hidden>
+  <div class="result t-result">
+    <span class="rs-kind" id="tr-kind">결과</span>
+    <b class="rs-title" id="tr-title">순위</b>
+    <ol class="rs-teams" id="tr-teams"></ol>
+    <button type="button" class="btn yellow go" id="btn-tr-ok">확인</button>
+  </div>
+</div>
+
+<div class="toast page-toast" id="page-toast" role="status" aria-live="polite"></div>
+<div class="overlay" id="overlay-offline" hidden>
+  <div class="dialog"><b>서버와 연결이 끊겼어요</b><span>다시 연결하는 중… 진행 중인 게임은 서버에서 계속돼요.</span></div>
+</div>
+
+<script src="socket.io/socket.io.min.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/teacher.js"></script>
+</body>
+</html>

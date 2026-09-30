@@ -9,6 +9,8 @@
 #      sudo bash install.sh --domain class.example.kr --email 나@example.com
 #  도메인을 떼고 http 로 돌아갈 때:
 #      sudo bash install.sh --no-domain
+#  KAIT-PLAY(코딩 게임, 주소/play/) 없이 KAIT-CLASS 만 설치할 때:
+#      sudo bash install.sh --no-play
 #
 #  ● 설치는 두 번에 나뉜다.
 #    1단계에서 커널 부팅 설정(cgroup v1)을 바꾸므로 재부팅이 필요하다.
@@ -36,7 +38,8 @@ LOG="/var/log/kait-class-install.log"
 CGROUP_PARAM="systemd.unified_cgroup_hierarchy=0"
 ACME_ROOT="/var/www/letsencrypt"
 CERTBOT_HOOK="/etc/letsencrypt/renewal-hooks/deploy/kait-class-nginx.sh"
-TOTAL=14
+NGINX_SLOT_DIR="/etc/nginx/kait-class.d"   # 추가 프로그램(KAIT-PLAY 등)이 nginx 설정을 두는 자리
+TOTAL=15
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUN_USER="${SUDO_USER:-}"
@@ -526,6 +529,7 @@ step_source() {
     --exclude='/.git*' \
     --exclude='/config.php' \
     --exclude='/uploads/' \
+    --exclude='/play/' \
     "$SRC/" "$WEB_ROOT/"
 
   if [[ ! -f "$WEB_ROOT/config.php" ]]; then
@@ -602,6 +606,10 @@ nginx_body() {
 
     location = /robots.txt { log_not_found off; access_log off; }
     location ~ /\.  { deny all; }
+
+    # 추가 프로그램 자리 — KAIT-PLAY(주소/play/) 등이 여기에 자기 설정 파일을 둔다.
+    # 이 파일(사이트 설정)은 설치할 때마다 새로 쓰지만, 이 폴더의 파일은 그대로 남는다.
+    include $NGINX_SLOT_DIR/*.conf;
 EOF
 }
 
@@ -617,7 +625,7 @@ EOF
 }
 
 write_nginx_conf() {
-  mkdir -p "$ACME_ROOT"
+  mkdir -p "$ACME_ROOT" "$NGINX_SLOT_DIR"
   if ! ssl_ready; then
     {
       echo "# KAIT-CLASS — install.sh 가 만든 파일 (다시 설치하면 덮어쓴다)"
@@ -702,7 +710,32 @@ $(nginx_body)
 EOF
 }
 
+# 동시 접속이 많을 때(KAIT-PLAY 는 학생 한 명이 연결 2개) nginx 연결 수 한도를 4096 으로.
+# 우분투 기본은 768 이다. 이미 크게 잡혀 있으면 그대로 둔다.
+nginx_raise_limits() {
+  local f=/etc/nginx/nginx.conf cur changed=0
+  [[ -f "$f" ]] || return 0
+  cur=$(sed -n 's/^\s*worker_connections\s\+\([0-9]\+\);.*/\1/p' "$f" | head -n 1)
+  if [[ -n "$cur" && "$cur" -lt 4096 ]] || ! grep -qE '^\s*worker_rlimit_nofile\s' "$f"; then
+    cp -a "$f" "$STATE_DIR/nginx.conf.bak"
+    if [[ -n "$cur" && "$cur" -lt 4096 ]]; then
+      sed -i "s/^\(\s*worker_connections\s\+\)[0-9]\+;/\14096;/" "$f"
+    fi
+    if ! grep -qE '^\s*worker_rlimit_nofile\s' "$f"; then
+      sed -i '0,/^\s*worker_processes\s.*;/s//&\nworker_rlimit_nofile 8192;/' "$f"
+    fi
+    changed=1
+  fi
+  echo "nginx worker_connections: $(sed -n 's/^\s*worker_connections\s\+\([0-9]\+\);.*/\1/p' "$f" | head -n 1)"
+  if (( changed )) && ! nginx -t; then
+    echo "nginx.conf 를 고친 뒤 검사에 실패해 원래대로 되돌립니다."
+    cp -a "$STATE_DIR/nginx.conf.bak" "$f"
+  fi
+  return 0
+}
+
 step_nginx() {
+  nginx_raise_limits
   write_nginx_conf
   ln -sf "$NGINX_SITE" /etc/nginx/sites-enabled/kait-class
   rm -f /etc/nginx/sites-enabled/default
@@ -838,6 +871,34 @@ step_worker() {
   journalctl -u judge-worker -n 20 --no-pager
 }
 
+# ── KAIT-PLAY (코딩 게임) ───────────────────────────────────────
+#   소스의 play/ 폴더를 /opt/kait-play 에 설치한다 (Docker 컨테이너 하나, 127.0.0.1:3100).
+#   nginx 는 위의 '추가 프로그램 자리'에 /etc/nginx/kait-class.d/kait-play.conf 를 둔다.
+#   실패해도 KAIT-CLASS 설치는 멈추지 않는다 (SSL 과 같은 방식) — 끝 화면에 원인을 알린다.
+step_play() {
+  rm -f "$STATE_DIR/play_ok" "$STATE_DIR/play_error"
+  if (( ARG_NO_PLAY )); then
+    if [[ -f "$NGINX_SLOT_DIR/kait-play.conf" ]]; then
+      result "건너뜀 (--no-play) · 이미 설치된 KAIT-PLAY 는 그대로"
+    else
+      result "건너뜀 (--no-play)"
+    fi
+    return 0
+  fi
+  if [[ ! -f "$SRC/play/install.sh" ]]; then
+    result "!건너뜀 — 소스에 play/ 폴더가 없음"
+    return 0
+  fi
+  if KAIT_CLASS_INSTALL=1 bash "$SRC/play/install.sh"; then
+    touch "$STATE_DIR/play_ok"
+    return 0
+  fi
+  echo "KAIT-PLAY 설치 실패"
+  echo "KAIT-PLAY 설치 중 멈췄습니다. 기록: $LOG" > "$STATE_DIR/play_error"
+  result "!설치하지 못함 — KAIT-CLASS 는 정상 (끝에 안내)"
+  return 0
+}
+
 step_final() {
   local code
   # 첫 접속 때 DB 가 만들어진다
@@ -874,6 +935,15 @@ step_final() {
   fi
 
   systemctl is-active --quiet judge-worker || { echo "채점 워커가 멈춰 있습니다."; exit 1; }
+
+  # KAIT-PLAY 를 이번에 설치했으면 nginx 를 거쳐 열리는지
+  if [[ -f "$STATE_DIR/play_ok" ]]; then
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1/play/healthz)
+    echo "/play/healthz → $code"
+    [[ "$code" == "200" ]] || { echo "KAIT-PLAY(/play/)가 열리지 않습니다 ($code)."; exit 1; }
+  fi
+  # play/ 소스가 웹 폴더로 복사되지 않았는지 (복사되면 게임 서버 코드가 웹으로 내려받힌다)
+  [[ ! -e "$WEB_ROOT/play" ]] || { echo "$WEB_ROOT/play 가 있습니다. 게임 소스가 웹으로 보일 수 있습니다."; exit 1; }
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -887,6 +957,8 @@ usage() {
     sudo bash install.sh --domain 도메인 --email 메일
                                           도메인과 https(SSL) 붙이기
     sudo bash install.sh --no-domain      도메인을 떼고 http 로 돌아가기
+    sudo bash install.sh --no-play        KAIT-PLAY(코딩 게임) 없이 설치·업데이트
+                                          (이미 설치된 KAIT-PLAY 는 지우지 않고 그대로 둡니다)
 
   --domain 은 여러 번 쓸 수 있습니다 (첫 번째가 대표 주소).
     예) --domain class.example.kr --domain www.class.example.kr
@@ -898,6 +970,7 @@ EOF
 ARG_DOMAINS=()
 ARG_EMAIL=""
 ARG_NO_DOMAIN=0
+ARG_NO_PLAY=0
 while (( $# )); do
   case "$1" in
     --domain)    [[ -n "${2:-}" ]] || { echo "--domain 뒤에 도메인을 적으세요."; exit 1; }
@@ -907,6 +980,7 @@ while (( $# )); do
                  ARG_EMAIL="$2"; shift 2 ;;
     --email=*)   ARG_EMAIL="${1#*=}"; shift ;;
     --no-domain) ARG_NO_DOMAIN=1; shift ;;
+    --no-play)   ARG_NO_PLAY=1; shift ;;
     -h|--help)   usage; exit 0 ;;
     *)           echo "알 수 없는 옵션: $1"; echo; usage; exit 1 ;;
   esac
@@ -1019,6 +1093,7 @@ run_step "소스 배치"                   step_source
 run_step "nginx 설정"                  step_nginx
 run_step "도메인 · SSL (https)"        step_ssl
 run_step "채점 워커"                   step_worker
+run_step "KAIT-PLAY 코딩 게임 (처음엔 몇 분 걸립니다)" step_play
 run_step "마무리 확인"                 step_final
 
 remind_remove
@@ -1072,6 +1147,23 @@ else
   echo "  ● 도메인과 https 를 붙이려면 (도메인을 이 서버에 연결한 뒤):"
   printf '         %ssudo bash install.sh --domain 도메인 --email 메일%s\n' "$C" "$N"
 fi
+if [[ -f "$STATE_DIR/play_ok" ]]; then
+  echo
+  printf '  %sKAIT-PLAY%s (코딩 게임) — 주소 뒤에 %s/play/%s  (교사 화면 %s/play/teacher%s)\n' "$B" "$N" "$C" "$N" "$C" "$N"
+  if [[ -s "$STATE_DIR/play_newpw" ]]; then
+    printf '      %s교사 화면 처음 비밀번호:  %s   ← 지금 적어 두세요 (KAIT-CLASS admin 비밀번호와 따로입니다)%s\n' "$Y$B" "$(cat "$STATE_DIR/play_newpw")" "$N"
+    rm -f "$STATE_DIR/play_newpw"
+  else
+    echo "      교사 화면 비밀번호: 이전에 쓰던 것 그대로 (잊었으면 sudo docker exec kait-play node scripts/admin-password.js)"
+  fi
+elif [[ -s "$STATE_DIR/play_error" ]]; then
+  echo
+  printf '  %s%s※ KAIT-PLAY(코딩 게임)를 설치하지 못했습니다. KAIT-CLASS 는 정상입니다.%s\n' "$Y" "$B" "$N"
+  echo "     흔한 원인: Docker Hub 받기 횟수 제한(toomanyrequests), 인터넷 연결"
+  echo "     시간을 두고 KAIT-PLAY 만 다시 설치할 수 있습니다:"
+  printf '         %scd "%s" && sudo bash play/install.sh%s\n' "$C" "$SRC" "$N"
+fi
+echo
 echo "  ● 관리자(admin) 비밀번호 정하기 — 처음 한 번, 그리고 잊었을 때:"
 printf '         %scd /var/www/html && sudo -u www-data php reset-admin.php%s\n' "$C" "$N"
 echo "  ● 새 버전으로 바꿀 때도 새 소스 폴더에서 같은 명령을 실행하면 됩니다."

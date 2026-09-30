@@ -23,6 +23,7 @@ KAIT-CLASS 는 AI 사용 자체를 막으려는 것이 아니라, **코드를 �
 - **문제 관리** — 마크다운 문제 설명, 테스트케이스, 번호 일괄 수정, FPS XML 가져오기·내보내기
 - **운영** — 공지, 사이트 이름·로고, 채점 대기열 확인과 재채점, 언어 관리
 - **간단한 설치** — 단 한 줄의 명령어로 설치할 수 있으며, 도메인이 있다면 https(SSL)까지 붙입니다.
+- **KAIT-PLAY (코딩 게임)** — 함께 설치되는 팀 대항 코딩 게임입니다. 아래 [KAIT-PLAY](#kait-play-코딩-게임) 를 보세요.
 
 
 ---
@@ -95,6 +96,16 @@ cd /var/www/html && sudo -u www-data php reset-admin.php
 
 그 뒤 브라우저로 접속해 로그인하고, **운영 > 설정** 에서 사이트 이름과 로고를 바꿀 수 있습니다.
 
+### KAIT-PLAY 없이 설치하려면
+
+KAIT-PLAY(코딩 게임)는 기본으로 함께 설치됩니다. 빼고 싶다면 `--no-play` 를 붙입니다.
+
+```bash
+sudo bash install.sh --no-play
+```
+
+이미 설치된 KAIT-PLAY 는 `--no-play` 로 업데이트해도 지워지지 않고 그대로 동작합니다.
+
 
 ---
 
@@ -142,10 +153,36 @@ sudo bash install.sh
 ---
 
 
+## KAIT-PLAY (코딩 게임)
+
+반 학생들이 조를 나누어 겨루는 **팀 블록 점령 코딩 게임**입니다. KAIT-CLASS 와 함께 설치되며, 주소는 언제나 **KAIT-CLASS 주소 뒤의 `/play/`** 입니다.
+
+| | 주소 |
+|---|---|
+| 학생 | `http(s)://주소/play/` — 계정 없이 닉네임과 캐릭터를 골라 들어갑니다 |
+| 교사 화면 | `http(s)://주소/play/teacher` — 수업 게임 만들기(방 코드), 조 편성, 문제 은행, 지난 기록 |
+| 전광판 | 교사 화면의 **전광판 열기** — 프로젝터용 |
+
+- 팀원이 한 판을 함께 쓰며 키보드로만 움직이고, 블록을 점유해 코드를 입력합니다. 보스 블록은 빈칸 채우기·출력 결과 맞히기 문제이고, 잡으면 아이템을 얻습니다.
+- **수업 게임**(교사가 만들고 방 코드로 입장, 여러 조 경쟁)과 **학생 방**(학생끼리 자유롭게, 한 방 = 한 조 협동) 두 가지가 있습니다.
+- KAIT-CLASS 위쪽 메뉴에 **KAIT-PLAY** 링크가 생깁니다 (새 탭). **운영 > 설정** 에서 숨길 수 있습니다.
+- **교사 화면 비밀번호는 KAIT-CLASS 관리자 비밀번호와 따로**입니다. 처음 비밀번호는 설치 끝 화면에 나오고, 교사 화면에서 바꿀 수 있습니다.
+  잊었다면: `sudo docker exec kait-play node scripts/admin-password.js`
+- 게임 서버는 Docker 컨테이너 하나(`kait-play`, `/opt/kait-play`)로 돌아가며, 바깥에서는 nginx 를 거쳐서만 들어옵니다.
+- **KAIT-PLAY 만 새 버전으로 바꿀 때**는 새 소스 폴더에서 `sudo bash play/install.sh` (KAIT-CLASS 1.1 이하가 설치된 서버에 더할 때도 같은 명령)
+- 진행 중인 게임은 서버 메모리에만 있습니다. **수업 중에는 설치·업데이트·재시작을 하지 마세요.**
+
+자세한 내용은 [play/README.md](play/README.md) 에 있습니다.
+
+
+---
+
+
 ## 쓰실 때 알아 둘 것
 
 - **노트북을 서버로 쓸 때** — 설치 스크립트가 절전을 막아 둡니다. 덮개를 닫아도 절전모드로 진입하지 않습니다.
 - **백업** — 수행평가 기록이 쌓이면 DB 파일(`/var/www/kait-class-data/kait-class.db`)을 주기적으로 다른 곳에 복사해 두세요.
+  KAIT-PLAY 기록·문제 은행은 `/opt/kait-play/data/` 에 있습니다 (`sudo bash /opt/kait-play/deploy/backup.sh`).
 - 관리자 비밀번호를 잊었다면 위의 `reset-admin.php` 를 다시 실행하면 됩니다.
 
 
@@ -164,6 +201,7 @@ sudo bash install.sh
 | 6 방화벽 | SSH 포트를 찾지 못함 → `sudo ufw allow <포트>/tcp` 후 다시 |
 | 7 채점 엔진 | `toomanyrequests` → Docker Hub 받기 횟수 제한. 시간을 두고 다시 |
 | 9 웹 서버 | apache2 가 실행 중 → `sudo systemctl disable --now apache2` |
+| 14 KAIT-PLAY | `toomanyrequests`(Docker Hub 제한)·인터넷 연결. **KAIT-CLASS 는 정상 설치됩니다.** 나중에 `sudo bash play/install.sh` |
 
 전체 기록:
 
@@ -212,6 +250,9 @@ KAIT-CLASS 는 **[PolyForm Noncommercial 1.0.0](LICENSE)** 으로 소스를 공�
 | [Pretendard](https://github.com/orioncactus/pretendard) | 글꼴 | SIL OFL 1.1 |
 | [CodeMirror 5](https://codemirror.net/5/) | 코드 편집기 | MIT |
 | [Parsedown](https://github.com/erusev/parsedown) | 마크다운 변환 | MIT |
+| [Socket.IO](https://socket.io/) | KAIT-PLAY 실시간 연결 | MIT |
+| [Node.js](https://nodejs.org/) | KAIT-PLAY 게임 서버 (설치할 때 Docker 이미지로 내려받음) | MIT |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) · [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) · [Archivo](https://fonts.google.com/specimen/Archivo) | KAIT-PLAY 글꼴 | SIL OFL 1.1 |
 
 파일별 설명은 [docs/소스구성.md](docs/소스구성.md) 에 있습니다.
 

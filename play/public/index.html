@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAIT-PLAY</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
+<svg class="kp-sprite" aria-hidden="true" focusable="false"><defs>
+  <linearGradient id="kp-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7AA0FF"/><stop offset=".45" stop-color="#7B45F5"/><stop offset="1" stop-color="#F0409A"/></linearGradient>
+  <linearGradient id="kp-y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD84A"/><stop offset="1" stop-color="#F5AE1A"/></linearGradient>
+  <symbol id="kp-icon" viewBox="0 0 100 100">
+    <rect width="100" height="100" rx="26" fill="url(#kp-g)"/>
+    <circle cx="18" cy="17" r="5" fill="#C9C8FF"/><circle cx="31" cy="17" r="5" fill="#C9C8FF"/><circle cx="44" cy="17" r="5" fill="#FFD84A"/>
+    <rect x="20" y="34" width="26" height="22" rx="5" fill="#fff"/><rect x="52" y="34" width="26" height="22" rx="5" fill="#fff" opacity=".55"/>
+    <rect x="20" y="61" width="26" height="22" rx="5" fill="#fff" opacity=".55"/><rect x="52" y="61" width="26" height="22" rx="5" fill="url(#kp-y)"/>
+  </symbol>
+</defs></svg>
+
+<!-- 연결 중 -->
+<main id="screen-loading" class="screen center">
+  <div class="logo big" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></div>
+  <p class="muted">서버에 연결하는 중…</p>
+</main>
+
+<!-- 입장 화면 -->
+<main id="screen-enter" class="screen enter" hidden>
+  <header class="top">
+    <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill blue">블록 점령전</span>
+    <span class="grow"></span>
+    <span class="pill ghost">학생 방 · 수업 게임</span>
+  </header>
+
+  <div class="enter-body">
+    <section class="card me-card">
+      <span class="label">나의 캐릭터</span>
+      <div class="bob" id="enter-avatar"></div>
+      <span class="nick-big" id="enter-nick-big">…</span>
+    </section>
+
+    <section class="enter-steps">
+      <div class="card step">
+        <h2>1. 닉네임</h2>
+        <div class="row">
+          <div class="nick-box" id="enter-nick">…</div>
+          <button type="button" class="btn blue" id="btn-reroll">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+            다시 뽑기
+          </button>
+        </div>
+        <span class="hint">닉네임은 무작위로만 정해져요. 마음에 들 때까지 다시 뽑으세요.</span>
+      </div>
+
+      <div class="card step">
+        <h2>2. 캐릭터와 색</h2>
+        <div class="chars" id="enter-chars"></div>
+        <div class="colors" id="enter-colors"><span class="hint">색</span></div>
+      </div>
+
+      <div class="enter-go">
+        <span class="hint grow">게임이 시작되면 키보드로만 움직여요. 한/영 키가 <b>영문</b>인지 확인하세요.</span>
+        <button type="button" class="btn yellow go" id="btn-join">입장하기
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4 L20 12 L6 20 Z" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <p class="error" id="enter-error" role="alert"></p>
+    </section>
+  </div>
+  <footer class="credit">
+    <div>KAIT-PLAY · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
+    <div>글꼴 Pretendard · JetBrains Mono · Press Start 2P · Archivo (SIL OFL 1.1) · 실시간 연결 Socket.IO (MIT)</div>
+  </footer>
+</main>
+
+<!-- 로비 -->
+<main id="screen-lobby" class="screen page" hidden>
+  <header class="top">
+    <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill blue">자유 대전 로비</span>
+    <span class="grow"></span>
+    <div class="me-chip">
+      <span class="av" id="lobby-avatar"></span>
+      <span class="who"><b id="lobby-nick"></b><button type="button" class="linklike" id="btn-profile">캐릭터 바꾸기</button></span>
+    </div>
+  </header>
+  <form class="card class-join" id="class-join" autocomplete="off">
+    <div class="cj-text">
+      <h2>수업 게임에 들어가기</h2>
+      <span class="muted">선생님이 알려 준 숫자 4자리 코드를 넣으세요</span>
+    </div>
+    <label class="sr" for="class-code">수업 게임 코드</label>
+    <input id="class-code" class="code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="0000" autocomplete="off">
+    <button type="submit" class="btn yellow big-btn" id="btn-class-join">들어가기</button>
+    <p class="error" id="class-error" role="alert"></p>
+  </form>
+  <div class="lobby-bar">
+    <h1>열려 있는 방</h1>
+    <span class="muted" id="lobby-count"></span>
+    <span class="grow"></span>
+    <div class="seg" role="group" aria-label="방 상태로 거르기" id="lobby-filter"></div>
+    <button type="button" class="btn yellow big-btn" id="btn-create">
+      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>
+      방 만들기</button>
+  </div>
+  <p class="rooms-off" id="rooms-off" hidden>지금은 선생님이 학생 방 만들기를 꺼 두었어요. 열려 있는 방에는 들어갈 수 있어요.</p>
+  <div class="rooms" id="lobby-rooms"></div>
+  <p class="muted foot">방 이름은 방장 닉네임으로 자동으로 정해져요 · 10분 동안 시작하지 않은 방은 닫혀요 · 진행 중인 방에는 들어갈 수 없어요</p>
+  <footer class="credit">
+    <div>KAIT-PLAY · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
+    <div>글꼴 Pretendard · JetBrains Mono · Press Start 2P · Archivo (SIL OFL 1.1) · 실시간 연결 Socket.IO (MIT)</div>
+  </footer>
+</main>
+
+<!-- 방 만들기 -->
+<main id="screen-create" class="screen page" hidden>
+  <header class="top">
+    <button type="button" class="linklike back" id="btn-create-back">◀ 로비로</button>
+    <h1 class="page-title">방 만들기</h1>
+    <span class="muted">정한 값은 방이 열려 있는 동안 바꿀 수 없어요</span>
+  </header>
+  <div class="create-body">
+    <section class="card create-form">
+      <div class="field">
+        <div class="field-head"><h2>문제 태그</h2><span class="muted">여러 개 고를 수 있어요 · 숫자는 일반·보스 문제 수</span></div>
+        <div class="tag-list" id="cr-tags"></div>
+        <span class="tag-info" id="cr-taginfo"></span>
+      </div>
+      <!-- 설정 순서 (v0.7.1): 인원·제한 시간 / 블록 수·점유 / 보스 간격·잔류·풀이 / 봇 속도 / 페널티 -->
+      <div class="field-grid">
+        <div class="field"><h3>최대 인원</h3>
+          <div class="stepper"><button type="button" class="step-btn" id="cr-ppl-down" aria-label="인원 줄이기">−</button><b id="cr-ppl">4</b><button type="button" class="step-btn" id="cr-ppl-up" aria-label="인원 늘리기">+</button><span class="muted">2 ~ 16명</span></div></div>
+        <div class="field"><h3>제한 시간</h3>
+          <div class="stepper"><button type="button" class="step-btn" id="cr-lim-down" aria-label="제한 시간 줄이기">−</button><label class="step-num"><input id="cr-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="제한 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="cr-lim-up" aria-label="제한 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
+      </div>
+      <div class="field-grid sep">
+        <div class="field"><h3>블록 수</h3>
+          <div class="stepper"><button type="button" class="seg-btn" id="cr-auto" aria-pressed="true">자동 (추천)</button><button type="button" class="step-btn" id="cr-blk-down" aria-label="블록 줄이기">−</button><b id="cr-blk">자동</b><button type="button" class="step-btn" id="cr-blk-up" aria-label="블록 늘리기">+</button></div>
+          <span class="muted small" id="cr-blkhelp"></span></div>
+        <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="cr-occ"></div></div>
+      </div>
+      <div class="field-grid sep three">
+        <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="cr-bossevery"></div><span class="muted small">보스가 끝나고 다음 보스가 나올 때까지</span></div>
+        <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="cr-bosswait"></div><span class="muted small">아무도 잡지 않으면 달아나기까지</span></div>
+        <div class="field"><h3>보스 풀이 시간</h3><div class="seg-row" id="cr-bosslimit"></div></div>
+      </div>
+      <div class="field-grid sep">
+        <div class="field"><h3>봇 속도</h3><div class="seg-row" id="cr-botspeed"></div><span class="muted small">대기실에서 방장이 봇을 넣을 수 있어요 (봇도 인원에 들어가요 · 보스는 안 잡음)</span></div>
+      </div>
+      <div class="field-grid sep">
+        <div class="field"><h3>페널티 아이템</h3>
+          <div class="row"><button type="button" class="toggle" id="cr-pen" aria-pressed="true" aria-label="페널티 아이템"><span></span></button><span class="muted" id="cr-pentext"></span></div></div>
+      </div>
+    </section>
+    <aside class="create-side">
+      <div class="card preview">
+        <span class="label">방 미리보기</span>
+        <div class="row"><span class="av" id="cr-avatar"></span><b class="room-name" id="cr-name"></b></div>
+        <dl class="summary" id="cr-summary"></dl>
+        <span class="hint">자유 대전 방은 한 팀 협동이에요. 다른 조를 공격하는 아이템과 방패는 나오지 않아요.</span>
+      </div>
+      <span class="grow"></span>
+      <p class="error" id="cr-error" role="alert"></p>
+      <button type="button" class="btn yellow go wide" id="btn-open">방 열기</button>
+    </aside>
+  </div>
+</main>
+
+<!-- 대기실 -->
+<main id="screen-wait" class="screen page" hidden>
+  <header class="top">
+    <button type="button" class="linklike exit" id="btn-wait-leave">방 나가기</button>
+    <h1 class="page-title white" id="w-name"></h1>
+    <span class="pill green">팀원 모집 중</span>
+    <b class="pixel" id="w-count"></b>
+    <span class="grow"></span>
+    <span class="muted">시작하지 않으면 <b class="pixel orange" id="w-close">10:00</b> 뒤에 방이 닫혀요</span>
+  </header>
+  <div class="wait-body">
+    <section class="wait-main">
+      <div class="slots" id="w-slots"></div>
+      <div class="card chat" id="w-chat">
+        <div class="field-head"><h2>한마디</h2><span class="muted small">문구를 누르거나 숫자 키 1~6 · ← → 로 묶음 바꾸기</span></div>
+        <div class="chat-tabs" role="tablist"></div>
+        <div class="chat-btns"></div>
+        <ol class="chat-log" aria-live="polite"></ol>
+      </div>
+      <div class="card">
+        <h2>기다리는 동안 손풀기</h2>
+        <div class="key-grid">
+          <span><kbd>← ↑ → ↓</kbd>한 칸 이동</span>
+          <span><kbd>Home / End</kbd>줄 맨 앞 · 맨 끝</span>
+          <span><kbd>Ctrl + 방향키</kbd>덩어리 끝까지 점프</span>
+          <span><kbd>Enter</kbd>블록 점유 · 제출</span>
+          <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 칸 (→ · ← 와 같음)</span>
+          <span><kbd>Ctrl + Home / End</kbd>판 맨 처음 · 맨 끝</span>
+          <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
+        </div>
+      </div>
+    </section>
+    <aside class="wait-side">
+      <div class="card"><span class="label">방 설정</span><dl class="summary" id="w-summary"></dl></div>
+      <span class="grow"></span>
+      <div id="w-host">
+        <p class="muted center-text" id="w-startinfo"></p>
+        <button type="button" class="btn yellow go wide tall" id="btn-start">게임 시작
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4 L20 12 L6 20 Z" fill="currentColor"/></svg></button>
+        <p class="muted small center-text">시작은 방장만 할 수 있어요 · 방장이 나가면 다음 사람이 방장이 돼요</p>
+      </div>
+      <div class="waiting-box" id="w-guest"><i class="dot"></i>방장이 시작하기를 기다리는 중</div>
+      <p class="error" id="w-error" role="alert"></p>
+    </aside>
+  </div>
+</main>
+
+<!-- 수업 게임: 조 선택 -->
+<main id="screen-team" class="screen page" hidden>
+  <header class="top">
+    <button type="button" class="linklike exit" id="btn-team-leave">수업 나가기</button>
+    <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+    <span class="pill blue">수업 게임</span>
+    <span class="grow"></span>
+    <span class="muted">코드</span>
+    <b class="code-chip" id="t-code">0000</b>
+  </header>
+  <div class="team-body">
+    <section class="card me-card team-me">
+      <span class="label">나의 캐릭터</span>
+      <div class="bob" id="t-avatar"></div>
+      <span class="nick-big" id="t-nick"></span>
+      <span class="team-pick" id="t-picked">조를 골라 주세요</span>
+    </section>
+    <section class="team-main">
+      <div class="card">
+        <div class="field-head"><h2>조 선택</h2><span class="muted" id="t-teaminfo"></span></div>
+        <div class="team-grid" id="t-teams"></div>
+      </div>
+      <div class="waiting-box" id="t-status"><i class="dot"></i><span>선생님이 게임을 시작하기를 기다리는 중</span></div>
+      <div class="card chat" id="t-chat">
+        <div class="field-head"><h2>한마디</h2><span class="muted small">문구를 누르거나 숫자 키 1~6 · ← → 로 묶음 바꾸기</span></div>
+        <div class="chat-tabs" role="tablist"></div>
+        <div class="chat-btns"></div>
+        <ol class="chat-log" aria-live="polite"></ol>
+      </div>
+      <div class="card">
+        <h2>기다리는 동안 손풀기</h2>
+        <div class="key-grid">
+          <span><kbd>← ↑ → ↓</kbd>한 칸 이동</span>
+          <span><kbd>Home / End</kbd>줄 맨 앞 · 맨 끝</span>
+          <span><kbd>Ctrl + 방향키</kbd>덩어리 끝까지 점프</span>
+          <span><kbd>Enter</kbd>블록 점유 · 제출</span>
+          <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 칸 (→ · ← 와 같음)</span>
+          <span><kbd>Ctrl + Home / End</kbd>판 맨 처음 · 맨 끝</span>
+          <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- 게임 화면 -->
+<main id="screen-game" class="screen game" hidden>
+  <aside class="side">
+    <section class="card stand-card" id="g-stand-card" hidden>
+      <div class="stand-head"><h2>조별 상황판</h2><span class="muted small">해결률</span></div>
+      <ol class="stand" id="g-stand"></ol>
+    </section>
+    <section class="card" id="g-progress-card">
+      <span class="label" id="g-room">학생 방</span>
+      <div class="progress-num"><b id="g-pct">0%</b><span id="g-left">남은 블록 0</span></div>
+      <div class="bar"><div id="g-bar"></div></div>
+      <span class="hint">블록 위에서 Enter 로 점유하고 코드를 똑같이 입력! 보라색 보스가 나오면 옆 칸에서 Delete · Backspace 로 잡아 아이템을 얻으세요.</span>
+    </section>
+    <section class="card">
+      <h2><span id="g-team-title">우리 팀</span> <span class="count" id="g-count">0</span></h2>
+      <ul class="members" id="g-members"></ul>
+    </section>
+    <section class="card grow feed-card">
+      <h2>전장 소식</h2>
+      <ul class="feed" id="g-feed"></ul>
+    </section>
+  </aside>
+
+  <div class="main-col">
+    <header class="card top-bar">
+      <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
+      <span class="pill green" id="g-mode">자유 대전</span>
+      <span class="tags" id="g-tags"></span>
+      <span class="grow"></span>
+      <b class="timer" id="g-timer">10:00</b>
+      <span class="fx" id="fx"></span>
+      <button type="button" class="snd-btn" id="btn-sfx" tabindex="-1" aria-pressed="true" title="효과음 켜기/끄기 (이 브라우저에 기억)">소리 켬</button>
+      <button type="button" class="snd-btn" id="btn-typesnd" tabindex="-1" aria-pressed="true" title="타이핑할 때 톡 소리">타자음 켬</button>
+      <span class="conn" id="conn" title="서버와 연결된 방식"><i></i><span>연결 중</span></span>
+      <button type="button" class="btn small ghost-btn" id="btn-leave" tabindex="-1">나가기</button>
+    </header>
+
+    <div class="board-wrap" id="board-wrap">
+      <div class="board" id="board"></div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <div class="incoming" id="incoming" hidden role="alert"><b class="in-title"></b><span class="in-help"></span><b class="in-sec">2.0</b><i><em></em></i></div>
+      <div class="auto-bar" id="auto-bar" hidden><span class="ab-pill">⚡ 자동완성 <b>10</b></span><span class="ab-text"></span><i><em></em></i></div>
+      <div class="banner" id="banner" role="status" aria-live="polite"><span class="bn-kind"></span><b class="bn-name"></b><span class="bn-desc"></span></div>
+      <div class="ice" id="ice" hidden><span>얼음!</span><b>5</b></div>
+      <div class="cloud-tag" id="cloud" hidden><span>먹구름!</span><b>5</b></div>
+      <div class="board-cover countdown" id="countdown" hidden><div class="cd-box"><span class="cd-label">준비!</span><b class="cd-num">5</b></div></div>
+      <div class="board-cover paused" id="paused" hidden>
+        <div class="cover-box"><b>일시정지</b><span>선생님이 게임을 잠시 멈췄어요. 모든 시간이 멈춰 있어요.</span></div>
+      </div>
+      <div class="board-cover done" id="done" hidden>
+        <div class="cover-box"><span class="cover-kind">판 완성!</span><b id="done-rank">1위</b><span id="done-sub">다른 조가 끝나기를 기다리는 중</span></div>
+      </div>
+      <div class="idle" id="idle" hidden>
+        <div class="idle-box">
+          <b>다들 어디 갔어요?</b>
+          <span>1분 동안 아무도 입력하지 않았어요.</span>
+          <i id="idle-sec">15</i>
+          <em>아무 키나 누르면 계속해요</em>
+          <span class="muted small">그대로 두면 방이 끝나고 로비로 돌아가요</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deck" id="deck" aria-label="내 아이템 덱"></div>
+    <footer class="card keys" id="keys"></footer>
+  </div>
+</main>
+
+<!-- 결과 -->
+<div class="overlay" id="overlay-result" hidden>
+  <div class="result">
+    <span class="rs-kind" id="rs-kind">결과</span>
+    <b class="rs-title" id="rs-title"></b>
+    <div class="rs-stats" id="rs-stats"></div>
+    <ol class="rs-teams" id="rs-teams" hidden></ol>
+    <ol class="rs-players" id="rs-players"></ol>
+    <button type="button" class="btn yellow go" id="btn-result-ok">대기실로</button>
+  </div>
+</div>
+
+<!-- 로비 알림 -->
+<div class="toast page-toast" id="page-toast" role="status" aria-live="polite"></div>
+
+<!-- 연결이 끊겼을 때 -->
+<div class="overlay" id="overlay-offline" hidden>
+  <div class="dialog">
+    <b>서버와 연결이 끊겼어요</b>
+    <span>다시 연결하는 중… 잠시만 기다려 주세요.</span>
+  </div>
+</div>
+<div class="overlay" id="overlay-kicked" hidden>
+  <div class="dialog">
+    <b>다른 탭에서 게임을 열었어요</b>
+    <span>이 탭은 멈췄어요. 한 브라우저에서는 한 탭만 쓸 수 있어요.</span>
+    <button type="button" class="btn yellow" onclick="location.reload()">이 탭에서 다시 하기</button>
+  </div>
+</div>
+
+<script src="socket.io/socket.io.min.js"></script>
+<script src="js/shared/move.js"></script>
+<script src="js/shared/chat.js"></script>
+<script src="js/avatar.js"></script>
+<script src="js/sound.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

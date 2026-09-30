@@ -50,7 +50,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.1.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '1.2.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
@@ -182,6 +182,7 @@ const SETTING_DEFAULTS = [
   'hero_on'      => '1',      // 첫 화면 코드 타이핑 연출
   'signup_on'    => '0',      // 회원가입 허용
   'footer_extra' => '',       // 관리자가 넣는 추가 안내 (마크다운)
+  'play_menu'    => '1',      // KAIT-PLAY 가 설치되어 있으면 위쪽 메뉴에 링크 보이기
 ];
 
 function settings_all(): array {
@@ -329,4 +330,15 @@ function resolve_prob_nos(string $nos): array {
     $found[] = $byNo[$no];
   }
   return ['found' => $found, 'bad' => $bad, 'dup' => $dup];
+}
+
+/* ── KAIT-PLAY (코딩 게임) ───────────────────────
+   KAIT-PLAY 는 같은 서버의 별도 프로그램(Docker)이다. 주소는 언제나 /play/.
+   play/install.sh 가 설치를 마치면 DATA_DIR/play.json 을 남긴다 → 있으면 설치된 것.
+   (KAIT-CLASS 와 로그인은 연동하지 않는다. 교사 화면 비밀번호는 따로다.) */
+function play_installed(): bool {
+  return is_file(DATA_DIR . '/play.json');
+}
+function play_menu_on(): bool {
+  return play_installed() && setting('play_menu') === '1';
 }

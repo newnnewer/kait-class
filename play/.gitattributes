@@ -1,0 +1,7 @@
+# 리눅스 서버에서 돌아가는 파일은 줄 끝을 LF 로 (윈도에서 고쳐도 깨지지 않게)
+*.sh   text eol=lf
+*.js   text eol=lf
+*.conf text eol=lf
+*.yml  text eol=lf
+Dockerfile text eol=lf
+*.bat  text eol=crlf

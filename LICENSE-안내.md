@@ -16,6 +16,12 @@ KAIT-CLASS 는 **한국정보교사연합회(KAIT)** 와 **문광식** 의 공�
 화면 꼬리말에는 문광식을 아이디 **newnnewer** 로 표기합니다 (같은 사람입니다).
 문의: <newnnewer@gmail.com>
 
+## KAIT-PLAY (play/ 폴더)
+
+함께 배포하는 코딩 게임 KAIT-PLAY 도 같은 **PolyForm Noncommercial License 1.0.0** 을 따릅니다.
+저작권자 표기는 한국정보교사연합회(KAIT) 와 **newnnewer** 입니다 ([`play/LICENSE`](play/LICENSE)).
+아래 조건은 KAIT-PLAY 에도 똑같이 적용되며, KAIT-PLAY 화면 아래쪽의 저작권 표기도 지우면 안 됩니다.
+
 ## 할 수 있는 것
 
 - **학교**에서 수업과 학교 교육활동에 사용하기
@@ -57,3 +63,5 @@ LICENSE 원문은 "educational institution(교육기관)"의 사용을 허용합
 | CodeMirror 5 | 코드 편집기 | MIT |
 | Parsedown | 마크다운 변환 | MIT |
 | Judge0 | 채점 엔진 (설치할 때 따로 내려받음, 소스에 포함되지 않음) | GPL-3.0 |
+| Socket.IO | KAIT-PLAY 실시간 연결 (설치할 때 내려받음) | MIT |
+| JetBrains Mono · Press Start 2P · Archivo | KAIT-PLAY 글꼴 | SIL Open Font License 1.1 |
