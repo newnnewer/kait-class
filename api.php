@@ -120,7 +120,7 @@ switch ($action) {
       if (!one("SELECT 1 x FROM set_problems WHERE set_id=? AND problem_id=?", [$setId, $pid])) {
         jerr('이 수업·평가에 없는 문제입니다', 403);
       }
-      if (!set_open($set)) {
+      if (!set_open_for($me, $set)) {
         jerr(set_state($set) === 'before' ? '아직 시작 전입니다' : '종료되었습니다', 403);
       }
       $allow = set_langs($set);
@@ -193,16 +193,8 @@ switch ($action) {
 
     /* 틀렸을 때 처음 어긋난 케이스를 보여준다.
        몇 번째 케이스인지는 알리지 않는다. */
-    if ($s['verdict'] === 'WA' && $s['fail_expected'] !== null && diff_allowed($s)) {
-      $d = diff_view($s['fail_expected'], $s['fail_output']);
-      if ($d['mode'] !== 'toolong') {
-        $inRaw = (string)$s['fail_input'];
-        $d['input'] = mb_strlen($inRaw) > DIFF_FULL_CHARS
-                    ? mb_substr($inRaw, 0, DIFF_FULL_CHARS) . "\n…"
-                    : $inRaw;
-      }
-      $out['diff'] = $d;
-    }
+    $d = diff_for_submission($s);
+    if ($d !== null) $out['diff'] = $d;
 
     /* 평가라면 진행률을 함께 보낸다. 통과할 때마다 화면이 다음 회차를 안내한다. */
     if ($s['set_type'] === 'assessment' && (int)$s['user_id'] === (int)$me['id']) {

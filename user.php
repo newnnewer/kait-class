@@ -18,6 +18,8 @@ $t = $who !== ''
    : one("SELECT u.*, g.name AS group_name FROM users u LEFT JOIN groups g ON g.id = u.group_id
           WHERE u.id = ?", [$me['id']]);
 if (!$t) { header('Location: results.php'); exit; }
+/* 관리자 계정의 활동은 관리자만 본다 (1.5.0) */
+if ($t['role'] === 'admin' && $me['role'] !== 'admin') { header('Location: results.php'); exit; }
 
 $isSelf  = (int)$t['id'] === (int)$me['id'];
 $isAdmin = $me['role'] === 'admin';

@@ -7,9 +7,11 @@ $u = need_admin('../');
 
 $type     = ($_GET['type'] ?? '') === 'assessment' ? 'assessment' : 'lesson';
 $showDone = !empty($_GET['done']);
-$msg = ''; $err = '';
+[$msg, $err] = flash_take();
 
-/* ── 목록에서 바로 하는 동작 ─────────────────── */
+/* ── 목록에서 바로 하는 동작 ─────────────────── 
+   열기·잠그기는 '뒤집기'가 아니라 원하는 상태를 직접 받는다 (1.5.0).
+   처리한 뒤에는 같은 주소로 다시 이동해, 새로고침해도 다시 실행되지 않게 한다. */
 $do  = (string)($_POST['do'] ?? '');
 $sid = (int)($_POST['id'] ?? 0);
 
@@ -17,9 +19,9 @@ if ($do && $sid) {
   $target = one("SELECT * FROM sets WHERE id=?", [$sid]);
   if (!$target) {
     $err = '없는 항목입니다.';
-  } elseif ($do === 'toggle') {
-    db()->prepare("UPDATE sets SET active = 1 - active WHERE id=?")->execute([$sid]);
-    $msg = (int)$target['active'] === 1
+  } elseif ($do === 'open' || $do === 'lock') {
+    db()->prepare("UPDATE sets SET active = ? WHERE id=?")->execute([$do === 'open' ? 1 : 0, $sid]);
+    $msg = $do === 'lock'
          ? '잠갔습니다. 학생에게 보이지 않습니다.'
          : '열었습니다. 학생에게 보입니다.';
   } elseif ($do === 'copy') {
@@ -52,7 +54,10 @@ if ($do && $sid) {
       });
       $msg = '삭제했습니다.';
     }
+  } else {
+    $err = '알 수 없는 동작입니다.';
   }
+  redirect_with($msg, $err);
 }
 
 /* ── 목록 ────────────────────────────────────── */
@@ -104,7 +109,7 @@ function set_row(array $r, string $type): void {
     <td class="rowbtns">
       <form method="post">
         <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-        <button class="btn sm <?= $locked ? 'primary' : '' ?>" name="do" value="toggle" type="submit">
+        <button class="btn sm <?= $locked ? 'primary' : '' ?>" name="do" value="<?= $locked ? 'open' : 'lock' ?>" type="submit">
           <?= $locked ? '열기' : '잠그기' ?>
         </button>
       </form>

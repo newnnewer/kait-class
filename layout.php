@@ -174,13 +174,15 @@ function page_head(array $o): void {
 <?php if (DEMO_MODE): ?>
 <div class="demobar">체험 서버입니다 · 매일 새벽 4시에 처음 상태로 돌아갑니다 · 비밀번호 바꾸기 · 사이트 설정 · 파일 올리기는 쓸 수 없습니다</div>
 <?php endif; ?>
-<header class="top">
+<?php /* 관리자 화면은 위쪽 메뉴 띠를 어둡게 + '관리자' 표시 (1.5.0) — 학생 화면과 한눈에 구분되게 */ ?>
+<header class="top<?= $isAdminArea ? ' is-admin' : '' ?>">
   <div class="top-in">
     <?php $logo = site_image_url('logo', $root); ?>
     <a class="brand<?= $logo !== '' ? ' haslogo' : '' ?>" href="<?= h($root) ?>index.php">
       <?php if ($logo !== ''): ?><img src="<?= $logo ?>" alt="<?= h($site) ?>">
       <?php else: ?><?= h($site) ?><?php endif; ?>
     </a>
+    <?php if ($isAdminArea): ?><span class="adminchip">관리자</span><?php endif; ?>
     <nav class="mainnav">
       <?php foreach (JNAV as $k => [$label, $sHref, $aHref, $guestOk, $adminOnly]): ?>
         <?php

@@ -5,17 +5,32 @@ require_once __DIR__ . '/guard.php';
 require_once __DIR__ . '/layout.php';
 $u = me();
 
+/* 수업·평가에서 낸 제출 표시 (1.5.0) — 모두에게는 종류만, 관리자에게는 이름까지 (누르면 현황표).
+   이름에는 반 이름 같은 것이 들어갈 수 있어 밖에는 내보이지 않는다. */
+function set_mark(?array $u, $setId, ?string $type, ?string $title): string {
+  if (!$setId || !$type) return '';
+  $name = SET_TYPE_NAME[$type] ?? '';
+  $cls  = 'setmark ' . ($type === 'assessment' ? 'is-assess' : 'is-lesson');
+  if (is_admin($u)) {
+    return ' <a class="' . $cls . '" href="admin/progress.php?id=' . (int)$setId . '" title="' . h($name . ' · ' . $title) . ' — 현황표">'
+         . h($name . ' · ' . $title) . '</a>';
+  }
+  return ' <span class="' . $cls . '">' . h($name) . '</span>';
+}
+
 /* 한 건 자세히 보기 — 코드는 본인 것(과 관리자)만 */
 $detailId = (int)($_GET['id'] ?? 0);
 $detail = null;
 if ($detailId) {
-  $detail = one("SELECT s.*, p.prob_no, p.title, us.login_id, us.name AS uname, st.set_type
+  $detail = one("SELECT s.*, p.prob_no, p.title, us.login_id, us.name AS uname, st.set_type, st.title AS set_title
                  FROM submissions s
                  JOIN problems p ON p.id = s.problem_id
                  JOIN users us ON us.id = s.user_id
                  LEFT JOIN sets st ON st.id = s.set_id
                  WHERE s.id = ?", [$detailId]);
   /* 평가 제출도 목록과 같은 자리에서 보인다. 다만 코드는 아래에서 본인·관리자만 볼 수 있다. */
+  /* 관리자가 낸 것은 관리자만 본다 (1.5.0) — 미리 풀어 본 흔적이 학생에게 보이지 않게 */
+  if ($detail && !is_admin($u) && admin_user_id((int)$detail['user_id'])) $detail = null;
 }
 
 /* 로그인하지 않은 사람에게는 누가 제출했는지 보여주지 않는다.
@@ -28,6 +43,7 @@ $mineOnly = $u && isset($_GET['mine']);
 
 $where = [];
 $args  = [];
+if (!is_admin($u)) $where[] = "us.role <> 'admin'";   /* 관리자 제출은 관리자만 (1.5.0) */
 if ($mineOnly)        { $where[] = "s.user_id = :uid";        $args[':uid'] = $u['id']; }
 if ($fUser !== '')    { $where[] = "(us.login_id LIKE :us OR us.name LIKE :us)"; $args[':us'] = '%'.$fUser.'%'; }
 if ($fProb !== '')    { $where[] = "CAST(p.prob_no AS TEXT) = :pn"; $args[':pn'] = $fProb; }
@@ -35,8 +51,9 @@ if ($fVerdict !== '') { $where[] = "s.verdict = :vd";         $args[':vd'] = $fV
 if ($fLang !== '')    { $where[] = "s.lang = :lg";            $args[':lg'] = $fLang; }
 
 $rows = all("SELECT s.id, s.lang, s.state, s.verdict, s.passed_count, s.total_count,
-                    s.max_time, s.max_memory, s.created_at, s.user_id,
-                    p.prob_no, p.title, us.login_id, us.name AS uname
+                    s.max_time, s.max_memory, s.created_at, s.user_id, s.set_id,
+                    p.prob_no, p.title, us.login_id, us.name AS uname,
+                    st.set_type, st.title AS set_title
              FROM submissions s
              JOIN problems p ON p.id = s.problem_id
              JOIN users us ON us.id = s.user_id
@@ -59,6 +76,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
       <div class="dhead">
         <span class="pno"><?= (int)$detail['prob_no'] ?></span>
         <b><?= h($detail['title']) ?></b>
+        <?= set_mark($u, $detail['set_id'] ?? null, $detail['set_type'] ?? null, $detail['set_title'] ?? null) ?>
         <?= verdict_badge($detail['verdict'], $detail['state']) ?>
         <span class="small muted">
           <?php if ($u): ?><?= h($detail['login_id']) ?> · <?php endif; ?>
@@ -79,6 +97,8 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
       </div>
       <?php if ($canSeeCode): ?>
         <pre class="codeview"><?= h($detail['source_code']) ?></pre>
+        <?php /* 지난 제출에서도 어디가 틀렸는지 (1.5.0) — 제출 직후와 같은 규칙 · 같은 모양 */
+              $dd = diff_for_submission($detail); if ($dd !== null) echo diff_html($dd); ?>
         <?php if (trim((string)$detail['compile_msg']) !== ''): ?>
           <div class="cap">메시지</div>
           <pre class="codeview msg"><?= h($detail['compile_msg']) ?></pre>
@@ -129,7 +149,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
           <th class="right" style="width:78px">시간</th>
           <th class="right" style="width:90px">메모리</th>
           <th style="width:78px">언어</th>
-          <th class="right" style="width:130px">제출 시각</th>
+          <th class="right" style="width:104px">제출 시각</th>
         </tr>
       </thead>
       <tbody>
@@ -140,7 +160,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
             <td class="num"><a href="user.php?id=<?= rawurlencode($r['login_id']) ?>"><?= h($r['login_id']) ?></a></td>
           <?php endif; ?>
           <td class="num"><?= (int)$r['prob_no'] ?></td>
-          <td class="title"><a href="problem.php?no=<?= (int)$r['prob_no'] ?>"><?= h($r['title']) ?></a></td>
+          <td class="title"><a href="problem.php?no=<?= (int)$r['prob_no'] ?>"><?= h($r['title']) ?></a><?= set_mark($u, $r['set_id'], $r['set_type'], $r['set_title']) ?></td>
           <td><?= verdict_badge($r['verdict'], $r['state']) ?></td>
           <td class="right num"><?= $r['max_time'] !== null
                 ? number_format((float)$r['max_time'], 3) : '' ?></td>
@@ -153,7 +173,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
               <?= h(lang_label($r['lang'])) ?>
             <?php endif; ?>
           </td>
-          <td class="right num"><?= h(substr((string)$r['created_at'], 2)) ?></td>
+          <td class="right num" title="<?= h((string)$r['created_at']) ?>"><?= h(substr((string)$r['created_at'], 5, 11)) ?></td>
         </tr>
       <?php endforeach; ?>
       </tbody>

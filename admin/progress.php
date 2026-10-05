@@ -95,8 +95,8 @@ page_head(['title' => $s['title'] . ' 현황', 'root' => '../', 'user' => $u,
             <th style="width:110px">아이디</th>
             <th style="width:100px">이름</th>
             <?php foreach ($problems as $p): ?>
-              <th class="center" title="<?= h($p['title']) ?>">
-                <?= (int)$p['prob_no'] ?>
+              <th class="center" title="<?= h($p['title']) ?> — 누르면 새 탭에서 문제를 엽니다">
+                <a class="plink" href="../problem.php?no=<?= (int)$p['prob_no'] ?>&set=<?= $id ?>" target="_blank" rel="noopener"><?= (int)$p['prob_no'] ?></a>
                 <?php if ($isAssess): ?><div class="need">/<?= (int)$p['required_ac'] ?></div><?php endif; ?>
               </th>
             <?php endforeach; ?>
@@ -106,7 +106,7 @@ page_head(['title' => $s['title'] . ' 현황', 'root' => '../', 'user' => $u,
         <?php foreach ($students as $st): ?>
           <tr>
             <td class="small muted"><?= h($st['group_name'] ?? '') ?></td>
-            <td class="num"><?= h($st['login_id']) ?></td>
+            <td class="num"><a href="submissions.php?set_id=<?= $id ?>&user_id=<?= (int)$st['id'] ?>" title="이 학생의 제출 기록"><?= h($st['login_id']) ?></a></td>
             <td class="small"><?= h($st['name']) ?></td>
             <?php foreach ($problems as $p):
               $pid  = (int)$p['problem_id'];

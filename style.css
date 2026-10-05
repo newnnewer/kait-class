@@ -348,9 +348,9 @@ table.list tr.me:hover td{background:var(--b100)}
 .chk{display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--ink-2);
      white-space:nowrap}
 .detail{border:1px solid var(--b200); border-radius:9px; margin-bottom:22px; overflow:hidden}
-.detail .dhead{display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+.detail > .dhead{display:flex; align-items:center; gap:11px; flex-wrap:wrap;
                padding:11px 15px; background:var(--b25); border-bottom:1px solid var(--b100)}
-.detail .dhead .grow{flex:1}
+.detail > .dhead .grow{flex:1}
 .detail .cap{font-size:12px; font-weight:600; color:var(--b500); padding:10px 16px 0}
 pre.codeview{margin:0; padding:14px 16px; font-family:var(--mono); font-size:13px;
              line-height:1.6; overflow-x:auto; background:#fff; white-space:pre}
@@ -418,6 +418,8 @@ table.list.grid{min-width:600px}
 table.list.grid th,table.list.grid td{white-space:nowrap}
 table.list.grid th.center,table.list.grid td.center{text-align:center; padding-left:6px; padding-right:6px}
 table.list.grid th .need{font-size:11px; color:var(--ink-3); font-weight:500}
+table.list.grid th a.plink{color:inherit; text-decoration:underline; text-decoration-color:var(--line, #ccd); text-underline-offset:3px}
+table.list.grid th a.plink:hover{color:var(--b700)}
 table.list.grid td sup{font-size:9px; color:var(--ok)}
 td.c-done{background:var(--ok-soft); color:var(--ok); font-weight:700}
 td.c-part{background:var(--warn-soft); color:var(--warn); font-weight:700}
@@ -741,3 +743,30 @@ a.who:hover .sub2{color:var(--b600)}
 /* 체험 서버 안내 띠 (config.php 의 demo) */
 .demobar{background:#FFF4C2; color:#6B4E00; border-bottom:1px solid #F1D98A; text-align:center;
   font-size:13px; font-weight:600; padding:7px 16px; line-height:1.5}
+
+/* 채점 결과: 수업 · 평가에서 낸 제출 표시 (1.5.0) */
+.setmark{display:inline-block; vertical-align:middle; margin:-2px 0 0 7px; padding:0 7px; border-radius:5px;
+         font-size:11px; font-weight:600; line-height:1.5; white-space:nowrap;
+         max-width:190px; overflow:hidden; text-overflow:ellipsis}
+.setmark.is-lesson{background:#fff; color:var(--b600); border:1px solid var(--b200)}
+.setmark.is-assess{background:#fff; color:var(--warn); border:1px solid #E8C989}
+a.setmark:hover{text-decoration:underline}
+
+/* 관리자 화면 (1.5.0): 위쪽 메뉴 띠를 어두운 남색으로 + '관리자' 표시. 학생 화면은 그대로 밝게 */
+.top.is-admin{background:var(--b900); border-bottom:3px solid #F2B32E}
+.top.is-admin .brand{color:#fff}
+.top.is-admin .brand:hover{color:var(--b200)}
+.top.is-admin .brand.haslogo{background:#fff; padding:5px 9px; border-radius:7px}   /* 어두운 로고도 보이게 */
+.adminchip{margin-left:-10px; padding:2px 9px; border-radius:999px; background:#F2B32E; color:#2A1C00;
+           font-size:12px; font-weight:700; letter-spacing:.02em; white-space:nowrap}
+.top.is-admin .mainnav a{color:var(--b200)}
+.top.is-admin .mainnav a:hover{background:rgba(255,255,255,.1); color:#fff}
+.top.is-admin .mainnav a.on{background:#fff; color:var(--b900)}
+.top.is-admin .mainnav a.navplay{color:#C9B6FF}
+.top.is-admin .who{color:var(--b200)}
+.top.is-admin .who b{color:#fff}
+.top.is-admin .util a{color:var(--b200)}
+.top.is-admin .util a:hover{color:#fff}
+
+/* 관리자가 학생에게는 닫힌 수업 · 평가를 볼 때 (1.5.0) */
+.note.admin-preview{background:var(--warn-soft); color:var(--warn); border:1px dashed #E2B65C}

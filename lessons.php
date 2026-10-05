@@ -40,6 +40,7 @@ function set_item(array $s, array $myTouch, array $u): void {
       <?php elseif ($touched): ?>
         <span class="v v-wait">참여 중</span>
       <?php endif; ?>
+      <?php if (set_locked($s)): ?><span class="v v-wait" title="학생에게 보이지 않습니다 (관리자만 보임)">🔒 잠김</span><?php endif; ?>
       <?php $st = set_state($s); ?>
       <span class="v <?= $st === 'open' ? 'v-open' : ($st === 'after' ? 'v-WA' : 'v-wait') ?>">
         <?= h(SET_STATE_NAME[$st]) ?>

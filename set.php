@@ -11,7 +11,7 @@ if (!$s) { header('Location: problems.php'); exit; }
 
 $isAssess = $s['set_type'] === 'assessment';
 $state = set_state($s);
-$open  = set_open($s);
+$open  = set_open_for($u, $s);
 
 $items = all("SELECT sp.problem_id, sp.required_ac, p.prob_no, p.title,
                      (SELECT COUNT(*) FROM testcases t WHERE t.problem_id=p.id) AS tc_cnt
@@ -57,6 +57,7 @@ page_head(['title' => $s['title'], 'root' => '', 'user' => $u,
     </div>
   <?php endif; ?>
 
+  <?= admin_preview_note($u, $s) ?>
   <?php if (!$open): ?>
     <div class="note err">
       <?= $state === 'before' ? '아직 시작 전입니다.' : '종료되었습니다.' ?>

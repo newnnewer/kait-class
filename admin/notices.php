@@ -5,23 +5,25 @@ require_once __DIR__ . '/../guard.php';
 require_once __DIR__ . '/../layout.php';
 $u = need_admin('../');
 
-$msg = ''; $err = '';
+[$msg, $err] = flash_take();
 $do  = (string)($_POST['do'] ?? '');
 $id  = (int)($_POST['id'] ?? 0);
 
 if ($do && $id) {
   $n = one("SELECT * FROM notices WHERE id=?", [$id]);
   if (!$n) { $err = '없는 공지입니다.'; }
-  elseif ($do === 'toggle') {
-    db()->prepare("UPDATE notices SET active = 1 - active WHERE id=?")->execute([$id]);
-    $msg = (int)$n['active'] ? '비공개로 바꿨습니다.' : '공개했습니다.';
-  } elseif ($do === 'pin') {
-    db()->prepare("UPDATE notices SET pinned = 1 - pinned WHERE id=?")->execute([$id]);
-    $msg = (int)$n['pinned'] ? '상단 고정을 풀었습니다.' : '상단에 고정했습니다.';
+  /* 공개·고정도 원하는 상태를 직접 받고, 처리한 뒤 다시 이동한다 (1.5.0 — 새로고침하면 다시 뒤집히던 문제) */
+  elseif ($do === 'show' || $do === 'hide') {
+    db()->prepare("UPDATE notices SET active = ? WHERE id=?")->execute([$do === 'show' ? 1 : 0, $id]);
+    $msg = $do === 'hide' ? '비공개로 바꿨습니다.' : '공개했습니다.';
+  } elseif ($do === 'pin' || $do === 'unpin') {
+    db()->prepare("UPDATE notices SET pinned = ? WHERE id=?")->execute([$do === 'pin' ? 1 : 0, $id]);
+    $msg = $do === 'unpin' ? '상단 고정을 풀었습니다.' : '상단에 고정했습니다.';
   } elseif ($do === 'delete') {
     db()->prepare("DELETE FROM notices WHERE id=?")->execute([$id]);
     $msg = '삭제했습니다.';
   }
+  redirect_with($msg, $err);
 }
 
 $all   = all("SELECT n.*, u.login_id FROM notices n
@@ -76,12 +78,12 @@ page_head(['title' => '공지 관리', 'root' => '../', 'user' => $u, 'nav' => '
             <td class="rowbtns">
               <form method="post">
                 <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                <button class="btn sm" name="do" value="toggle" type="submit">
+                <button class="btn sm" name="do" value="<?= (int)$r['active'] ? 'hide' : 'show' ?>" type="submit">
                   <?= (int)$r['active'] ? '비공개' : '공개' ?></button>
               </form>
               <form method="post">
                 <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
-                <button class="btn sm" name="do" value="pin" type="submit">
+                <button class="btn sm" name="do" value="<?= (int)$r['pinned'] ? 'unpin' : 'pin' ?>" type="submit">
                   <?= (int)$r['pinned'] ? '고정 해제' : '고정' ?></button>
               </form>
               <a class="btn sm" href="notice.php?id=<?= (int)$r['id'] ?>">수정</a>

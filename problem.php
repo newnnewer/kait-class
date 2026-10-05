@@ -33,7 +33,7 @@ if ($u && !empty($_GET['set'])) {
       $isAssess  = $set['set_type'] === 'assessment';
       $noPaste   = $isAssess || (int)($set['no_paste'] ?? 0) === 1;
       $need      = $isAssess ? (int)$sp['required_ac'] : 1;
-      $canSubmit = set_open($set);
+      $canSubmit = set_open_for($u, $set);
     }
   }
 }
@@ -160,6 +160,7 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
         </div>
       <?php endif; ?>
 
+      <?php if ($set): ?><?= admin_preview_note($u, $set) ?><?php endif; ?>
       <?php if (!$u): ?>
         <div class="loginbox">
           <b>문제를 풀려면 로그인해야 합니다.</b>

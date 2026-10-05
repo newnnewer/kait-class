@@ -56,7 +56,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.4.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '1.5.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
@@ -347,4 +347,20 @@ function play_installed(): bool {
 }
 function play_menu_on(): bool {
   return play_installed() && setting('play_menu') === '1';
+}
+
+/* ── 처리 후 이동 (1.5.0) ─────────────────────────
+   목록의 버튼(POST)을 처리한 뒤 그 화면에 그대로 머물면, 새로고침할 때 브라우저가
+   같은 요청을 한 번 더 보낸다. '반대로 뒤집기' 같은 동작이 새로고침마다 되풀이되던 까닭.
+   처리한 뒤에는 결과 문구를 세션에 맡기고 같은 주소(GET)로 다시 이동한다. */
+function redirect_with(string $msg, string $err = ''): void {
+  $_SESSION['flash'] = ['msg' => $msg, 'err' => $err];
+  header('Location: ' . ($_SERVER['REQUEST_URI'] ?? './'));
+  exit;
+}
+/** 맡겨 둔 결과 문구를 꺼낸다 (한 번만) — [msg, err] */
+function flash_take(): array {
+  $f = $_SESSION['flash'] ?? null;
+  unset($_SESSION['flash']);
+  return [(string)($f['msg'] ?? ''), (string)($f['err'] ?? '')];
 }

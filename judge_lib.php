@@ -169,6 +169,50 @@ function diff_allowed(array $sub): bool {
   return true;
 }
 
+/* 이 제출의 '어디가 다른가' 정보 (보여 줄 게 없으면 null).
+   제출 직후(api.php poll)와 채점 결과 상세 보기(results.php)가 같은 것을 쓴다 (1.5.0). */
+function diff_for_submission(array $s): ?array {
+  if (($s['verdict'] ?? '') !== 'WA' || ($s['fail_expected'] ?? null) === null || !diff_allowed($s)) return null;
+  $d = diff_view($s['fail_expected'], $s['fail_output']);
+  if ($d['mode'] !== 'toolong') {
+    $inRaw = (string)$s['fail_input'];
+    $d['input'] = mb_strlen($inRaw) > DIFF_FULL_CHARS ? mb_substr($inRaw, 0, DIFF_FULL_CHARS) . "\n…" : $inRaw;
+  }
+  return $d;
+}
+
+/* diff_for_submission() 결과를 HTML 로 — judge.js 의 diffHtml() 과 같은 모양 */
+function diff_html(array $d): string {
+  if ($d['mode'] === 'toolong') {
+    return '<div class="diffbox"><div class="dhead">어디가 다른가</div>'
+         . '<p class="dnote">출력이 너무 길어 비교를 보여주지 않습니다.</p></div>';
+  }
+  $lines = function (array $rows, bool $more1, bool $more2): string {
+    $s = '<div class="dlines">';
+    if ($more1) $s .= '<div class="dmore">…</div>';
+    foreach ($rows as $r) {
+      $s .= '<div class="dline' . ($r['d'] ? ' on' : '') . '"><span class="dn">' . (int)$r['n'] . '</span>'
+          . '<span class="dt">' . ($r['t'] === '' ? '<i>(빈 줄)</i>' : h($r['t'])) . '</span></div>';
+    }
+    if (!$rows) $s .= '<div class="dline"><span class="dn"></span><span class="dt"><i>(출력 없음)</i></span></div>';
+    if ($more2) $s .= '<div class="dmore">…</div>';
+    return $s . '</div>';
+  };
+  $h = '<div class="diffbox"><div class="dhead">어디가 다른가';
+  if ($d['line']) $h .= ' <span class="small muted">' . (int)$d['line'] . '번째 줄부터 다릅니다</span>';
+  $h .= '</div>';
+  if (($d['input'] ?? '') !== '') {
+    $h .= '<div class="dsec"><div class="dcap">입력</div><pre class="dpre">' . h($d['input']) . '</pre></div>';
+  }
+  $h .= '<div class="dcols">'
+      . '<div class="dsec"><div class="dcap">기대한 출력<span class="small muted"> ' . (int)$d['exp_n'] . '줄</span></div>'
+      . $lines($d['exp'], $d['before'], $d['after']) . '</div>'
+      . '<div class="dsec"><div class="dcap">내 출력<span class="small muted"> ' . (int)$d['got_n'] . '줄</span></div>'
+      . $lines($d['got'], $d['before'], $d['after']) . '</div></div>';
+  if ($d['mode'] === 'window') $h .= '<p class="dnote">출력이 길어 다른 부분 앞뒤만 보여줍니다.</p>';
+  return $h . '</div>';
+}
+
 /* 소스 코드 지문 — 공백만 다른 코드를 같은 것으로 보지는 않는다.
    (들여쓰기를 바꾸는 것도 다시 친 것이므로) */
 function source_hash(string $code): string {
@@ -278,6 +322,19 @@ function period_text(array $s): string {
 /* 학생이 지금 이 묶음에서 문제를 풀 수 있는지 */
 function set_open(array $s): bool { return !set_locked($s) && set_state($s) === 'open'; }
 
+/* 이 사람이 지금 이 묶음에서 제출할 수 있는지 — 관리자는 언제나 (1.5.0) */
+function set_open_for(?array $u, array $s): bool { return is_admin($u) || set_open($s); }
+
+/* 관리자가 학생에게는 닫혀 있는 묶음을 볼 때 띄우는 안내 (열려 있으면 빈 문자열) */
+function admin_preview_note(?array $u, array $s): string {
+  if (!is_admin($u) || set_open($s)) return '';
+  $why = set_locked($s) ? '잠겨 있어 학생에게 보이지 않습니다'
+       : (set_state($s) === 'before' ? '시작 전이라 학생은 아직 제출할 수 없습니다'
+                                     : '종료되어 학생은 제출할 수 없습니다');
+  $who = $s['set_type'] === 'assessment' ? '평가는' : '수업은';
+  return '<div class="note admin-preview"><b>관리자 미리보기</b> · 이 ' . $who . ' ' . $why . '. 관리자는 들어와서 풀어 볼 수 있습니다.</div>';
+}
+
 /* ── 공개 범위 ─────────────────────────────────
    visibility = 'groups'  set_targets 에 적힌 반만 본다.
                           반을 하나도 고르지 않으면 아무도 못 본다.
@@ -297,7 +354,17 @@ const SET_VISIBLE_SQL =
   "( s.visibility = 'all'
      OR EXISTS(SELECT 1 FROM set_targets t WHERE t.set_id = s.id AND t.group_id = :gid) )";
 
+function is_admin(?array $u): bool { return $u !== null && ($u['role'] ?? '') === 'admin'; }
+function admin_user_id(int $uid): bool { return (string)col("SELECT role FROM users WHERE id=?", [$uid]) === 'admin'; }
+
+/* 관리자는 모든 수업·평가를 본다 — 잠긴 것 · 반이 다른 것 · 기간 밖의 것까지 (1.5.0).
+   학생에게 열기 전에 미리 풀어 볼 수 있게 하려는 것. */
 function sets_for_student(array $u, string $type): array {
+  if (is_admin($u)) {
+    return all("SELECT s.*,
+                  (SELECT COUNT(*) FROM set_problems sp WHERE sp.set_id = s.id) AS problem_cnt
+                FROM sets s WHERE s.set_type = :ty " . SET_ORDER_SQL, [':ty' => $type]);
+  }
   return all("SELECT s.*,
                 (SELECT COUNT(*) FROM set_problems sp WHERE sp.set_id = s.id) AS problem_cnt
               FROM sets s
@@ -308,6 +375,7 @@ function sets_for_student(array $u, string $type): array {
 
 /* 이 학생이 이 묶음을 볼 수 있으면 묶음 정보를, 아니면 null */
 function student_set_or_null(array $u, int $sid): ?array {
+  if (is_admin($u)) return one("SELECT s.* FROM sets s WHERE s.id = ?", [$sid]);
   return one("SELECT s.* FROM sets s
               WHERE s.id = :sid AND s.active = 1
                 AND " . SET_VISIBLE_SQL,
