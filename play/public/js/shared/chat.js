@@ -31,8 +31,8 @@
       { id: 'bot', text: '봇 넣을까요? 🤖', only: 'room' },
     ] },
     { id: 'plan', name: '작전', list: [
-      { id: 'top', text: '위쪽 맡을게!' },
-      { id: 'bottom', text: '아래쪽 맡을게!' },
+      { id: 'left', text: '왼쪽 맡을게!' },
+      { id: 'right', text: '오른쪽 맡을게!' },
       { id: 'boss', text: '보스는 내가! 👑' },
       { id: 'gather', text: '집결 보스 나오면 모이자!' },
       { id: 'shield', text: '방패 아껴 두자! 🛡', only: 'class' },

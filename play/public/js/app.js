@@ -349,7 +349,7 @@
       b.setAttribute('aria-pressed', String(t.no === mine));
       b.appendChild(el('b', null, t.no + '조'));
       var av = el('span', 'team-avs');
-      t.members.slice(0, 6).forEach(function (p) { av.appendChild(avatarSpan(p.kind, p.color)); });
+      t.members.slice(0, 6).forEach(function (p) { av.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av')); });
       if (t.members.length > 6) av.appendChild(el('em', null, '+' + (t.members.length - 6)));
       b.appendChild(av);
       b.appendChild(el('span', 'team-count', t.members.length + '명'));
@@ -368,6 +368,7 @@
     if (cls.phase === 'playing') txt.textContent = cls.paused ? '게임이 잠시 멈춰 있어요 — 조를 고르면 바로 참여해요' : '게임 진행 중 — 조를 고르면 바로 참여해요!';
     else txt.textContent = mine ? '선생님이 게임을 시작하기를 기다리는 중' : '먼저 조를 골라 주세요';
     renderChat();
+    renderSoundBtns();
   }
 
   $('btn-team-leave').onclick = function () {
@@ -563,7 +564,7 @@
       sb.appendChild(b);
     });
     $('cr-pen').setAttribute('aria-pressed', String(cr.penalty));
-    $('cr-pentext').textContent = cr.penalty ? '보스 보상의 10%가 페널티' : '페널티 없이 좋은 아이템만';
+    $('cr-pentext').textContent = cr.penalty ? '보스 보상의 15%가 페널티' : '페널티 없이 좋은 아이템만';
     $('cr-auto').setAttribute('aria-pressed', String(cr.auto));
     $('cr-blk').textContent = cr.auto ? '자동' : String(cr.blocks);
     $('cr-blk-down').disabled = cr.auto || cr.blocks <= 24;
@@ -637,6 +638,13 @@
 
   socket.on('room', function (r) {
     var wasPlaying = room && room.phase === 'playing';
+    // v0.11.0: 대기실에 사람이 새로 들어오면 방장에게 '딩동' (봇 · 나 자신은 빼고)
+    if (room && room.id === r.id && r.phase === 'waiting' && ME && r.hostId === ME.id) {
+      var before = {};
+      (room.members || []).forEach(function (p) { before[p.id] = 1; });
+      var someone = (r.members || []).some(function (p) { return !before[p.id] && !p.bot && p.id !== ME.id; });
+      if (someone) sfx('join');
+    }
     room = r;
     room.closeAt = Date.now() + r.closeMs;
     // 게임 중에는 대기실 화면으로 바꾸지 않는다 ('state' 로 게임 화면이 온다)
@@ -676,9 +684,9 @@
       var said = chat.say[p.id];
       if (said && said.until > Date.now()) d.appendChild(el('span', 'say', said.text));
       if (p.id === room.hostId) d.appendChild(el('span', 'host-badge', '방장'));
-      if (p.bot) d.appendChild(el('span', 'bot-badge', '봇'));
-      d.appendChild(avatarSpan(p.kind, p.color));
-      d.appendChild(el('b', null, p.nick));
+      if (p.bot) d.appendChild(el('span', 'bot-badge big', '🤖 봇'));
+      d.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av'));
+      d.appendChild(el('b', null, (p.bot ? '🤖 ' : '') + p.nick));
       d.appendChild(el('small', null, p.bot ? '봇 · ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통') : p.id === meId ? '나' : (p.online ? '준비 완료' : '연결 끊김')));
       if (p.bot && amHost) {
         var rb = el('button', 'btn small ghost-btn bot-out', '빼기');
@@ -703,6 +711,7 @@
     $('w-startinfo').appendChild(document.createTextNode('으로 정해져요'));
     tickClocks();
     renderChat();
+    renderSoundBtns();
   }
 
   // ── 대기실 · 조 선택 화면 채팅 (v0.7.3): 정해 둔 문구만 · 게임 중에는 없음 ──
@@ -1400,23 +1409,62 @@
 
   function renderAll() { layout(); renderMembers(); renderProgress(); renderKeys(); tickFx(); renderSoundBtns(); }
 
+  // 선생님이 수업 게임의 학생 소리를 껐는지 (조 선택 화면 · 수업 게임 중)
+  function teacherMuted() { return !!(cls && cls.sfx === false && (current === 'team' || (game && game.cls))); }
   function renderSoundBtns() {
-    var teacherOff = !!(game && game.cls && cls && cls.sfx === false);
-    var b = $('btn-sfx'), t = $('btn-typesnd');
-    b.textContent = teacherOff ? '소리 꺼짐(선생님)' : sound.on ? '소리 켬' : '소리 끔';
-    b.setAttribute('aria-pressed', String(sound.on && !teacherOff));
-    b.disabled = teacherOff;
+    var teacherOff = teacherMuted();
+    ['btn-sfx', 'w-sfx', 't-sfx'].forEach(function (id) {
+      var b = $(id);
+      if (!b) return;
+      b.textContent = teacherOff ? '소리 꺼짐(선생님)' : (sound.on ? '소리 켬' : '소리 끔') + (id === 'btn-sfx' ? '' : ' · Ctrl+S');
+      b.setAttribute('aria-pressed', String(sound.on && !teacherOff));
+      b.disabled = teacherOff;
+    });
+    var t = $('btn-typesnd');
     t.textContent = '타자음 ' + (sound.typing ? '켬' : '끔');
     t.setAttribute('aria-pressed', String(sound.typing));
     t.hidden = !sound.on || teacherOff;
   }
-  $('btn-sfx').onclick = function () {
+  // 소리 켜기/끄기 — 배경음 · 효과음 함께 (버튼 · Ctrl+S, v0.11.0)
+  function toggleSound() {
+    if (teacherMuted()) { if (current === 'game') toast('선생님이 소리를 꺼 두었어요', 'warn'); else pageToast('선생님이 소리를 꺼 두었어요', 'warn'); return; }
     sound.on = !sound.on;
     try { localStorage.setItem('kp.sfx', sound.on ? '1' : '0'); } catch (e) { /* 저장 못 해도 이 탭에서는 됨 */ }
     renderSoundBtns();
-    this.blur();
+    updateBgm();
     if (sound.on) sfx('occupy');
-  };
+  }
+  ['btn-sfx', 'w-sfx', 't-sfx'].forEach(function (id) {
+    $(id).onclick = function () { SND.unlock(); toggleSound(); this.blur(); };
+  });
+
+  // ── 배경음 (v0.11.0): 대기실 · 조 선택 화면은 잔잔한 곡, 게임 중은 게임 곡 (마지막 30초 빠르게) ──
+  function updateBgm() {
+    var tune = null, fast = false;
+    if (!$('overlay-result').hidden) tune = null; // 결과 화면에서는 쉰다
+    else if (current === 'game' && game) {
+      if (!game.paused && !game.ended) { tune = 'game'; fast = game.endAt - Date.now() < 30000; }
+    } else if (current === 'wait' || current === 'team') tune = 'lobby';
+    SND.bgm(!!tune && sound.on && !teacherMuted(), fast, tune || 'game');
+  }
+  setInterval(updateBgm, 250);
+
+  // 단축키 (v0.11.0) — Ctrl+S: 소리 켜기/끄기 (대기실 · 조 선택 · 게임 중, 코드 입력 중에도)
+  //   Ctrl+Enter: 방장이 게임 시작 (대기실). 한글 입력 상태에서도 되게 키 자리(e.code)로 본다
+  window.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    if (e.code === 'KeyS') {
+      if (current !== 'wait' && current !== 'team' && current !== 'game') return;
+      e.preventDefault();
+      if (!e.repeat) toggleSound();
+      return;
+    }
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && current === 'wait') {
+      e.preventDefault();
+      var b = $('btn-start');
+      if (!e.repeat && room && ME && room.hostId === ME.id && !b.disabled) b.click();
+    }
+  }, true);
   $('btn-typesnd').onclick = function () {
     sound.typing = !sound.typing;
     try { localStorage.setItem('kp.typesnd', sound.typing ? '1' : '0'); } catch (e) { /* 저장 못 해도 됨 */ }
@@ -1445,9 +1493,9 @@
       var el = avatarEls[id];
       if (!el || !el.isConnected) {
         el = document.createElement('div');
-        el.className = 'avatar' + (id === game.meId ? ' mine' : '');
+        el.className = 'avatar' + (id === game.meId ? ' mine' : '') + (p.bot ? ' bot' : '');
         el.innerHTML = AV.svg(p.kind, p.color);
-        el.title = p.nick;
+        el.title = p.bot ? '🤖 ' + p.nick + ' (봇)' : p.nick;
         layer.appendChild(el);
         avatarEls[id] = el;
       }
@@ -1479,9 +1527,10 @@
     list.forEach(function (p) {
       var li = document.createElement('li');
       if (!p.online && p.id !== game.meId) li.className = 'off';
+      if (p.bot) li.classList.add('bot');
       // 해결한 블록 수 막대 (v0.7.4) — 조원 중 가장 많이 푼 사람을 꽉 찬 막대로
       li.innerHTML = '<span class="av">' + AV.svg(p.kind, p.color) + '</span><span class="who"><b></b><span class="mbar"><i></i></span></span><em class="mnum"></em>';
-      li.querySelector('b').textContent = p.nick + (p.id === game.meId ? ' (나)' : p.bot ? ' (봇)' : '') + (!p.online && p.id !== game.meId ? ' · 연결 끊김' : '');
+      li.querySelector('b').textContent = (p.bot ? '🤖 ' : '') + p.nick + (p.id === game.meId ? ' (나)' : p.bot ? ' (봇)' : '') + (!p.online && p.id !== game.meId ? ' · 연결 끊김' : '');
       var n = p.solved || 0;
       li.querySelector('.mbar i').style.width = (top ? Math.round(n / top * 100) : 0) + '%';
       li.querySelector('.mbar i').style.background = p.color || '';

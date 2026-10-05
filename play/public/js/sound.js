@@ -1,6 +1,6 @@
 /* KAIT-PLAY — 소리 (6-2). 음원 파일 없이 브라우저(Web Audio)가 8비트 느낌으로 직접 만든다.
  *   CGSound.play('correct')   효과음 한 번
- *   CGSound.bgm(true/false, fast)   배경음 (전광판만)
+ *   CGSound.bgm(true/false, fast, tune)   배경음 — tune: 'game'(게임 중, 기본) · 'lobby'(대기실, v0.11.0)
  *   CGSound.unlock()   첫 클릭·키 입력 때 불러 준다 (브라우저는 사용자가 한 번 누르기 전에는 소리를 못 낸다)
  *   CGSound.volume = 0.25   전체 크기 (학생 기기는 작게, 전광판은 크게)
  * 소리가 안 나는 기기(스피커 없음 · 음소거 · 옛 브라우저)에서도 게임은 그대로 돌아간다. */
@@ -74,6 +74,8 @@
     gather: function () { seq([N.C5, N.G5, N.C6, N.G5, N.C6, N.E6], 0.07, 'square', 0.42); },
     // v0.7.3: 대기실에서 누가 한마디 (작게)
     chat: function () { tone(N.E6, 0.05, 'triangle', 0.3); tone(N.A6, 0.06, 'triangle', 0.25, 0.05); },
+    // v0.11.0: 방에 누가 들어옴 (방장에게) — '딩동'
+    join: function () { tone(N.E6, 0.22, 'triangle', 0.6); tone(N.C6, 0.4, 'triangle', 0.55, 0.22); tone(N.E7, 0.08, 'square', 0.15); },
     good: function () { tone([N.C5, N.C7], 0.25, 'triangle', 0.5); },
     bomb: function () { noise(0.45, 0.8, 0, 900); tone([180, 40], 0.4, 'sine', 0.7); },
     laser: function () { tone([N.C7, N.C5], 0.3, 'sawtooth', 0.35); tone([N.G6, N.G4], 0.3, 'square', 0.2, 0.04); },
@@ -96,29 +98,45 @@
     try { SOUNDS[name](); } catch (e) { /* 소리는 없어도 된다 */ }
   };
 
-  // ── 배경음 (전광판): 짧은 칩튠 두 마디를 반복. fast = 마지막 30초 ──
-  var MEL = ['E5', 'G5', 'A5', 'G5', 'E5', 'D5', 'C5', 'D5', 'E5', 'G5', 'C6', 'B5', 'A5', 'G5', 'E5', 0,
-    'F5', 'A5', 'C6', 'A5', 'G5', 'E5', 'D5', 'E5', 'F5', 'E5', 'D5', 'B4', 'C5', 0, 'G4', 0];
-  var BASS = ['C3', 0, 'C3', 'G3', 'A2', 0, 'A2', 'E3', 'F2', 0, 'F2', 'C3', 'G2', 0, 'G2', 'D3'];
-  var bgmOn = false, bgmFast = false, bgmTimer = null, bgmStep = 0, bgmNext = 0;
+  // ── 배경음: 짧은 칩튠을 반복. fast = 마지막 30초 ──
+  //   game: 게임 중 (전광판 · v0.11.0 부터 학생 기기도) · lobby: 대기실 · 조 선택 화면 (느리고 잔잔하게)
+  var TUNES = {
+    game: {
+      step: 0.16, fastStep: 0.115, melVol: 0.16, bassVol: 0.3, hat: true,
+      mel: ['E5', 'G5', 'A5', 'G5', 'E5', 'D5', 'C5', 'D5', 'E5', 'G5', 'C6', 'B5', 'A5', 'G5', 'E5', 0,
+        'F5', 'A5', 'C6', 'A5', 'G5', 'E5', 'D5', 'E5', 'F5', 'E5', 'D5', 'B4', 'C5', 0, 'G4', 0],
+      bass: ['C3', 0, 'C3', 'G3', 'A2', 0, 'A2', 'E3', 'F2', 0, 'F2', 'C3', 'G2', 0, 'G2', 'D3']
+    },
+    lobby: {
+      step: 0.24, fastStep: 0.24, melVol: 0.12, bassVol: 0.22, hat: false,
+      mel: ['C5', 0, 'E5', 'G5', 'A5', 0, 'G5', 0, 'E5', 0, 'D5', 'E5', 'C5', 0, 0, 0,
+        'F5', 0, 'A5', 'C6', 'B5', 0, 'G5', 0, 'A5', 0, 'G5', 'E5', 'D5', 0, 0, 0],
+      bass: ['C3', 0, 'G3', 0, 'A2', 0, 'E3', 0, 'F2', 0, 'C3', 0, 'G2', 0, 'D3', 0]
+    }
+  };
+  var bgmOn = false, bgmFast = false, bgmTune = 'game', bgmTimer = null, bgmStep = 0, bgmNext = 0;
   function bgmTick() {
     var c = ensure();
     if (!bgmOn || !c) return;
-    var step = bgmFast ? 0.115 : 0.16;
+    var T = TUNES[bgmTune] || TUNES.game;
+    var step = bgmFast ? T.fastStep : T.step;
     if (!bgmNext || bgmNext < c.currentTime) bgmNext = c.currentTime + 0.05;
     while (bgmNext < c.currentTime + 0.3) {
-      var m = MEL[bgmStep % MEL.length], b = BASS[Math.floor(bgmStep / 2) % BASS.length];
+      var m = T.mel[bgmStep % T.mel.length], b = T.bass[Math.floor(bgmStep / 2) % T.bass.length];
       var d = bgmNext - c.currentTime;
-      if (m) tone(N[m], step * 0.85, 'square', 0.16, d);
-      if (b && bgmStep % 2 === 0) tone(N[b], step * 1.7, 'triangle', 0.3, d);
-      if (bgmStep % 4 === 0) noise(0.04, 0.12, d, 6000);
+      if (m) tone(N[m], step * 0.85, bgmTune === 'lobby' ? 'triangle' : 'square', T.melVol, d);
+      if (b && bgmStep % 2 === 0) tone(N[b], step * 1.7, 'triangle', T.bassVol, d);
+      if (T.hat && bgmStep % 4 === 0) noise(0.04, 0.12, d, 6000);
       bgmStep += 1;
       bgmNext += step;
     }
   }
-  S.bgm = function (on, fast) {
+  S.bgm = function (on, fast, tune) {
     bgmFast = !!fast;
-    if (on && !bgmOn) { bgmOn = true; bgmNext = 0; bgmTimer = setInterval(bgmTick, 100); }
+    tune = TUNES[tune] ? tune : 'game';
+    if (on && bgmOn && tune !== bgmTune) { bgmTune = tune; bgmStep = 0; return; } // 곡만 바꾼다
+    bgmTune = tune;
+    if (on && !bgmOn) { bgmOn = true; bgmNext = 0; bgmStep = 0; bgmTimer = setInterval(bgmTick, 100); }
     else if (!on && bgmOn) { bgmOn = false; clearInterval(bgmTimer); bgmTimer = null; }
   };
 

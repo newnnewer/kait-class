@@ -293,19 +293,32 @@ test('봇 속도 설정은 느림·보통·빠름만', () => {
 // ── 5-2: 방해 아이템 · 방패 · 전광판 ──
 const { rollItem } = require('../server/game/items');
 
-test('아이템 확률: 방해 켜짐이면 도움 55 · 방해 35 · 페널티 10, 꺼지면 방해·방패 없음', () => {
-  let seq = 0;
-  const rng = () => ((seq++ * 0.6180339887) % 1);
+test('아이템 확률 (v0.11.0): 방해 켜짐이면 도움 50 · 페널티 15 · 방해 20 · 방패 15, 꺼지면 도움 85 · 페널티 15', () => {
+  const N = 40000;
   const cnt = { good: 0, attack: 0, bad: 0 };
+  const per = {};
   let shield = 0;
-  for (let k = 0; k < 20000; k++) { const it = rollItem({ attacks: true, rng: Math.random }); cnt[it.kind] += 1; if (it.id === 'shield') shield += 1; }
-  assert.ok(Math.abs(cnt.attack / 20000 - 0.35) < 0.02, `방해 ${cnt.attack}`);
-  assert.ok(Math.abs(cnt.bad / 20000 - 0.10) < 0.015, `페널티 ${cnt.bad}`);
-  assert.ok(shield > 0);
-  for (let k = 0; k < 3000; k++) {
-    const it = rollItem({ attacks: false, rng });
-    assert.ok(it.kind !== 'attack' && it.id !== 'shield');
+  for (let k = 0; k < N; k++) {
+    const it = rollItem({ attacks: true, rng: Math.random });
+    cnt[it.kind] += 1; per[it.id] = (per[it.id] || 0) + 1;
+    if (it.id === 'shield') shield += 1;
   }
+  assert.ok(Math.abs(cnt.attack / N - 0.20) < 0.015, `방해 ${cnt.attack}`);
+  assert.ok(Math.abs(cnt.bad / N - 0.15) < 0.015, `페널티 ${cnt.bad}`);
+  assert.ok(Math.abs(shield / N - 0.15) < 0.015, `방패 ${shield}`);
+  assert.ok(Math.abs(per.bomb / N - 0.10) < 0.01, `폭탄 ${per.bomb}`);
+  assert.ok(Math.abs(per.freeze / N - 0.05) < 0.01, `자폭 ${per.freeze}`);
+  // 방해 꺼짐: 방해 · 방패 없음, 도움 각 17%
+  const c2 = { good: 0, bad: 0 }, p2 = {};
+  for (let k = 0; k < N; k++) {
+    const it = rollItem({ attacks: false, rng: Math.random });
+    assert.ok(it.kind !== 'attack' && it.id !== 'shield');
+    c2[it.kind] += 1; p2[it.id] = (p2[it.id] || 0) + 1;
+  }
+  assert.ok(Math.abs(c2.bad / N - 0.15) < 0.015, `페널티 ${c2.bad}`);
+  assert.ok(Math.abs(p2.laser / N - 0.17) < 0.012, `레이저 ${p2.laser}`);
+  // 페널티 꺼짐: 페널티 없음
+  for (let k = 0; k < 3000; k++) assert.notStrictEqual(rollItem({ attacks: true, penalty: false }).kind, 'bad');
 });
 
 function threeTeams(extra) {

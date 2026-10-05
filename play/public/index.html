@@ -179,6 +179,7 @@
     <b class="pixel" id="w-count"></b>
     <span class="grow"></span>
     <span class="muted">시작하지 않으면 <b class="pixel orange" id="w-close">10:00</b> 뒤에 방이 닫혀요</span>
+    <button type="button" class="snd-btn snd-big" id="w-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">소리 켬</button>
   </header>
   <div class="wait-body">
     <section class="wait-main">
@@ -199,6 +200,7 @@
           <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 칸 (→ · ← 와 같음)</span>
           <span><kbd>Ctrl + Home / End</kbd>판 맨 처음 · 맨 끝</span>
           <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
+          <span><kbd>Ctrl + S</kbd>소리(배경음 · 효과음) 켜기 · 끄기</span>
         </div>
       </div>
     </section>
@@ -207,8 +209,8 @@
       <span class="grow"></span>
       <div id="w-host">
         <p class="muted center-text" id="w-startinfo"></p>
-        <button type="button" class="btn yellow go wide tall" id="btn-start">게임 시작
-          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4 L20 12 L6 20 Z" fill="currentColor"/></svg></button>
+        <button type="button" class="btn yellow go wide tall" id="btn-start" title="Ctrl + Enter">게임 시작
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4 L20 12 L6 20 Z" fill="currentColor"/></svg><kbd class="start-kbd">Ctrl + Enter</kbd></button>
         <p class="muted small center-text">시작은 방장만 할 수 있어요 · 방장이 나가면 다음 사람이 방장이 돼요</p>
       </div>
       <div class="waiting-box" id="w-guest"><i class="dot"></i>방장이 시작하기를 기다리는 중</div>
@@ -224,6 +226,7 @@
     <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill blue">수업 게임</span>
     <span class="grow"></span>
+    <button type="button" class="snd-btn snd-big" id="t-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">소리 켬</button>
     <span class="muted">코드</span>
     <b class="code-chip" id="t-code">0000</b>
   </header>
@@ -256,6 +259,7 @@
           <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 칸 (→ · ← 와 같음)</span>
           <span><kbd>Ctrl + Home / End</kbd>판 맨 처음 · 맨 끝</span>
           <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
+          <span><kbd>Ctrl + S</kbd>소리(배경음 · 효과음) 켜기 · 끄기</span>
         </div>
       </div>
     </section>
@@ -293,7 +297,7 @@
       <span class="grow"></span>
       <b class="timer" id="g-timer">10:00</b>
       <span class="fx" id="fx"></span>
-      <button type="button" class="snd-btn" id="btn-sfx" tabindex="-1" aria-pressed="true" title="효과음 켜기/끄기 (이 브라우저에 기억)">소리 켬</button>
+      <button type="button" class="snd-btn" id="btn-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">소리 켬</button>
       <button type="button" class="snd-btn" id="btn-typesnd" tabindex="-1" aria-pressed="true" title="타이핑할 때 톡 소리">타자음 켬</button>
       <span class="conn" id="conn" title="서버와 연결된 방식"><i></i><span>연결 중</span></span>
       <button type="button" class="btn small ghost-btn" id="btn-leave" tabindex="-1">나가기</button>

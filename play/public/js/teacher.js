@@ -551,7 +551,7 @@
     });
     $('c-pen').setAttribute('aria-pressed', String(s.penalty));
     $('c-pen').disabled = lock;
-    $('c-pentext').textContent = s.penalty ? '보스 보상의 10%가 페널티' : '페널티 없이 좋은 아이템만';
+    $('c-pentext').textContent = s.penalty ? '보스 보상의 15%가 페널티' : '페널티 없이 좋은 아이템만';
     var auto = !s.blocks;
     $('c-auto').setAttribute('aria-pressed', String(auto));
     $('c-auto').disabled = lock;
@@ -737,6 +737,16 @@
       else store.set('lastSettings', JSON.stringify(cur.settings));
     });
   };
+  // Ctrl+Enter: 게임 시작 (v0.11.0) — 시작 버튼이 화면에 보이고 누를 수 있을 때만. 여러 줄 글 칸에서는 안 함
+  window.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    if (e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+    if (e.target && e.target.tagName === 'TEXTAREA') return;
+    var b = $('btn-start');
+    if (!b || b.hidden || b.disabled || !b.offsetParent) return;
+    e.preventDefault();
+    if (!e.repeat) b.click();
+  });
   $('btn-pause').onclick = function () {
     call('class:pause', { on: !cur.paused }, function (res) { if (!res.ok) toast(res.error || '안 됐어요', 'warn'); });
   };

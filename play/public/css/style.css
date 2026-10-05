@@ -594,8 +594,27 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 .slot.add-bot i { color: var(--green); animation: none; }
 .slot.add-bot span { font-weight: 800; font-size: 16px; }
 .slot.add-bot:hover { background: rgba(61,220,151,.08); border-color: var(--green); }
-.slot.bot { border-color: rgba(61,220,151,.45); }
+/* v0.11.0: 봇이 한눈에 보이게 — 대기실은 크게 (점선 · 줄무늬 · 🤖), 게임 중은 작게 (🤖 꼬리표) */
+.slot.bot {
+  border: 3px dashed var(--green);
+  background: repeating-linear-gradient(135deg, rgba(61,220,151,.13) 0 12px, rgba(61,220,151,.04) 12px 24px), var(--panel);
+}
+.slot.bot b { color: var(--green); }
+.slot.bot small { color: var(--green); font-weight: 700; }
+.slot.bot .av { animation: none; filter: saturate(.55); }
 .bot-badge { font-size: 12px; font-weight: 800; color: #062A1B; background: var(--green); padding: 2px 10px; border-radius: 999px; }
+.bot-badge.big { position: absolute; top: 10px; right: 10px; font-size: 15px; padding: 4px 12px; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.slots.many .bot-badge.big { top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; }
+/* 작은 아바타 옆 🤖 (조 선택 화면) */
+.team-avs .bot-av { position: relative; }
+.team-avs .bot-av::after { content: '🤖'; position: absolute; right: -4px; bottom: -4px; font-size: 13px; line-height: 1; filter: drop-shadow(0 1px 0 #000); }
+/* 게임 판 위 봇 캐릭터: 머리 위 작은 🤖 · 살짝 흐리게 */
+.avatar.bot { opacity: .85; }
+.avatar.bot::after { content: '🤖'; position: absolute; left: 50%; top: -42%; transform: translateX(-50%); font-size: calc(var(--ch) * .2); line-height: 1; filter: drop-shadow(0 1px 0 #000); }
+.members li.bot b { color: var(--green); }
+/* 시작 버튼의 단축키 표시 (v0.11.0) */
+.start-kbd { font-family: var(--mono); font-size: 12px; font-weight: 800; margin-left: 10px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.18); color: inherit; white-space: nowrap; }
+.snd-big { height: 34px; padding: 0 12px; font-size: 13px; }
 .slot .bot-out { margin-top: 2px; height: 28px; padding: 0 12px; font-size: 12px; }
 .host-badge { font-size: 12px; font-weight: 800; color: #1A1400; background: var(--yellow); padding: 2px 10px; border-radius: 999px; }
 .slots.many { grid-template-columns: repeat(8, minmax(0, 1fr)); }

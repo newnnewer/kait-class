@@ -5,7 +5,7 @@
 - **KAIT-CLASS 와 함께 설치**됩니다 (KAIT-CLASS `install.sh` 14단계). 주소는 언제나 KAIT-CLASS 주소 뒤의 `/play/`.
 - KAIT-PLAY 만 설치 · 업데이트: KAIT-CLASS 소스 폴더에서 `sudo bash play/install.sh`
 - 설치 · 운영 안내: [deploy/INSTALL.md](deploy/INSTALL.md)
-- 현재 버전: **v0.10.0** — 체험 서버 모드(`.env` 의 `DEMO=1`: 교사 비밀번호 바꾸기 막기 · 체험 표시) · `deploy/demo-reset.sh`(체험 서버 매일 되돌리기)
+- 현재 버전: **v0.11.0** — 아이템 확률 조정(페널티 15% · 방해 20% · 방패 15%) · 대기실과 게임 중 배경음(Ctrl+S 로 켜고 끄기) · 방장에게 입장 알림음 · 시작 단축키 Ctrl+Enter · 봇 표시 강화
 - v0.9.0 — KAIT-CLASS 1.2 에 이식. 주소 `/game/` → `/play/`, 설치 위치 `/opt/kait-play`, 컨테이너 `kait-play`,
   브라우저 저장 `cg.` → `kp.`(예전 값은 한 번 옮김), 화면 아래 저작권 표기, 쓰지 않는 글꼴(Black Han Sans) 정리
 - 이전: v0.8.0 — 이름을 KAIT-PLAY로 바꾸고(예전 이름: 코딩 대항전) 색상을 KAIT-CLASS에 맞춤 · v0.8.1: 부하 시험 도구 보강
@@ -33,7 +33,7 @@ play/
 │  ├─ classes/bot.js      봇 (조 인원 맞추기용, 서버 안에서 일반 블록만 풂)
 │  ├─ admin/auth.js       관리자 로그인 (처음 비밀번호 .env → 바꾸면 DB에 암호화 저장 · 5번 틀리면 1분 잠금)
 │  ├─ db.js               저장소 (node:sqlite → data/game.db: 게임 기록 · 설정)
-│  ├─ game/items.js       아이템 목록과 확률 (좋은 90% · 페널티 10%)
+│  ├─ game/items.js       아이템 목록과 확률 (도움 · 페널티 15% · 방해 20% · 방패 15%)
 │  ├─ game/grade.js       채점 (따옴표 밖 띄어쓰기 무시, 문자열 안은 정확히, ' " 같게)
 │  ├─ problems/store.js   문제 은행 저장소 (DB · 처음 한 번 bank.txt 가져오기 · 고치기 · 붙여넣기 · 내려받기)
 │  └─ problems/parser.js  문제 은행 형식 해석기

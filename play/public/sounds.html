@@ -39,7 +39,7 @@
 <script>
 (function () {
   var S = window.CGSound; S.setVolume(0.6);
-  var FX = [['occupy', '블록 점유'], ['type', '타자음'], ['correct', '정답'], ['autoFill', '자동완성 채우기'], ['wrong', '오답 · 시간 초과'], ['bossAppear', '보스 등장'], ['gather', '집결 보스 등장'], ['chat', '대기실 한마디'], ['alarm', '공격이 들어오는 중'], ['bossWin', '보스 격파'],
+  var FX = [['occupy', '블록 점유'], ['type', '타자음'], ['correct', '정답'], ['autoFill', '자동완성 채우기'], ['wrong', '오답 · 시간 초과'], ['bossAppear', '보스 등장'], ['gather', '집결 보스 등장'], ['chat', '대기실 한마디'], ['join', '방에 누가 들어옴 (방장)'], ['alarm', '공격이 들어오는 중'], ['bossWin', '보스 격파'],
     ['good', '좋은 아이템'], ['bomb', '폭탄'], ['laser', '가로 · 세로 레이저'], ['shield', '방패'], ['attackSend', '방해 발사'], ['hit', '공격 받음'], ['bad', '페널티'],
     ['ice', '얼음'], ['cloud', '먹구름'], ['tick', '마지막 10초'], ['tickLast', '마지막 3초'], ['start', '게임 시작'], ['clear', '판 완성'], ['win', '1위 · 성공'], ['end', '게임 끝']];
   function btn(box, label, sub, fn) {
@@ -48,9 +48,10 @@
     b.onclick = fn; document.getElementById(box).appendChild(b);
   }
   FX.forEach(function (x) { btn('fx', x[1], x[0], function () { S.unlock(); S.play(x[0]); }); });
-  var on = false, fast = false;
-  btn('board', '배경음 켜기 / 끄기', '게임 중 반복', function () { S.unlock(); on = !on; S.bgm(on, fast); });
-  btn('board', '배경음 빠르게 / 보통', '마지막 30초', function () { fast = !fast; if (on) { S.bgm(false); S.bgm(true, fast); } });
+  var on = false, fast = false, tune = 'game';
+  btn('board', '배경음 켜기 / 끄기', '게임 중 반복', function () { S.unlock(); if (on && tune === 'game') { on = false; S.bgm(false); } else { on = true; tune = 'game'; S.bgm(true, fast, 'game'); } });
+  btn('board', '배경음 빠르게 / 보통', '마지막 30초', function () { fast = !fast; if (on) S.bgm(true, fast, tune); });
+  btn('board', '대기실 배경음 켜기 / 끄기', '대기실 · 조 선택 화면', function () { S.unlock(); if (on && tune === 'lobby') { on = false; S.bgm(false); } else { on = true; tune = 'lobby'; S.bgm(true, false, 'lobby'); } });
 })();
 </script>
 </body>

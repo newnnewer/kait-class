@@ -2,8 +2,9 @@
 // v0.7.1: 레이더 뺌 · 쉬운 길은 내 둘레 8칸
 // 아이템 — 보스를 맞히면 잡은 사람의 개인 덱에 들어가고, 원할 때 Ctrl+Shift+1~5 로 쓴다 (v0.7.0).
 //   페널티만 바로 발동. 방패는 덱과 따로 (최대 2개), 공격이 올 때 2초 안에 Ctrl+Shift+9 로 직접 막는다.
-//   학생 방 · 방해 꺼진 수업 게임: 90% 우리 조 도움(6종) · 10% 페널티
-//   방해 켜진 수업 게임 (5-2):     55% 우리 조 도움(방패 포함 7종) · 35% 방해(5종) · 10% 페널티
+//   v0.11.0 확률 (RATE):
+//     방해 켜진 수업 게임:        도움 50%(5종 각 10%) · 페널티 15%(3종 각 5%) · 방해 20%(5종 각 4%) · 방패 15%
+//     학생 방 · 방해 꺼진 수업 게임: 도움 85%(5종 각 17%) · 페널티 15%
 //   페널티를 끈 방은 페널티 몫이 우리 조 도움으로 간다
 
 const GOOD = [
@@ -40,6 +41,9 @@ const EFFECT_MS = ITEM_MS; // 예전 이름 (호환)
 
 function pick(a, rng) { return a[Math.floor((rng || Math.random)() * a.length)]; }
 
+// 보스 아이템 확률 (v0.11.0) — 남는 몫은 모두 도움
+const RATE = { bad: 0.15, attack: 0.20, shield: 0.15 };
+
 /**
  * 어떤 아이템이 나올지
  *   penalty: 페널티 켜짐 · attacks: 방해 아이템 켜짐(수업 게임) · force: 시험용 아이템 id
@@ -52,17 +56,19 @@ function rollItem({ penalty = true, attacks = false, rng, force } = {}) {
     if (a) return { ...a, kind: 'attack' };
   }
   const r = (rng || Math.random)();
-  if (penalty && r < 0.1) return { ...pick(BAD, rng), kind: 'bad' };
+  let edge = 0;
+  if (penalty && r < (edge += RATE.bad)) return { ...pick(BAD, rng), kind: 'bad' };
   if (attacks) {
-    if (r >= 0.1 && r < 0.45) return { ...pick(ATTACK, rng), kind: 'attack' };
-    return { ...pick(GOOD.concat([SHIELD]), rng), kind: 'good' };
+    if (r < (edge += RATE.attack)) return { ...pick(ATTACK, rng), kind: 'attack' };
+    if (r < (edge += RATE.shield)) return { ...SHIELD, kind: 'good' };
   }
   return { ...pick(GOOD, rng), kind: 'good' };
 }
 
-/** 도움 아이템 하나 (집결 보스 보상) — shield: 방패도 나올 수 있음 (방해 켜진 수업 게임) */
+/** 도움 아이템 하나 (집결 보스 보상) — shield: 방패도 15% 로 나올 수 있음 (방해 켜진 수업 게임) */
 function rollHelp({ shield = false, rng } = {}) {
-  return { ...pick(shield ? GOOD.concat([SHIELD]) : GOOD, rng), kind: 'good' };
+  if (shield && (rng || Math.random)() < RATE.shield) return { ...SHIELD, kind: 'good' };
+  return { ...pick(GOOD, rng), kind: 'good' };
 }
 
 /** 배열에서 n개 무작위로 */
@@ -75,4 +81,4 @@ function sample(arr, n) {
 const DECK_SIZE = 5;      // 개인 덱 칸 수 (Ctrl+Shift+1~5)
 const DEFEND_MS = 2000;   // 공격이 들어오기까지 막을 수 있는 시간 (Ctrl+Shift+9)
 
-module.exports = { GOOD, BAD, ATTACK, SHIELD, MAX_SHIELD, DECK_SIZE, DEFEND_MS, EFFECT_MS, ITEM_MS, FX_OF, POWER, rollItem, rollHelp, sample };
+module.exports = { RATE, GOOD, BAD, ATTACK, SHIELD, MAX_SHIELD, DECK_SIZE, DEFEND_MS, EFFECT_MS, ITEM_MS, FX_OF, POWER, rollItem, rollHelp, sample };
