@@ -28,6 +28,7 @@
     <span class="pill blue sb-pill">블록 점령전</span>
     <span class="sb-join" id="sb-join"></span>
     <span class="grow"></span>
+    <button type="button" class="sb-sound" id="sb-view" title="조 순위를 판 모양 / 막대그래프로 바꿔 보기 (B)">📊 막대그래프로 보기</button>
     <button type="button" class="sb-sound" id="sb-sound" aria-pressed="false">🔈 소리 켜기</button>
     <span class="sb-attacks" id="sb-attacks">방해 아이템 ON</span>
     <div class="sb-time"><span id="sb-time-label">남은 시간</span><b id="sb-time">--:--</b></div>
@@ -55,6 +56,7 @@
   <section class="sb-play" id="sb-play" hidden>
     <div class="sb-band" id="sb-band"><span class="sb-band-kind" id="sb-band-kind">BATTLE</span><b id="sb-band-main">보스를 잡아 아이템을 얻으세요!</b><span id="sb-band-sub"></span></div>
     <div class="sb-grid" id="sb-grid"></div>
+    <div class="sb-bars" id="sb-bars" hidden role="list" aria-label="조 순위 막대그래프"></div>
   </section>
 
   <footer class="sb-feed"><b>전장 소식</b><div id="sb-feed"></div></footer>

@@ -165,6 +165,57 @@
     }
   }
 
+  // ── 보기 방식 (v0.12.0): 판 모양(기본) / 막대그래프 — 이 브라우저에 기억 ──
+  var view = 'grid';
+  try { if (localStorage.getItem('kp.boardView') === 'bars') view = 'bars'; } catch (e) { /* 저장 못 해도 됨 */ }
+  function setView(v) {
+    view = v;
+    try { localStorage.setItem('kp.boardView', v); } catch (e) { /* 저장 못 해도 됨 */ }
+    $('sb-view').textContent = v === 'bars' ? '🧩 판으로 보기' : '📊 막대그래프로 보기';
+    if (B && B.phase === 'playing') renderPlay(B);
+  }
+  $('sb-view').onclick = function () { setView(view === 'bars' ? 'grid' : 'bars'); this.blur(); };
+  document.addEventListener('keydown', function (e) {
+    if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey && !e.altKey) setView(view === 'bars' ? 'grid' : 'bars');
+  });
+  setView(view);
+
+  var bars = {}; // 조 번호 → 막대 한 줄
+  function renderBars(teams) {
+    var box = $('sb-bars');
+    var seen = {};
+    teams.forEach(function (t, k) {
+      seen[t.no] = 1;
+      var r = bars[t.no];
+      if (!r) {
+        r = bars[t.no] = el('div', 'sb-brow');
+        r.setAttribute('role', 'listitem');
+        r.innerHTML = '<span class="sb-rank"></span><b class="sb-bname"></b><div class="sb-btrack"><i class="sb-bfill"></i></div>' +
+          '<span class="sb-bval"></span><div class="sb-bmeta"><span class="sb-bchips"></span><span class="sb-bcount"></span></div>';
+        box.appendChild(r);
+      }
+      r.style.order = k;
+      r.classList.toggle('first', k === 0);
+      r.classList.toggle('done', !!t.rank);
+      r.querySelector('.sb-rank').textContent = t.rank ? t.rank : k + 1;
+      r.querySelector('.sb-bname').textContent = t.no + '조';
+      r.querySelector('.sb-bfill').style.width = Math.max(t.pct, 0.5) + '%';
+      r.querySelector('.sb-bval').textContent = t.rank ? 'CLEAR ' + mmss(t.ms) : t.pct + '%';
+      var fx = t.fx || {}, chips = [];
+      if (t.cells && t.cells.indexOf('B') >= 0) chips.push(['c-boss', '보스']);
+      if (fx.freeze > 0) chips.push(['c-ice', '얼음 ' + Math.ceil(fx.freeze / 1000)]);
+      if (fx.cloud > 0) chips.push(['c-cloud', '먹구름 ' + Math.ceil(fx.cloud / 1000)]);
+      if (fx.confuse > 0) chips.push(['c-flip', '방향 반전 ' + Math.ceil(fx.confuse / 1000)]);
+      if (t.shields) chips.push(['c-shield', '방패 ×' + t.shields]);
+      var cb = r.querySelector('.sb-bchips');
+      cb.innerHTML = '';
+      chips.forEach(function (c) { cb.appendChild(el('span', c[0], c[1])); });
+      r.querySelector('.sb-bcount').textContent = t.solved + ' / ' + t.total + '블록 · ' + t.members.length + '명';
+    });
+    Object.keys(bars).forEach(function (no) { if (!seen[no]) { bars[no].remove(); delete bars[no]; } });
+    box.style.setProperty('--rows', Math.max(1, teams.length));
+  }
+
   var cards = {}; // 조 번호 → { el, mini, cells }
   function renderPlay(b) {
     $('sb-time-label').textContent = '남은 시간';
@@ -175,6 +226,10 @@
       if (c.rank) return 1;
       return c.pct - a.pct || c.solved - a.solved || a.no - c.no;
     });
+    var asBars = view === 'bars';
+    $('sb-bars').hidden = !asBars;
+    $('sb-grid').hidden = asBars;
+    if (asBars) { renderBars(teams); return; }
     var grid = $('sb-grid');
     var n = teams.length, cols = n <= 4 ? Math.max(1, n) : Math.ceil(n / 2), rows = n <= 4 ? 1 : 2;
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
