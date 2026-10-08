@@ -165,22 +165,27 @@
     }
   }
 
-  // ── 보기 방식 (v0.12.0): 판 모양(기본) / 막대그래프 — 이 브라우저에 기억 ──
+  // ── 보기 방식 (v0.12.0): 판 모양(기본) / 순위 변동 그래프 — 이 브라우저에 기억 ──
   var view = 'grid';
-  try { if (localStorage.getItem('kp.boardView') === 'bars') view = 'bars'; } catch (e) { /* 저장 못 해도 됨 */ }
+  try { if (localStorage.getItem('kp.boardView') === 'rank') view = 'rank'; } catch (e) { /* 저장 못 해도 됨 */ }
   function setView(v) {
     view = v;
     try { localStorage.setItem('kp.boardView', v); } catch (e) { /* 저장 못 해도 됨 */ }
-    $('sb-view').textContent = v === 'bars' ? '🧩 판으로 보기' : '📊 막대그래프로 보기';
+    $('sb-view').textContent = v === 'rank' ? '🧩 판으로 보기' : '📈 순위 그래프로 보기';
     if (B && B.phase === 'playing') renderPlay(B);
   }
-  $('sb-view').onclick = function () { setView(view === 'bars' ? 'grid' : 'bars'); this.blur(); };
+  $('sb-view').onclick = function () { setView(view === 'rank' ? 'grid' : 'rank'); this.blur(); };
   document.addEventListener('keydown', function (e) {
-    if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey && !e.altKey) setView(view === 'bars' ? 'grid' : 'bars');
+    if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey && !e.altKey) setView(view === 'rank' ? 'grid' : 'rank');
   });
   setView(view);
 
-  var bars = {}; // 조 번호 → 막대 한 줄
+  // 조 색 (조 번호로 고정 — 순위가 바뀌어도 색은 그대로). 어두운 바탕에서 색약도 구분되게 고른 8색
+  var TEAM_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+  function teamColor(no) { return TEAM_COLORS[(no - 1) % TEAM_COLORS.length]; }
+
+  // 오른쪽: 지금 순위 (작게)
+  var bars = {}; // 조 번호 → 한 줄
   function renderBars(teams) {
     var box = $('sb-bars');
     var seen = {};
@@ -190,30 +195,90 @@
       if (!r) {
         r = bars[t.no] = el('div', 'sb-brow');
         r.setAttribute('role', 'listitem');
-        r.innerHTML = '<span class="sb-rank"></span><b class="sb-bname"></b><div class="sb-btrack"><i class="sb-bfill"></i></div>' +
-          '<span class="sb-bval"></span><div class="sb-bmeta"><span class="sb-bchips"></span><span class="sb-bcount"></span></div>';
+        r.innerHTML = '<span class="sb-rank"></span><b class="sb-bname"><i class="sb-sw"></i><span></span></b><span class="sb-bval"></span>' +
+          '<div class="sb-btrack"><i class="sb-bfill"></i></div><div class="sb-bmeta"><span class="sb-bchips"></span><span class="sb-bcount"></span></div>';
         box.appendChild(r);
       }
       r.style.order = k;
       r.classList.toggle('first', k === 0);
       r.classList.toggle('done', !!t.rank);
       r.querySelector('.sb-rank').textContent = t.rank ? t.rank : k + 1;
-      r.querySelector('.sb-bname').textContent = t.no + '조';
-      r.querySelector('.sb-bfill').style.width = Math.max(t.pct, 0.5) + '%';
-      r.querySelector('.sb-bval').textContent = t.rank ? 'CLEAR ' + mmss(t.ms) : t.pct + '%';
+      r.querySelector('.sb-sw').style.background = teamColor(t.no);
+      r.querySelector('.sb-bname span').textContent = t.no + '조';
+      r.querySelector('.sb-bfill').style.width = t.pct + '%';
+      r.querySelector('.sb-bval').textContent = t.rank ? 'CLEAR' : t.pct + '%';
       var fx = t.fx || {}, chips = [];
       if (t.cells && t.cells.indexOf('B') >= 0) chips.push(['c-boss', '보스']);
-      if (fx.freeze > 0) chips.push(['c-ice', '얼음 ' + Math.ceil(fx.freeze / 1000)]);
-      if (fx.cloud > 0) chips.push(['c-cloud', '먹구름 ' + Math.ceil(fx.cloud / 1000)]);
-      if (fx.confuse > 0) chips.push(['c-flip', '방향 반전 ' + Math.ceil(fx.confuse / 1000)]);
+      if (fx.freeze > 0) chips.push(['c-ice', '얼음']);
+      if (fx.cloud > 0) chips.push(['c-cloud', '먹구름']);
+      if (fx.confuse > 0) chips.push(['c-flip', '반전']);
       if (t.shields) chips.push(['c-shield', '방패 ×' + t.shields]);
       var cb = r.querySelector('.sb-bchips');
       cb.innerHTML = '';
       chips.forEach(function (c) { cb.appendChild(el('span', c[0], c[1])); });
-      r.querySelector('.sb-bcount').textContent = t.solved + ' / ' + t.total + '블록 · ' + t.members.length + '명';
+      r.querySelector('.sb-bcount').textContent = t.rank ? '기록 ' + mmss(t.ms) : t.solved + '/' + t.total + ' · ' + t.members.length + '명';
     });
     Object.keys(bars).forEach(function (no) { if (!seen[no]) { bars[no].remove(); delete bars[no]; } });
-    box.style.setProperty('--rows', Math.max(1, teams.length));
+  }
+
+  // 왼쪽: 순위 변동 그래프 — 10초마다 남긴 순위(서버) + 지금 순위. 가로 = 게임 시간, 세로 = 순위(1위가 위)
+  var NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function renderChart(b, teams) {
+    var box = $('sb-chart');
+    var W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) return;
+    var pts = (b.history || []).slice();
+    var nowT = b.elapsedMs || 0;
+    var cur = teams.map(function (t) { return t.no; });
+    if (!pts.length || nowT > pts[pts.length - 1].t) pts.push({ t: nowT, order: cur });
+    else pts[pts.length - 1] = { t: pts[pts.length - 1].t, order: cur };
+    var n = Math.max(2, teams.length);
+    var L = 70, R = 96, T = 34, Bm = 46;
+    var span = Math.max(b.limitMs || 0, nowT, 60000);
+    var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
+    var y = function (rank) { return T + (H - T - Bm) * (rank - 1) / (n - 1); };
+    var svg = svgEl('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H });
+    // 눈금: 순위 줄 · 분
+    for (var r = 1; r <= teams.length; r++) {
+      svg.appendChild(svgEl('line', { x1: L, x2: W - R + 20, y1: y(r), y2: y(r), class: 'grid' }));
+      svg.appendChild(svgEl('text', { x: L - 16, y: y(r) + 7, class: 'ylab', 'text-anchor': 'end' }, r + '위'));
+    }
+    var stepMin = span > 20 * 60000 ? 5 : span > 8 * 60000 ? 2 : 1;
+    for (var m = 0; m * 60000 <= span; m += stepMin) {
+      svg.appendChild(svgEl('text', { x: x(m * 60000), y: H - 12, class: 'xlab', 'text-anchor': 'middle' }, m ? m + '분' : '시작'));
+    }
+    // 선: 조마다. 칸 사이는 부드러운 S자 (가운데에서 꺾임)
+    var lines = svgEl('g', {}), heads = svgEl('g', {});
+    teams.forEach(function (t) {
+      var d = '', prev = null, last = null;
+      pts.forEach(function (p) {
+        var k = p.order.indexOf(t.no);
+        if (k < 0) { prev = null; return; }
+        var px = x(p.t), py = y(k + 1);
+        if (!prev) d += 'M' + px.toFixed(1) + ' ' + py.toFixed(1);
+        else {
+          var mx = (prev[0] + px) / 2;
+          d += 'C' + mx.toFixed(1) + ' ' + prev[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + py.toFixed(1) + ' ' + px.toFixed(1) + ' ' + py.toFixed(1);
+        }
+        prev = [px, py]; last = prev;
+      });
+      if (!last) return;
+      var c = teamColor(t.no);
+      lines.appendChild(svgEl('path', { d: d, class: 'ln-gap' }));
+      lines.appendChild(svgEl('path', { d: d, class: 'ln', stroke: c }));
+      heads.appendChild(svgEl('circle', { cx: last[0], cy: last[1], r: 9, fill: c, class: 'dot' }));
+      heads.appendChild(svgEl('text', { x: last[0] + 18, y: last[1] + 8, class: 'tlab' }, t.no + '조'));
+    });
+    svg.appendChild(lines);
+    svg.appendChild(heads);
+    box.innerHTML = '';
+    box.appendChild(svg);
   }
 
   var cards = {}; // 조 번호 → { el, mini, cells }
@@ -226,10 +291,10 @@
       if (c.rank) return 1;
       return c.pct - a.pct || c.solved - a.solved || a.no - c.no;
     });
-    var asBars = view === 'bars';
-    $('sb-bars').hidden = !asBars;
-    $('sb-grid').hidden = asBars;
-    if (asBars) { renderBars(teams); return; }
+    var asRank = view === 'rank';
+    $('sb-rankview').hidden = !asRank;
+    $('sb-grid').hidden = asRank;
+    if (asRank) { renderBars(teams); renderChart(b, teams); return; }
     var grid = $('sb-grid');
     var n = teams.length, cols = n <= 4 ? Math.max(1, n) : Math.ceil(n / 2), rows = n <= 4 ? 1 : 2;
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';

@@ -1173,7 +1173,7 @@
     // good 아이템 · bad 페널티 · attack 우리가 쏜 방해 · hit 다른 조의 공격을 맞음 · blocked 방패로 막음
     // v0.7.0: get 보스 보상이 덱으로 · gather 집결 보스 성공 보상
     var KIND = { good: ['good', '아이템'], bad: ['bad', '페널티'], attack: ['attack', '공격 발사!'], hit: ['bad', '공격 받음!'], blocked: ['shielded', '방패!'],
-      get: [m.lost ? 'bad' : 'good', m.lost ? '덱이 가득 참' : '아이템 획득!'], gather: [m.lost ? 'bad' : 'good', '모두 모였다!'] }[m.kind] || ['good', '아이템'];
+      get: [m.lost ? 'bad' : 'good', m.lost ? '덱이 가득 참' : '아이템 획득!'], gather: [m.lost ? 'bad' : 'good', '모두 잡았다!'] }[m.kind] || ['good', '아이템'];
     el.className = 'banner show ' + KIND[0];
     fitBanner();
     el.querySelector('.bn-kind').textContent = KIND[1];

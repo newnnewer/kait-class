@@ -123,24 +123,36 @@
 .sb-sound { height: 44px; padding: 0 18px; border-radius: 999px; border: 2px solid var(--line); background: var(--panel); color: var(--soft); font-family: var(--body); font-size: 17px; font-weight: 800; cursor: pointer; }
 .sb-sound[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: #062A1B; }
 
-/* 막대그래프 보기 (v0.12.0) — 조마다 한 줄, 해결률 막대 · 값은 막대 끝에 글자로 */
-.sb-grid[hidden], .sb-bars[hidden] { display: none; }
-.sb-bars { flex-grow: 1; min-height: 0; display: grid; grid-template-rows: repeat(var(--rows, 4), minmax(0, 120px)); align-content: center; gap: 14px; }
+/* 순위 변동 그래프 보기 (v0.12.0) — 왼쪽 그래프 · 오른쪽 지금 순위 */
+.sb-grid[hidden], .sb-rankview[hidden] { display: none; }
+.sb-rankview { flex-grow: 1; min-height: 0; display: flex; gap: 20px; }
+.sb-chart { flex: 1; min-width: 0; background: var(--panel); border: 2px solid var(--panel-line); border-radius: 22px; overflow: hidden; }
+.sb-chart svg { display: block; }
+.sb-chart .grid { stroke: rgba(255,255,255,.08); stroke-width: 1; }
+.sb-chart .ylab { fill: var(--muted); font-family: var(--pixel); font-size: 16px; }
+.sb-chart .xlab { fill: var(--muted); font-size: 16px; font-weight: 700; }
+.sb-chart .ln-gap { fill: none; stroke: var(--panel); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+.sb-chart .ln { fill: none; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.sb-chart .dot { stroke: var(--panel); stroke-width: 3; }
+.sb-chart .tlab { fill: #fff; font-family: var(--display); font-weight: 800; font-size: 24px; }
+
+.sb-bars { width: 470px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 .sb-brow {
-  min-height: 0; display: grid; grid-template-columns: 50px 120px minmax(0, 1fr) 230px; grid-template-rows: 1fr auto; column-gap: 18px; row-gap: 6px; align-items: center;
-  background: var(--panel); border: 3px solid var(--panel-line); border-radius: 20px; padding: 12px 22px;
+  flex-shrink: 0; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-rows: auto auto auto; column-gap: 14px; row-gap: 6px; align-items: center;
+  background: var(--panel); border: 3px solid var(--panel-line); border-radius: 16px; padding: 10px 16px;
 }
 .sb-brow.first { background: #1B2C5C; border-color: var(--yellow); }
-.sb-brow .sb-rank { grid-row: 1 / span 2; }
+.sb-brow .sb-rank { grid-row: 1 / span 3; width: 44px; height: 44px; font-size: 16px; }
 .sb-brow.first .sb-rank { color: #1A1400; background: var(--yellow); }
-.sb-bname { grid-row: 1 / span 2; font-family: var(--display); font-weight: 800; font-size: 44px; color: #fff; }
-.sb-btrack { height: 100%; max-height: 54px; min-height: 18px; background: var(--bg); border-radius: 4px; overflow: hidden; }
-.sb-bfill { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--blue); transition: width .6s ease-out; }
+.sb-bname { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 28px; color: #fff; }
+.sb-sw { display: inline-block; width: 16px; height: 16px; border-radius: 50%; }
+.sb-bval { font-family: var(--pixel); font-weight: 400; font-size: 24px; color: #fff; text-align: right; }
+.sb-brow.done .sb-bval { color: var(--green); font-size: 18px; }
+.sb-btrack { grid-column: 2 / span 2; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.sb-bfill { display: block; height: 100%; background: var(--blue); border-radius: 5px; transition: width .6s ease-out; }
 .sb-brow.first .sb-bfill { background: var(--yellow); }
 .sb-brow.done .sb-bfill { background: var(--green); }
-.sb-bval { font-family: var(--pixel); font-weight: 400; font-size: 34px; color: #fff; text-align: right; white-space: nowrap; }
-.sb-brow.done .sb-bval { font-size: 24px; color: var(--green); }
-.sb-bmeta { grid-column: 3 / span 2; display: flex; align-items: center; gap: 10px; min-height: 26px; }
-.sb-bchips { display: flex; gap: 8px; }
-.sb-bchips span { font-size: 15px; font-weight: 800; padding: 3px 12px; border-radius: 999px; }
-.sb-bcount { margin-left: auto; font-size: 17px; color: var(--muted); white-space: nowrap; }
+.sb-bmeta { grid-column: 2 / span 2; display: flex; align-items: center; gap: 6px; min-height: 22px; }
+.sb-bchips { display: flex; gap: 6px; }
+.sb-bchips span { font-size: 13px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
+.sb-bcount { margin-left: auto; font-size: 15px; color: var(--muted); white-space: nowrap; }

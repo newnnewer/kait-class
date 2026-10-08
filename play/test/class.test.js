@@ -584,3 +584,21 @@ test('방해 아이템 대상 고르기 (v0.12.0): 고른 조로 · 우리 조 �
   give();
   assert.strictEqual(m1.useItem(a, 1, 0).item.to, 3, '기본은 바로 위 순위 조 (3조)');
 });
+
+test('순위 기록 (v0.12.0): 10초마다 순위를 남기고 전광판 정보에 실린다', () => {
+  const x = setup({ teams: 3 });
+  const xs = [x.student(), x.student(), x.student()];
+  xs.forEach((s, k) => { x.hub.join(s.p, s.sock, x.code); x.c.pickTeam(s.p, k + 1); });
+  x.c.begin(); x.stopTimers();
+  x.c.tick();
+  assert.deepStrictEqual(x.c.round.history.map(h => h.order), [[1, 2, 3]], '처음엔 조 번호 순');
+  x.c.round.matches.get(3).board.cells.slice(0, 3).forEach(c => { c.solved = true; });
+  x.c.round.matches.get(2).board.cells.slice(0, 1).forEach(c => { c.solved = true; });
+  x.c.round.startedAt -= 10000; // 10초 흐름
+  x.c.tick();
+  assert.deepStrictEqual(x.c.round.history[1].order, [3, 2, 1]);
+  assert.ok(x.c.round.history[1].t >= 10000);
+  x.c.tick();
+  assert.strictEqual(x.c.round.history.length, 2, '10초가 안 지나면 더 남기지 않음');
+  assert.strictEqual(x.c.boardState().history.length, 2);
+});

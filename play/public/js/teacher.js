@@ -817,12 +817,12 @@
       toast(on ? '조 선택을 잠갔어요 — 학생은 조를 바꿀 수 없어요' : '조 선택을 열었어요');
     });
   };
-  armed($('btn-shuffle'), '🔀 무작위로 섞기', function () {
+  $('btn-shuffle').onclick = function () { // 한 번 누르면 바로 (v0.12.0)
     call('class:shuffle', {}, function (res) {
       if (!res.ok) return toast(res.error || '섞지 못했어요', 'warn');
       toast('학생들을 무작위로 섞었어요');
     });
-  });
+  };
 
   // ── 비밀번호 바꾸기 ──
   function openPw() {

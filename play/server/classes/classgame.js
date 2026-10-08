@@ -13,6 +13,7 @@ const { randomSeed, makeRng, shuffle } = require('../rng');
 const { rollNick } = require('../nick');
 const { makeBot, stepBot } = require('./bot');
 const CHAT = require('../../public/js/shared/chat');
+const RANK_SNAP_MS = 10000; // v0.12.0: 순위 변동 그래프 기록 간격
 
 const MAX_BOTS = 40; // 수업 게임 하나에 넣을 수 있는 봇 수
 
@@ -416,6 +417,8 @@ class ClassGame {
       everyMs: s.bossEverySec * 1000,
       nextSlot: s.bossEverySec * 1000, // 흐른 시간 기준 다음 보스 차례
       countdownUntil: 0,
+      history: [],               // v0.12.0: 순위 기록 (전광판 순위 변동 그래프) — [{ t: 흐른 ms, order: [1위 조, 2위 조, …] }]
+      nextSnap: 0,
     };
     // 시작 카운트다운 (v0.7.6): 5초 동안 모든 시계를 멈춰 둔다 (일시정지 가림막 없이, 판마다 카운트다운 화면)
     const cd = this.hub.countdownMs == null ? 5000 : this.hub.countdownMs;
@@ -521,8 +524,35 @@ class ClassGame {
         for (const m of r.matches.values()) m.nextBossAt = at; // 레이더가 쓰는 시각
       }
     }
+    // 순위 기록: 10초마다 (일시정지 · 카운트다운 동안은 흐른 시간이 멈추므로 기록도 멈춤)
+    if (el >= r.nextSnap) { this.snapRanks(el); r.nextSnap += RANK_SNAP_MS; }
     this.sendStandings();
     if (Date.now() - this.lastBoardAt >= 500) this.sendBoard();
+  }
+
+  /** 지금 순위 (v0.12.0) — 완성한 조는 완성 순, 나머지는 해결률 · 해결 블록 수 · 조 번호 순 (전광판과 같은 순서) */
+  rankOrder() {
+    const r = this.round;
+    if (!r) return [];
+    const list = [...r.matches.entries()].map(([no, m]) => {
+      const res = r.results.get(no);
+      const solved = m.board.cells.filter(c => c.solved).length;
+      return { no, solved, pct: solved / m.board.cells.length, rank: res && res.clear ? res.rank : 0 };
+    });
+    list.sort((a, b) => {
+      if (a.rank && b.rank) return a.rank - b.rank;
+      if (a.rank) return -1;
+      if (b.rank) return 1;
+      return b.pct - a.pct || b.solved - a.solved || a.no - b.no;
+    });
+    return list.map(x => x.no);
+  }
+
+  snapRanks(el) {
+    const r = this.round;
+    if (!r) return;
+    r.history.push({ t: Math.round(el), order: this.rankOrder() });
+    if (r.history.length > 400) r.history.shift(); // 혹시 몰라 (30분 = 180개)
   }
 
   /** 소리 (6-2): 학생 효과음 · 전광판 배경음 켜고 끄기 — 게임 중에도 바로 */
@@ -587,7 +617,7 @@ class ClassGame {
   boardEvent(no, e) {
     let text = null, kind = 'info';
     if (e.type === 'boss') { text = `${no}조 ${e.nick} 보스 격파!`; kind = 'boss'; }
-    else if (e.type === 'gather') { text = `${no}조 모두 모였다! (집결 보스)`; kind = 'good'; }
+    else if (e.type === 'gather') { text = `${no}조 모두 잡았다! (집결 보스)`; kind = 'good'; }
     else if (e.type === 'item') { text = `${no}조 ${e.item.kind === 'bad' ? '페널티' : '아이템'} ${e.item.name}`; kind = e.item.kind === 'bad' ? 'bad' : 'good'; }
     if (text) this.io.to(this.boardChannel).emit('board:feed', { text, kind });
   }
@@ -627,6 +657,7 @@ class ClassGame {
       countdownMs: r && r.countdownUntil ? Math.max(0, r.countdownUntil - now) : 0,
       limitMs: r ? r.limitMs : s.limitMin * 60000, attacks: s.attacks !== false, bgm: s.bgm !== false,
       teams, waiting: this.teamMembers(0).length, result: this.phase === 'waiting' ? this.lastResult : null,
+      history: r ? r.history : null, elapsedMs: r ? Math.round(this.elapsed()) : 0,
     };
   }
 
