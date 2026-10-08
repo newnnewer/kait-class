@@ -224,8 +224,20 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
   font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; visibility: hidden;
 }
 .b-ghost.show { visibility: visible; }
-.b-ghost .g-typed { color: transparent; }
-.b-ghost .g-rest { color: #1FA36B; opacity: .55; }
+/* v0.12.0: 입력란 흐린 글씨 — 진짜 입력란 글자는 숨기고, 맞게 친 만큼 진하게 · 틀린 글자 빨강 · 커서는 그 자리 */
+.b-field .b-input { color: transparent; caret-color: transparent; }
+.b-ghost .g-done { color: var(--ink); }
+.b-ghost .g-bad { color: #fff; background: #E5484D; border-radius: 3px; }
+.b-ghost .g-bad:empty { display: none; }
+.b-ghost .g-caret { display: inline-block; width: 2px; height: 26px; margin: 0 -1px; vertical-align: -5px; background: var(--ink); animation: caretBlink 1s steps(1) infinite; }
+.bubble.typo .g-caret { background: #E5484D; }
+.b-ghost .g-rest { color: #8A8FA8; opacity: .75; }
+.bubble.auto-on .b-ghost .g-rest { color: #1FA36B; opacity: .7; }
+.b-ghost .g-tab[hidden] { display: none; }
+.bubble.typo .b-input { background: #FFE3E3; }
+.bubble.typo-shake .b-field { animation: typoShake .25s ease-out; }
+@keyframes caretBlink { 50% { opacity: 0; } }
+@keyframes typoShake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 .b-ghost .g-tab {
   margin-left: 8px; padding: 1px 6px; border-radius: 5px; background: var(--green); color: #062A1B;
   font-family: var(--body); font-size: 12px; font-weight: 800; vertical-align: 3px;

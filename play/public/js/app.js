@@ -1642,7 +1642,7 @@
       label = '완성'; list = [['', '다른 조가 끝나기를 기다리는 중']];
     } else if (game.mode === 'occupy') {
       label = '입력 중'; cls = ' typing';
-      list = [['← →', '커서'], ['Home / End', '처음 · 끝'], ['Ctrl + ← →', '단어 점프'], ['Enter', '제출'], ['Esc', '점유 풀기']];
+      list = [['', '흐린 글씨를 따라 치기 (띄어쓰기는 무시)'], ['Backspace', '지우기'], ['Enter', '제출'], ['Esc', '점유 풀기']];
       if (game.fx.auto > now()) list.push(['Tab', '자동완성']);
     } else if (game.mode === 'boss') {
       label = '보스 공략'; cls = ' boss';
@@ -1717,14 +1717,15 @@
       '<i class="tail"></i>' +
       '<div class="b-code"></div>' +
       '<div class="b-field">' +
-        '<div class="b-ghost" aria-hidden="true"><span class="g-typed"></span><span class="g-rest"></span><span class="g-tab">Tab</span></div>' +
+        '<div class="b-ghost show" aria-hidden="true"><span class="g-done"></span><span class="g-bad"></span><i class="g-caret"></i><span class="g-rest"></span><span class="g-tab">Tab</span></div>' +
         '<input class="b-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" lang="en" maxlength="200" aria-label="코드 입력">' +
       '</div>' +
       '<span class="b-spark" aria-hidden="true">⚡ 자동완성!</span>' +
       '<div class="b-bar"><div></div></div>' +
       '<span class="b-hint">Enter 제출 · Esc 풀기 · 띄어쓰기는 무시해요</span>';
     return { el: el, code: el.querySelector('.b-code'), input: el.querySelector('.b-input'), bar: el.querySelector('.b-bar div'), tail: el.querySelector('.tail'),
-      ghost: el.querySelector('.b-ghost'), gTyped: el.querySelector('.g-typed'), gRest: el.querySelector('.g-rest'), spark: el.querySelector('.b-spark') };
+      ghost: el.querySelector('.b-ghost'), gDone: el.querySelector('.g-done'), gBad: el.querySelector('.g-bad'), gCaret: el.querySelector('.g-caret'),
+      gRest: el.querySelector('.g-rest'), gTab: el.querySelector('.g-tab'), spark: el.querySelector('.b-spark') };
   })();
   var input = bubble.input;
   guardInput(input);
@@ -1861,31 +1862,67 @@
     sfx('autoFill');
     return true;
   }
-  // 흐린 글자: 친 앞부분이 맞으면 남은 코드를 커서 뒤에 흐리게 보여 준다 (먹구름 중에는 안 보임)
+  // 입력란 흐린 글씨 (v0.12.0): 칠 코드를 흐리게 깔고, 맞게 친 만큼 진하게 · 틀린 글자는 빨갛게 하고 커서는 멈춘다.
+  //   따옴표 밖 빈칸은 신경 쓰지 않는다 (shared/typing.js — 채점과 같은 기준). 먹구름 중에는 남은 코드를 가린다.
+  //   v0.6.3 자동완성: 아이템이 있으면 Tab 표시
+  var TYPING = window.CGTyping;
+  function caretToEnd() { var n = input.value.length; if (input.selectionStart !== n || input.selectionEnd !== n) input.setSelectionRange(n, n); }
+  function typingState() {
+    if (!game || game.myOcc < 0 || !game.board.cells[game.myOcc]) return null;
+    var code = game.board.cells[game.myOcc].code;
+    return { code: code, a: TYPING.align(code, input.value) };
+  }
   function updateGhost() {
     var on = !!game && game.mode === 'occupy' && autoOn();
     var t = game ? (game.paused ? game.pauseAt : now()) : 0;
     var cloudy = !!game && game.fx.cloud > t;
     bubble.el.classList.toggle('auto-on', on);
-    input.placeholder = on && !cloudy ? '⚡ 앞부분을 치고 Tab' : '';
-    var rest = '';
-    if (on && !cloudy && game.board.cells[game.myOcc]) {
-      var typed = input.value;
-      var atEnd = input.selectionStart === typed.length && input.selectionEnd === typed.length;
-      if (atEnd) rest = autoRest(game.board.cells[game.myOcc].code, typed) || '';
-      bubble.gTyped.textContent = typed;
-    } else bubble.gTyped.textContent = '';
+    var st = game && game.mode === 'occupy' ? typingState() : null;
+    var done = '', bad = '', rest = '';
+    if (st) {
+      done = st.code.slice(0, st.a.pos);
+      if (st.a.bad >= 0) bad = input.value[st.a.bad] === ' ' ? '␣' : input.value[st.a.bad];
+      rest = cloudy ? '' : st.code.slice(st.a.pos);
+    }
+    var key = done + '\u0001' + bad + '\u0001' + rest + '\u0001' + (on && !bad && input.value ? 1 : 0);
+    if (bubble.ghost._key === key) return;
+    bubble.ghost._key = key;
+    bubble.gDone.textContent = done;
+    bubble.gBad.textContent = bad;
     bubble.gRest.textContent = rest;
-    bubble.ghost.classList.toggle('show', !!rest);
-    bubble.ghost.scrollLeft = input.scrollLeft;
+    bubble.gTab.hidden = !(on && !bad && input.value && st && !st.a.done);
+    bubble.el.classList.toggle('typo', !!bad);
+    // 커서가 보이게 가로로 밀기
+    var g = bubble.ghost, cx = bubble.gCaret.offsetLeft;
+    g.scrollLeft = Math.max(0, cx - g.clientWidth + 60);
   }
-  ['input', 'keyup', 'click', 'select', 'scroll'].forEach(function (ev) { input.addEventListener(ev, updateGhost); });
+  input.addEventListener('input', function () {
+    // 틀린 글자 뒤로는 더 쳐지지 않는다 (Backspace 로 지우면 다시 진행)
+    var st = typingState();
+    if (st && st.a.bad >= 0 && input.value.length > st.a.bad + 1) input.value = input.value.slice(0, st.a.bad + 1);
+    caretToEnd();
+    updateGhost();
+  });
+  input.addEventListener('beforeinput', function (e) {
+    if (!e.inputType || e.inputType.indexOf('insert') !== 0) return;
+    var st = typingState();
+    if (st && st.a.bad >= 0) {
+      e.preventDefault();
+      hintOnce('틀린 글자(빨간색)를 Backspace 로 지우세요');
+      var el = bubble.el; el.classList.remove('typo-shake'); void el.offsetWidth; el.classList.add('typo-shake');
+    }
+  });
+  ['click', 'select', 'focus', 'keyup'].forEach(function (ev) { input.addEventListener(ev, function () { caretToEnd(); updateGhost(); }); });
+
 
   input.addEventListener('keydown', function (e) {
     var k = e.key;
     if (e.isComposing || k === 'Process') return;
     if (k === 'Enter') { e.preventDefault(); if (!e.repeat) submit(); return; }
     if (k === 'Escape') { e.preventDefault(); socket.emit('release'); closeBubble(); return; }
+    // v0.12.0: 커서는 늘 끝 (흐린 글씨를 따라 치므로 ← → Home End 로 옮기지 않는다)
+    if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'Home' || k === 'End' || k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); return; }
+    if ((e.ctrlKey || e.metaKey) && (k === 'a' || k === 'A')) { e.preventDefault(); return; }
     if (k === 'Tab') {
       // 입력 중 Tab: 자동완성 아이템이 있을 때만 쓴다 (없으면 아무 일도 없음)
       e.preventDefault();
