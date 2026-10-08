@@ -162,6 +162,7 @@ body.teacher .step-num input:focus { border-color: var(--accent); }
 body.teacher .card { box-shadow: 0 1px 2px rgba(17,26,43,.04); }
 body.teacher .ghost-btn { color: var(--soft); border-color: var(--line); background: #fff; }
 body.teacher .ghost-btn:hover { border-color: var(--accent); }
+body.teacher .ghost-btn.locked { color: #fff; background: #C2410C; border-color: #C2410C; } /* v0.12.0: 조 선택 잠김 */
 body.teacher .ghost-btn:disabled { color: #A8B3C9; border-color: var(--line-2, #EAEFF7); }
 body.teacher .tag-info { color: #0A7A45; }
 body.teacher .tag-info.warn { color: #C25E00; }

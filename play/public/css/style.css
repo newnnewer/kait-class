@@ -703,6 +703,8 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 .team-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 .team-btn[aria-pressed="true"] { background: #22386E; border-color: var(--yellow); }
 .team-btn b { font-family: var(--display); font-weight: 800; font-size: 26px; color: #fff; }
+.team-btn.locked { opacity: .45; cursor: not-allowed; } /* v0.12.0: 조 선택 잠김 */
+#t-teaminfo.locked { color: #FFB020; font-weight: 800; }
 .team-avs { display: flex; align-items: center; gap: 2px; min-height: 30px; }
 .team-avs .av { width: 28px; height: 28px; }
 .team-avs em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 4px; }

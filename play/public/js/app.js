@@ -340,13 +340,15 @@
     if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
     $('t-picked').textContent = mine ? mine + '조 선택' : '조를 골라 주세요';
     $('t-picked').classList.toggle('none', !mine);
-    $('t-teaminfo').textContent = '조마다 들어온 사람 수가 보여요 · 선생님이 조를 옮길 수도 있어요';
+    $('t-teaminfo').textContent = cls.teamLock ? '🔒 선생님이 조 선택을 잠갔어요 — 정해진 조로 참여해요' : '조마다 들어온 사람 수가 보여요 · 선생님이 조를 옮길 수도 있어요';
+    $('t-teaminfo').classList.toggle('locked', !!cls.teamLock);
     var box = $('t-teams');
     box.innerHTML = '';
     cls.teams.forEach(function (t) {
       var b = el('button', 'team-btn');
       b.type = 'button';
       b.setAttribute('aria-pressed', String(t.no === mine));
+      if (cls.teamLock && t.no !== mine) b.classList.add('locked');
       b.appendChild(el('b', null, t.no + '조'));
       var av = el('span', 'team-avs');
       t.members.slice(0, 6).forEach(function (p) { av.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av')); });
@@ -355,6 +357,7 @@
       b.appendChild(el('span', 'team-count', t.members.length + '명'));
       b.onclick = function () {
         if (t.no === myTeam()) return;
+        if (cls.teamLock) { pageToast('선생님이 조 선택을 잠갔어요', 'warn'); return; }
         b.disabled = true;
         socket.emit('class:team', { no: t.no }, function (res) {
           b.disabled = false;

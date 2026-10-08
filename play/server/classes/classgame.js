@@ -23,6 +23,7 @@ class ClassGame {
     this.code = code;
     this.settings = settings;
     this.chatLog = [];         // 조 선택 화면 채팅 최근 8개 (v0.7.3)
+    this.teamLock = false;     // v0.12.0: 교사가 조 선택을 잠금 (학생은 조를 못 고름 · 교사는 옮길 수 있음)
     this.channel = 'class:' + code;
     this.teachChannel = 'teach:' + code;
     this.boardChannel = 'board:' + code; // 전광판
@@ -67,6 +68,7 @@ class ClassGame {
       code: this.code, phase: this.phase, paused: !!(this.round && this.round.pausedAt && !this.round.countdownUntil),
       teams: Array.from({ length: s.teams }, (_, k) => ({ no: k + 1, members: this.teamMembers(k + 1).map(p => this.pubOf(p)) })),
       waiting: this.teamMembers(0).length,
+      teamLock: this.teamLock,
       settings: { tags: s.tags, limitMin: s.limitMin },
       sfx: s.sfx !== false,
       remainMs: this.remainMs(),
@@ -108,6 +110,7 @@ class ClassGame {
       settings: s,
       teams: Array.from({ length: s.teams }, (_, k) => ({ no: k + 1, members: this.teamMembers(k + 1).map(person) })),
       unassigned: this.teamMembers(0).map(person),
+      teamLock: this.teamLock,
       count: this.members.size,
       blocksNow: s.blocks || recommendBlocks(Math.max(1, biggest)),
       blocks: this.round ? this.round.blocks : null,
@@ -173,6 +176,7 @@ class ClassGame {
   }
 
   pickTeam(p, no) {
+    if (this.teamLock) return { ok: false, error: '선생님이 조 선택을 잠갔어요' };
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 조예요' };
     this.setTeam(p, no);
@@ -280,6 +284,37 @@ class ClassGame {
       let best = 1;
       for (let no = 2; no <= n; no++) if (this.teamMembers(no).length < this.teamMembers(best).length) best = no;
       this.setTeam(p, best);
+    }
+    return { ok: true };
+  }
+
+  /** v0.12.0: 조 선택 잠그기 / 풀기 */
+  setTeamLock(on) {
+    this.teamLock = !!on;
+    this.touch();
+    this.changed();
+    return { ok: true, on: this.teamLock };
+  }
+
+  /** v0.12.0: 학생(조 미선택 포함)을 무작위로 섞어 고르게 나눈다. 봇은 제자리 — 봇까지 센 인원이 고르게 */
+  shuffleTeams() {
+    if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 섞을 수 없어요' };
+    const n = this.settings.teams;
+    const people = shuffle([...this.members.values()].filter(p => !p.bot), makeRng(randomSeed()));
+    if (!people.length) return { ok: false, error: '들어온 학생이 없어요' };
+    const size = new Map();
+    for (let no = 1; no <= n; no++) size.set(no, this.teamMembers(no).filter(p => p.bot).length);
+    // 먼저 모두 미선택으로 (채널 · 판 정리는 setTeam 이 한다)
+    for (const p of people) this.setTeam(p, 0);
+    for (const p of people) {
+      let best = [], min = Infinity;
+      for (let no = 1; no <= n; no++) {
+        const k = size.get(no);
+        if (k < min) { min = k; best = [no]; } else if (k === min) best.push(no);
+      }
+      const no = best[Math.floor(Math.random() * best.length)];
+      size.set(no, min + 1);
+      this.setTeam(p, no);
     }
     return { ok: true };
   }

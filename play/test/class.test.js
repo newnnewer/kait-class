@@ -532,3 +532,34 @@ test('소리 스위치: 학생 효과음 · 전광판 배경음 (기본 켜짐, 
   c.setSound({ bgm: false });
   assert.strictEqual(c.boardState().bgm, false);
 });
+
+// ── v0.12.0: 조 선택 잠그기 · 무작위로 섞기 ──
+test('조 선택 잠그기: 학생은 못 고르고 교사는 옮길 수 있다', () => {
+  const x = setup({ teams: 3 });
+  const s = x.student();
+  x.hub.join(s.p, s.sock, x.code);
+  x.c.pickTeam(s.p, 1);
+  assert.strictEqual(x.c.setTeamLock(true).on, true);
+  assert.strictEqual(x.c.pickTeam(s.p, 2).ok, false);
+  assert.strictEqual(x.c.teamOf.get(s.p.id), 1);
+  assert.strictEqual(x.c.move(s.p.id, 3).ok, true, '교사는 옮김');
+  assert.strictEqual(x.c.detail().teamLock, true);
+  x.c.setTeamLock(false);
+  assert.strictEqual(x.c.pickTeam(s.p, 2).ok, true);
+});
+
+test('무작위로 섞기: 미선택 학생까지 모두 고르게 · 봇은 제자리 · 게임 중에는 안 됨', () => {
+  const x = setup({ teams: 3 });
+  const xs = Array.from({ length: 8 }, () => x.student());
+  xs.forEach((s, k) => { x.hub.join(s.p, s.sock, x.code); if (k < 5) x.c.pickTeam(s.p, 1); });
+  x.c.addBot(2);
+  const bot = x.c.bots()[0];
+  assert.strictEqual(x.c.shuffleTeams().ok, true);
+  assert.strictEqual(x.c.teamMembers(0).length, 0, '미선택 없음');
+  assert.strictEqual(x.c.teamOf.get(bot.id), 2, '봇은 그대로');
+  const sizes = [1, 2, 3].map(no => x.c.teamMembers(no).length);
+  assert.strictEqual(sizes.reduce((a, b) => a + b), 9);
+  assert.ok(Math.max(...sizes) - Math.min(...sizes) <= 1, '고르게 ' + sizes);
+  x.c.begin(); x.stopTimers();
+  assert.strictEqual(x.c.shuffleTeams().ok, false);
+});

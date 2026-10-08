@@ -670,6 +670,12 @@
     cur.unassigned.forEach(function (p) { un.appendChild(personRow(p, 0)); });
     grid.appendChild(un);
     $('btn-autoassign').disabled = !cur.unassigned.length;
+    // v0.12.0: 조 선택 잠그기 · 무작위로 섞기
+    var lk = $('btn-teamlock');
+    lk.setAttribute('aria-pressed', String(!!cur.teamLock));
+    lk.textContent = cur.teamLock ? '🔒 조 선택 잠김' : '🔓 조 선택 열림';
+    lk.classList.toggle('locked', !!cur.teamLock);
+    $('btn-shuffle').disabled = cur.phase !== 'waiting' || !cur.count;
     $('btn-botclear').hidden = !cur.bots;
   }
 
@@ -804,6 +810,19 @@
     });
   };
   armed($('btn-botclear'), '봇 모두 빼기', function () { call('class:bot:clear', {}, function () {}); });
+  $('btn-teamlock').onclick = function () {
+    var on = !(cur && cur.teamLock);
+    call('class:teamlock', { on: on }, function (res) {
+      if (!res.ok) return toast(res.error || '바꾸지 못했어요', 'warn');
+      toast(on ? '조 선택을 잠갔어요 — 학생은 조를 바꿀 수 없어요' : '조 선택을 열었어요');
+    });
+  };
+  armed($('btn-shuffle'), '🔀 무작위로 섞기', function () {
+    call('class:shuffle', {}, function (res) {
+      if (!res.ok) return toast(res.error || '섞지 못했어요', 'warn');
+      toast('학생들을 무작위로 섞었어요');
+    });
+  });
 
   // ── 비밀번호 바꾸기 ──
   function openPw() {
