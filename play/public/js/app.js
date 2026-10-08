@@ -7,7 +7,8 @@
   var MOVE = window.CGMove;
   var SND = window.CGSound;
 
-  // ── 소리 (6-2): 내 설정(켜기/끄기, 타자음) + 수업 게임은 교사 스위치 ──
+  // ── 소리 (6-2): 내 설정 + 수업 게임은 교사 스위치 ──
+  //   v0.12.0: 두 스위치가 따로 — 배경음 · 효과음(Ctrl+S) / 타자음 · 오류음(Ctrl+K)
   var sound = {
     on: (function () { try { return localStorage.getItem('kp.sfx') !== '0'; } catch (e) { return true; } })(),
     typing: (function () { try { return localStorage.getItem('kp.typesnd') !== '0'; } catch (e) { return true; } })()
@@ -16,6 +17,12 @@
   function sfx(name) {
     if (!sound.on) return;
     if (game && game.cls && cls && cls.sfx === false) return; // 선생님이 학생 효과음을 껐다
+    SND.play(name);
+  }
+  /** 타자음 · 오류음 (v0.12.0) — 배경음 스위치와 상관없이 타자음 스위치만 따른다 */
+  function typeSfx(name) {
+    if (!sound.typing) return;
+    if (teacherMuted()) return; // 선생님이 학생 소리를 껐다
     SND.play(name);
   }
 
@@ -1502,14 +1509,14 @@
     ['btn-sfx', 'w-sfx', 't-sfx'].forEach(function (id) {
       var b = $(id);
       if (!b) return;
-      b.textContent = teacherOff ? '소리 꺼짐(선생님)' : (sound.on ? '소리 켬' : '소리 끔') + (id === 'btn-sfx' ? '' : ' · Ctrl+S');
+      b.textContent = teacherOff ? '소리 꺼짐(선생님)' : (sound.on ? '배경음 켬' : '배경음 끔') + ' · Ctrl+S';
       b.setAttribute('aria-pressed', String(sound.on && !teacherOff));
       b.disabled = teacherOff;
     });
     var t = $('btn-typesnd');
-    t.textContent = '타자음 ' + (sound.typing ? '켬' : '끔');
+    t.textContent = '타자음 ' + (sound.typing ? '켬' : '끔') + ' · Ctrl+K';
     t.setAttribute('aria-pressed', String(sound.typing));
-    t.hidden = !sound.on || teacherOff;
+    t.hidden = teacherOff; // v0.12.0: 배경음과 따로 (배경음을 꺼도 보임)
   }
   // 소리 켜기/끄기 — 배경음 · 효과음 함께 (버튼 · Ctrl+S, v0.11.0)
   function toggleSound() {
@@ -1545,18 +1552,27 @@
       if (!e.repeat) toggleSound();
       return;
     }
+    if (e.code === 'KeyK' && current === 'game') {
+      e.preventDefault();
+      if (!e.repeat) toggleTyping();
+      return;
+    }
     if ((e.code === 'Enter' || e.code === 'NumpadEnter') && current === 'wait') {
       e.preventDefault();
       var b = $('btn-start');
       if (!e.repeat && room && ME && room.hostId === ME.id && !b.disabled) b.click();
     }
   }, true);
-  $('btn-typesnd').onclick = function () {
+  // 타자음 · 오류음 켜기/끄기 (버튼 · Ctrl+K, v0.12.0)
+  function toggleTyping() {
+    if (teacherMuted()) { toast('선생님이 소리를 꺼 두었어요', 'warn'); return; }
     sound.typing = !sound.typing;
     try { localStorage.setItem('kp.typesnd', sound.typing ? '1' : '0'); } catch (e) { /* 저장 못 해도 됨 */ }
     renderSoundBtns();
-    this.blur();
-  };
+    if (current === 'game') toast('타자음 ' + (sound.typing ? '켬' : '끔'), 'info', 1000);
+    if (sound.typing) { SND.unlock(); typeSfx('type'); }
+  }
+  $('btn-typesnd').onclick = function () { SND.unlock(); toggleTyping(); this.blur(); };
 
   var avatarEls = {};
   function renderAvatars() {
@@ -1765,7 +1781,8 @@
     el.addEventListener('compositionstart', warnHangul);
     el.addEventListener('compositionend', function () { el.value = el.value.replace(HANGUL, ''); });
     el.addEventListener('input', function (e) {
-      if (sound.typing && e.inputType && e.inputType.indexOf('insert') === 0) sfx('type');
+      // 점유 입력란은 맞고 틀림에 따라 따로 소리를 낸다 (흐린 글씨, v0.12.0)
+      if (!el._ownTypeSound && e.inputType && e.inputType.indexOf('insert') === 0) typeSfx('type');
       if (!e.isComposing && HANGUL.test(el.value)) {
         el.value = el.value.replace(HANGUL, '');
         warnHangul();
@@ -1813,6 +1830,7 @@
       gRest: el.querySelector('.g-rest'), gTab: el.querySelector('.g-tab'), spark: el.querySelector('.b-spark') };
   })();
   var input = bubble.input;
+  input._ownTypeSound = true;
   guardInput(input);
 
   function openBubble(i, ms) {
@@ -1981,10 +1999,12 @@
     var g = bubble.ghost, cx = bubble.gCaret.offsetLeft;
     g.scrollLeft = Math.max(0, cx - g.clientWidth + 60);
   }
-  input.addEventListener('input', function () {
+  input.addEventListener('input', function (e) {
     // 틀린 글자 뒤로는 더 쳐지지 않는다 (Backspace 로 지우면 다시 진행)
     var st = typingState();
     if (st && st.a.bad >= 0 && input.value.length > st.a.bad + 1) input.value = input.value.slice(0, st.a.bad + 1);
+    // 소리: 맞게 쳤으면 타자음, 방금 친 글자가 틀렸으면 오류음
+    if (e.inputType && e.inputType.indexOf('insert') === 0 && !e.isComposing) typeSfx(st && st.a.bad >= 0 ? 'typo' : 'type');
     caretToEnd();
     updateGhost();
   });
@@ -1993,6 +2013,7 @@
     var st = typingState();
     if (st && st.a.bad >= 0) {
       e.preventDefault();
+      if (!lastKeyRepeat) typeSfx('typo'); // 막힌 뒤에도 누를 때마다 (꾹 눌러 반복되는 건 빼고)
       hintOnce('틀린 글자(빨간색)를 Backspace 로 지우세요');
       var el = bubble.el; el.classList.remove('typo-shake'); void el.offsetWidth; el.classList.add('typo-shake');
     }
@@ -2000,7 +2021,9 @@
   ['click', 'select', 'focus', 'keyup'].forEach(function (ev) { input.addEventListener(ev, function () { caretToEnd(); updateGhost(); }); });
 
 
+  var lastKeyRepeat = false;
   input.addEventListener('keydown', function (e) {
+    lastKeyRepeat = !!e.repeat;
     var k = e.key;
     if (e.isComposing || k === 'Process') return;
     if (k === 'Enter') { e.preventDefault(); if (!e.repeat) submit(); return; }
