@@ -563,3 +563,24 @@ test('무작위로 섞기: 미선택 학생까지 모두 고르게 · 봇은 제
   x.c.begin(); x.stopTimers();
   assert.strictEqual(x.c.shuffleTeams().ok, false);
 });
+
+test('방해 아이템 대상 고르기 (v0.12.0): 고른 조로 · 우리 조 · 없는 조는 안 됨(아이템 그대로) · 0 이면 바로 위 순위 조', () => {
+  const x = setup({ teams: 4 });
+  const xs = [x.student(), x.student(), x.student(), x.student()];
+  xs.forEach((s, k) => { x.hub.join(s.p, s.sock, x.code); x.c.pickTeam(s.p, k + 1); });
+  x.c.begin(); x.stopTimers();
+  const m1 = x.c.round.matches.get(1);
+  m1.board.cells.slice(0, 2).forEach(c => { c.solved = true; });
+  x.c.round.matches.get(3).board.cells.slice(0, 5).forEach(c => { c.solved = true; });
+  const a = xs[0].p;
+  const give = () => m1.giveItem(a, { id: 'ice', name: '얼음', desc: '', kind: 'attack' });
+  give();
+  assert.strictEqual(m1.useItem(a, 1, 1).why, 'bad-target', '우리 조');
+  assert.strictEqual(m1.useItem(a, 1, 7).why, 'bad-target', '없는 조');
+  assert.ok(m1.deckOf(a.id)[0], '아이템은 그대로');
+  const r = m1.useItem(a, 1, 4);
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.item.to, 4, '4조를 골랐으면 4조');
+  give();
+  assert.strictEqual(m1.useItem(a, 1, 0).item.to, 3, '기본은 바로 위 순위 조 (3조)');
+});

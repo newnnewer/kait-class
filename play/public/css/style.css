@@ -386,6 +386,24 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 @keyframes dkNew { 0% { transform: scale(1.25); box-shadow: 0 0 0 6px rgba(61,220,151,.6); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(61,220,151,0); } }
 @keyframes dkUsed { 0% { transform: scale(.85); background: #fff; } 100% { transform: scale(1); } }
 
+/* 방해 아이템 대상 고르기 (v0.12.0) */
+.aim {
+  position: absolute; left: 50%; top: 10%; transform: translateX(-50%); z-index: 46; min-width: 420px;
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 20px 10px; border-radius: 16px;
+  background: #2A1250; border: 4px solid #B58CFF; box-shadow: 0 10px 0 #000, 0 0 40px rgba(181,140,255,.5);
+}
+.aim[hidden] { display: none; }
+.aim .aim-title { font-size: 20px; font-weight: 800; color: #fff; }
+.aim .aim-teams { display: flex; flex-wrap: wrap; gap: 8px; }
+.aim .aim-team { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px; border: 3px solid #5B3E99; background: #1A0B33; color: #fff; cursor: pointer; font: inherit; }
+.aim .aim-team kbd { font-family: var(--pixel); font-size: 14px; background: #FFD23F; color: #1A0B33; border-radius: 6px; padding: 3px 7px; }
+.aim .aim-team b { font-size: 18px; font-weight: 800; }
+.aim .aim-team span { font-size: 13px; color: #CDB8FF; }
+.aim .aim-team.def { border-color: #FFD23F; }
+.aim .aim-help { font-size: 13px; font-weight: 700; color: #CDB8FF; }
+.aim i { height: 6px; border-radius: 3px; background: rgba(255,255,255,.15); overflow: hidden; }
+.aim em { display: block; height: 100%; width: 100%; background: #B58CFF; }
+
 /* 들어오는 공격: 2초 안에 방패로 막기 (v0.7.0) */
 .incoming {
   position: absolute; left: 50%; top: 18%; transform: translateX(-50%); z-index: 45; pointer-events: none; min-width: 460px;

@@ -462,7 +462,7 @@ class ClassGame {
         external: true, noIdle: true, keepEmpty: true,
         countdownMs: r.countdownUntil ? Math.max(0, r.countdownUntil - Date.now()) : 0,
         attacks: s.attacks !== false,
-        onAttack: (item, p) => this.attack(no, item, p),
+        onAttack: (item, p, to) => this.attack(no, item, p, to),
         onEvent: e => this.boardEvent(no, e),
       },
       onEnd: result => this.teamEnded(no, result),
@@ -549,12 +549,13 @@ class ClassGame {
   }
 
   /**
-   * fromNo 조가 덱의 방해 아이템을 썼다 → 바로 위 순위 조를 공격 (1등이면 2등을)
+   * fromNo 조가 덱의 방해 아이템을 썼다 → to 조를 공격 (v0.12.0: 학생이 고름)
+   *   to 가 0 이면 바로 위 순위 조 (1등이면 2등을). 고른 조가 우리 조 · 없는 조 · 끝난 조면 { bad: true }
    * 순위: 지금 해결률(같으면 해결 블록 수, 조 번호). 판을 이미 끝낸 조는 빼고 센다.
    * 공격은 2초 뒤에 들어가고 그 사이 대상 조가 방패로 막을 수 있다 (v0.7.0) — 결과는 나중에 알린다.
    * 돌려주는 값: { to } / 공격할 조가 없으면 null (아이템은 덱에 남음)
    */
-  attack(fromNo, item, p) {
+  attack(fromNo, item, p, to) {
     const r = this.round;
     if (!r) return null;
     const live = [...r.matches.entries()]
@@ -563,7 +564,11 @@ class ClassGame {
       .sort((a, b) => (b.solved / b.total) - (a.solved / a.total) || b.solved - a.solved || a.no - b.no);
     const k = live.findIndex(x => x.no === fromNo);
     if (k < 0 || live.length < 2) return null;
-    const target = live[k === 0 ? 1 : k - 1];
+    let target = live[k === 0 ? 1 : k - 1];
+    if (to) {
+      target = live.find(x => x.no === to && x.no !== fromNo);
+      if (!target) return { bad: true };
+    }
     target.m.receiveAttack(item, fromNo, p.nick, (blocked, byNick) => {
       this.io.to(this.boardChannel).emit('board:attack', { from: fromNo, to: target.no, id: item.id, name: item.name, desc: item.desc, blocked });
       this.io.to(this.channel).emit('class:feed', { text: `${fromNo}조 → ${target.no}조 ${item.name}${blocked ? ' (방패에 막힘)' : '!'}`, kind: blocked ? 'info' : 'attack' });

@@ -262,7 +262,8 @@ class Match {
    * 덱의 아이템 쓰기 (Ctrl+Shift+1~5). slot: 1~5
    * 폭탄·레이저는 쓰는 사람이 서 있는 칸 기준. 공격은 그 순간 바로 위 순위 조에게 (2초 뒤 들어감).
    */
-  useItem(p, slot) {
+  /** to: 방해 아이템의 대상 조 번호 (v0.12.0, 0 이면 바로 위 순위 조) */
+  useItem(p, slot, to) {
     if (this.ended) return { ok: false, why: 'ended' };
     if (this.pausedAt) return { ok: false, why: 'paused' };
     this.touch(p);
@@ -273,8 +274,9 @@ class Match {
     if (!item) return { ok: false, why: 'empty' };
     if (item.kind === 'attack') {
       if (!this.attacks || !this.onAttack) return { ok: false, why: 'attacks-off' };
-      const r = this.onAttack(item, p);
+      const r = this.onAttack(item, p, to || 0);
       if (!r) return { ok: false, why: 'no-target' }; // 공격할 조가 없으면 아이템은 그대로
+      if (r.bad) return { ok: false, why: 'bad-target', to }; // 고른 조를 공격할 수 없음 (우리 조 · 없는 조 · 끝난 조)
       d[k] = null;
       this.sendDeck(p);
       this.atk.sent += 1;

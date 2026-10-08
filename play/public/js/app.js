@@ -1010,6 +1010,7 @@
     $('g-progress-card').hidden = isClass;
     $('g-team-title').textContent = isClass ? '우리 조원' : '우리 팀';
     $('done').hidden = true;
+    $('aim').hidden = true; clearTimeout(aimTimer);
     $('paused').hidden = true;
     if (st.paused) setPaused(true);
     var tg = $('g-tags');
@@ -1233,10 +1234,90 @@
     sl.classList.remove('used'); void sl.offsetWidth; sl.classList.add('used');
   }
   var USE_WHY = { empty: '칸이 비어 있어요', 'attacks-off': '선생님이 방해 아이템을 껐어요', 'no-target': '공격할 조가 없어요 — 아이템은 그대로 있어요',
+    'bad-target': '그 조는 공격할 수 없어요 — 아이템은 그대로 있어요',
     frozen: '얼음 중에는 아이템을 쓸 수 없어요', paused: '일시정지 중이에요', ended: '게임이 끝났어요' };
+  // ── 방해 아이템 대상 고르기 (v0.12.0): Ctrl+Shift+번호 → 숫자 키로 조 번호 (3초 안에 안 고르면 바로 위 순위 조) ──
+  var AIM_MS = 3000, aimTimer = null;
+  /** 공격할 수 있는 조 (우리 조 · 끝난 조 · 아무도 없는 조 빼고) */
+  function aimTargets() {
+    return standings.filter(function (x) { return x.no !== game.team && !x.done && (x.count > 0 || x.solved > 0); });
+  }
+  /** 기본 대상: 바로 위 순위 조 (1등이면 2등) — 서버와 같은 순서 */
+  function aimDefault() {
+    var live = standings.filter(function (x) { return !x.done && (x.count > 0 || x.solved > 0 || x.no === game.team); }).slice();
+    live.sort(function (a, b) { return (b.total ? b.solved / b.total : 0) - (a.total ? a.solved / a.total : 0) || b.solved - a.solved || a.no - b.no; });
+    var k = -1;
+    live.forEach(function (x, n) { if (x.no === game.team) k = n; });
+    if (k < 0 || live.length < 2) return 0;
+    return live[k === 0 ? 1 : k - 1].no;
+  }
+  function startAim(n, it) {
+    var ts = aimTargets();
+    if (ts.length <= 1) { fireSlot(n, 0); return; } // 고를 게 없으면 바로
+    stopAim();
+    game.aim = { slot: n, item: it, until: now() + AIM_MS };
+    aimTimer = setTimeout(function () { if (game && game.aim) fireSlot(game.aim.slot, 0); }, AIM_MS);
+    renderAim();
+    renderKeys();
+    sfx('occupy');
+  }
+  function stopAim() {
+    clearTimeout(aimTimer); aimTimer = null;
+    if (game) game.aim = null;
+    $('aim').hidden = true;
+    if (game) renderKeys();
+  }
+  function renderAim() {
+    var box = $('aim');
+    if (!game || !game.aim) { box.hidden = true; return; }
+    var a = game.aim, def = aimDefault();
+    box.querySelector('.aim-title').textContent = '🎯 ' + a.item.name + ' — 몇 조를 공격할까요?';
+    var list = box.querySelector('.aim-teams');
+    list.innerHTML = '';
+    aimTargets().forEach(function (x) {
+      var b = el('button', 'aim-team' + (x.no === def ? ' def' : ''));
+      b.type = 'button';
+      b.appendChild(el('kbd', null, String(x.no)));
+      b.appendChild(el('b', null, x.no + '조'));
+      b.appendChild(el('span', null, x.pct + '%' + (x.no === def ? ' · 기본' : '')));
+      b.onmousedown = function (e) { e.preventDefault(); };
+      b.onclick = function () { if (game && game.aim) fireSlot(game.aim.slot, x.no); };
+      list.appendChild(b);
+    });
+    var bar = box.querySelector('em');
+    bar.style.transition = 'none'; bar.style.width = '100%'; void bar.offsetWidth;
+    bar.style.transition = 'width ' + AIM_MS + 'ms linear'; bar.style.width = '0%';
+    box.hidden = false;
+  }
+  function aimKey(e) {
+    if (!game || !game.aim) return false;
+    var m = /^(Digit|Numpad)([1-8])$/.exec(e.code || '');
+    if (m) {
+      e.preventDefault();
+      if (e.repeat) return true;
+      var to = Number(m[2]);
+      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 조는 공격할 수 없어요' : to + '조는 공격할 수 없어요', 'warn', 1400); return true; }
+      fireSlot(game.aim.slot, to);
+      return true;
+    }
+    if (e.key === 'Escape') { e.preventDefault(); stopAim(); toast('공격을 취소했어요 — 아이템은 그대로 있어요', 'info', 1400); return true; }
+    if (e.key === 'Enter') { e.preventDefault(); if (!e.repeat) fireSlot(game.aim.slot, 0); return true; }
+    return false;
+  }
   function useSlot(n) {
     if (!game) return;
-    socket.emit('item:use', { slot: n }, function (res) {
+    var it = game.deck && game.deck.slots ? game.deck.slots[n - 1] : null;
+    if (it && it.kind === 'attack' && game.cls && !it.off) {
+      if (game.aim && game.aim.slot === n) fireSlot(n, 0); // 같은 단축키를 한 번 더 = 기본 대상
+      else startAim(n, it);
+      return;
+    }
+    fireSlot(n, 0);
+  }
+  function fireSlot(n, to) {
+    if (!game) return;
+    stopAim();
+    socket.emit('item:use', { slot: n, to: to || 0 }, function (res) {
       if (!res) return;
       if (res.ok) { flashSlot(n); return; }
       toast((res.why === 'empty' ? n + '번 ' : '') + (USE_WHY[res.why] || '쓸 수 없어요'), 'warn', 1800);
@@ -1662,6 +1743,7 @@
       if (game.fx.auto > now()) list.push(['Tab', '⚡ 자동완성 (블록 안에서)']);
       else if (game.boss && game.boss.phase === 'wait') list.push(['Delete / Backspace', '보스 왼쪽 / 오른쪽에서']);
     }
+    if (game.aim) list = [['숫자', '공격할 조'], ['Enter', '기본 (바로 위 순위 조)'], ['Esc', '취소']];
     if (game.incoming && game.incoming.length && game.deck && game.deck.shields) list.unshift(['Ctrl+Shift+9', '막기!']);
     if (game.deck && game.deck.slots && game.deck.slots.some(Boolean)) list.push(['Ctrl+Shift+1~5', '아이템']);
     var key = label + '|' + list.map(function (k) { return k.join(); }).join('|');
@@ -2123,6 +2205,7 @@
     // 개인 덱 (v0.7.0): Ctrl+Shift+1~5 아이템 · Ctrl+Shift+9 방패 — 입력 중에도, 얼음 중에도(막기) 받는다.
     // Shift 를 누르면 e.key 가 '!' 등으로 바뀌므로 키 자리(e.code)로 본다. 숫자 패드는 Ctrl 만 눌러도 된다
     // (윈도에서 Shift+숫자 패드는 Shift 가 풀려서 오기 때문)
+    if (aimKey(e)) return; // v0.12.0: 방해 아이템 대상 고르는 중 (숫자 · Enter · Esc)
     var dk = deckKey(e);
     if (dk) {
       e.preventDefault();

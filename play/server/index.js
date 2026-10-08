@@ -423,7 +423,8 @@ io.on('connection', (socket) => {
     const m = match();
     if (!allow() || !m) return;
     const slot = msg && Number.isInteger(msg.slot) ? msg.slot : 0;
-    ok(cb, m.useItem(me, slot));
+    const to = msg && Number.isInteger(msg.to) ? msg.to : 0; // v0.12.0: 방해 아이템 대상 조 (0 = 바로 위 순위 조)
+    ok(cb, m.useItem(me, slot, to));
   });
   socket.on('defend', (msg, cb) => {
     const m = match();
