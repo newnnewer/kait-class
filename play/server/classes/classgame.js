@@ -740,9 +740,13 @@ class ClassGame {
       x.rank = rank;
     });
     const teams = cleared.concat(rest);
+    // v0.12.0: 끝난 순간의 순위도 순위 기록에 넣는다 (게임이 끝난 뒤 전광판에 그래프를 남김)
+    const endT = Math.round(Math.min(this.elapsed(), r.limitMs));
+    const hist = (r.history || []).filter(h => h.t < endT);
+    hist.push({ t: endT, order: teams.map(x => x.no) });
     const endedAt = Date.now();
     const reason = teams.every(x => x.clear) ? 'clear' : r.stopped ? 'stop' : 'time';
-    const result = { code: this.code, startedAt: r.startedAt, endedAt, reason, limitMs: r.limitMs, blocks: r.blocks, ms: Math.min(this.elapsed(), r.limitMs), teams };
+    const result = { code: this.code, startedAt: r.startedAt, endedAt, reason, limitMs: r.limitMs, blocks: r.blocks, ms: Math.min(this.elapsed(), r.limitMs), teams, history: hist };
     try {
       result.id = this.hub.db.saveGame({ code: this.code, startedAt: r.startedAt, endedAt, reason, settings: this.settings, result });
     } catch (e) { console.error('[저장소] 게임 기록 저장 실패:', e.message); }

@@ -156,3 +156,22 @@
 .sb-bchips { display: flex; gap: 6px; }
 .sb-bchips span { font-size: 13px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
 .sb-bcount { margin-left: auto; font-size: 15px; color: var(--muted); white-space: nowrap; }
+
+/* 끝난 판의 순위 변동 그래프 (v0.12.0) — 대기 화면에서 결과를 크게 */
+.sb-result-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.sb-result-chart[hidden] { display: none; }
+.sb-wait.has-chart .sb-joinbox { flex: .62; padding: 28px 32px; gap: 12px; }
+.sb-wait.has-chart .sb-step { font-size: 22px; }
+.sb-wait.has-chart .sb-addr { font-size: 34px; }
+.sb-wait.has-chart .sb-code { font-size: 96px; letter-spacing: 14px; }
+.sb-wait.has-chart .sb-side { flex: 1.6; }
+.sb-wait.has-chart .sb-result { flex: 1 1 auto; min-height: 0; }
+.sb-wait.has-chart .sb-result-body { flex: 1; flex-direction: row; gap: 18px; }
+.sb-wait.has-chart .sb-result-chart { flex: 1; min-height: 360px; border-radius: 16px; background: var(--panel-deep); border: 0; }
+.sb-wait.has-chart .sb-result-chart .ln-gap, .sb-wait.has-chart .sb-result-chart .dot { stroke: var(--panel-deep); }
+.sb-wait.has-chart #sb-result-list { width: 330px; flex-shrink: 0; }
+.sb-wait.has-chart .sb-result li { font-size: 18px; padding: 6px 12px; gap: 10px; }
+.sb-wait.has-chart .sb-result li b { font-size: 24px; width: 60px; }
+.sb-wait.has-chart .sb-result li .rk { width: 48px; font-size: 16px; }
+.sb-wait.has-chart .sb-teamlist { flex: 0 0 auto; max-height: 230px; }
+.sb-result li .sb-sw { flex-shrink: 0; }

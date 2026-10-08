@@ -151,6 +151,10 @@
     list.style.gridTemplateColumns = 'repeat(' + (b.teams.length > 4 ? 2 : Math.min(2, b.teams.length)) + ', minmax(0, 1fr))';
     var r = b.result;
     $('sb-result').hidden = !r;
+    // v0.12.0: 끝난 판의 순위 변동 그래프 (기록이 있을 때만)
+    var withChart = !!(r && r.history && r.history.length > 1);
+    $('sb-wait').classList.toggle('has-chart', withChart);
+    $('sb-result-chart').hidden = !withChart;
     if (r) {
       $('sb-result-title').textContent = '지난 판 결과';
       var ol = $('sb-result-list');
@@ -160,8 +164,14 @@
         li.appendChild(el('span', 'rk', t.rank + '위'));
         li.appendChild(el('b', null, t.no + '조'));
         li.appendChild(el('span', null, t.clear ? '완성 ' + mmss(t.ms) : '해결률 ' + t.pct + '%'));
+        if (withChart) { var sw = el('i', 'sb-sw'); sw.style.background = teamColor(t.no); li.insertBefore(sw, li.children[1]); }
         ol.appendChild(li);
       });
+      if (withChart) {
+        var rb = { history: r.history, elapsedMs: r.history[r.history.length - 1].t, limitMs: r.limitMs, fit: true };
+        // 화면에 붙은 뒤 크기를 재야 해서 한 박자 늦게
+        requestAnimationFrame(function () { renderChart($('sb-result-chart'), rb, r.teams); });
+      }
     }
   }
 
@@ -229,8 +239,8 @@
     if (text != null) e.textContent = text;
     return e;
   }
-  function renderChart(b, teams) {
-    var box = $('sb-chart');
+  /** box: 그릴 곳 · b: { history, elapsedMs, limitMs, fit } (fit: 끝난 판 — 가로를 실제 걸린 시간에 맞춤) · teams: 지금 순위 순서 */
+  function renderChart(box, b, teams) {
     var W = box.clientWidth, H = box.clientHeight;
     if (!W || !H) return;
     var pts = (b.history || []).slice();
@@ -240,7 +250,7 @@
     else pts[pts.length - 1] = { t: pts[pts.length - 1].t, order: cur };
     var n = Math.max(2, teams.length);
     var L = 70, R = 96, T = 34, Bm = 46;
-    var span = Math.max(b.limitMs || 0, nowT, 60000);
+    var span = b.fit ? Math.max(nowT, 10000) : Math.max(b.limitMs || 0, nowT, 60000);
     var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
     var y = function (rank) { return T + (H - T - Bm) * (rank - 1) / (n - 1); };
     var svg = svgEl('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H });
@@ -251,8 +261,10 @@
     }
     var stepMin = span > 20 * 60000 ? 5 : span > 8 * 60000 ? 2 : 1;
     for (var m = 0; m * 60000 <= span; m += stepMin) {
+      if (b.fit && m && x(span) - x(m * 60000) < 70) continue; // 끝 표시와 겹치면 뺀다
       svg.appendChild(svgEl('text', { x: x(m * 60000), y: H - 12, class: 'xlab', 'text-anchor': 'middle' }, m ? m + '분' : '시작'));
     }
+    if (b.fit) svg.appendChild(svgEl('text', { x: x(span), y: H - 12, class: 'xlab', 'text-anchor': 'middle' }, '끝 ' + mmss(span)));
     // 선: 조마다. 칸 사이는 부드러운 S자 (가운데에서 꺾임)
     var lines = svgEl('g', {}), heads = svgEl('g', {});
     teams.forEach(function (t) {
@@ -294,7 +306,7 @@
     var asRank = view === 'rank';
     $('sb-rankview').hidden = !asRank;
     $('sb-grid').hidden = asRank;
-    if (asRank) { renderBars(teams); renderChart(b, teams); return; }
+    if (asRank) { renderBars(teams); renderChart($('sb-chart'), b, teams); return; }
     var grid = $('sb-grid');
     var n = teams.length, cols = n <= 4 ? Math.max(1, n) : Math.ceil(n / 2), rows = n <= 4 ? 1 : 2;
     grid.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
