@@ -3,7 +3,7 @@
 // 아이템 — 보스를 맞히면 잡은 사람의 개인 덱에 들어가고, 원할 때 Ctrl+Shift+1~5 로 쓴다 (v0.7.0).
 //   페널티만 바로 발동. 방패는 덱과 따로 (최대 2개), 공격이 올 때 2초 안에 Ctrl+Shift+9 로 직접 막는다.
 //   v0.11.0 확률 (RATE):
-//     방해 켜진 수업 게임:        도움 50%(5종 각 10%) · 페널티 15%(3종 각 5%) · 방해 20%(5종 각 4%) · 방패 15%
+//     방해 켜진 수업 게임:        도움 57.5%(5종 각 11.5%) · 페널티 15%(3종 각 5%) · 방해 20%(5종 각 4%) · 방패 7.5% (v0.12.0)
 //     학생 방 · 방해 꺼진 수업 게임: 도움 85%(5종 각 17%) · 페널티 15%
 //   페널티를 끈 방은 페널티 몫이 우리 조 도움으로 간다
 
@@ -20,7 +20,7 @@ const MAX_SHIELD = 2;
 const BAD = [
   { id: 'freeze', name: '자폭', desc: '우리 조 전원 5초 동안 얼음!' },
   { id: 'backfire', name: '역풍', desc: '해결한 블록 4개가 되살아났어요' },
-  { id: 'confuse', name: '혼란', desc: '8초 동안 방향키가 반대로!' },
+  { id: 'confuse', name: '혼란', desc: '15초 동안 방향키가 반대로!' },
 ];
 // 다른 조 방해 (수업 게임만) — 대상: 바로 위 순위 조
 const ATTACK = [
@@ -28,11 +28,12 @@ const ATTACK = [
   { id: 'cloud', name: '먹구름', desc: '8초 동안 코드가 가려져요' },
   { id: 'revive', name: '되살리기', desc: '해결한 칸 6개가 되살아나요' },
   { id: 'shuffle', name: '뒤섞기', desc: '조원이 모두 한 칸에 모여요' },
-  { id: 'flip', name: '방향 반전', desc: '8초 동안 방향키가 반대로' },
+  { id: 'flip', name: '방향 반전', desc: '15초 동안 방향키가 반대로' },
 ];
 
 // 아이템마다 효과 시간 (v0.5.4 강화: 얼음·먹구름·방향 반전·혼란 8초, 자폭은 5초 그대로)
-const ITEM_MS = { auto: 10000, freeze: 5000, confuse: 8000, ice: 8000, cloud: 8000, flip: 8000 };
+// v0.12.0: 혼란 · 방향 반전 15초
+const ITEM_MS = { auto: 10000, freeze: 5000, confuse: 15000, ice: 8000, cloud: 8000, flip: 15000 };
 // 효과 종류(학생 화면 fx 이름) — 얼음·자폭은 freeze, 방향 반전·혼란은 confuse
 const FX_OF = { auto: 'auto', freeze: 'freeze', confuse: 'confuse', ice: 'freeze', cloud: 'cloud', flip: 'confuse' };
 // 아이템 수치
@@ -42,7 +43,7 @@ const EFFECT_MS = ITEM_MS; // 예전 이름 (호환)
 function pick(a, rng) { return a[Math.floor((rng || Math.random)() * a.length)]; }
 
 // 보스 아이템 확률 (v0.11.0) — 남는 몫은 모두 도움
-const RATE = { bad: 0.15, attack: 0.20, shield: 0.15 };
+const RATE = { bad: 0.15, attack: 0.20, shield: 0.075 }; // v0.12.0: 방패 15% → 7.5% (남는 몫은 도움)
 
 /**
  * 어떤 아이템이 나올지
@@ -65,7 +66,7 @@ function rollItem({ penalty = true, attacks = false, rng, force } = {}) {
   return { ...pick(GOOD, rng), kind: 'good' };
 }
 
-/** 도움 아이템 하나 (집결 보스 보상) — shield: 방패도 15% 로 나올 수 있음 (방해 켜진 수업 게임) */
+/** 도움 아이템 하나 (집결 보스 보상) — shield: 방패도 7.5% 로 나올 수 있음 (방해 켜진 수업 게임) */
 function rollHelp({ shield = false, rng } = {}) {
   if (shield && (rng || Math.random)() < RATE.shield) return { ...SHIELD, kind: 'good' };
   return { ...pick(GOOD, rng), kind: 'good' };

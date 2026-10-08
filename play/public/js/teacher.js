@@ -422,7 +422,7 @@
   // ── 수업 게임 만들기 · 열기 ──
   function defaults() {
     function d(k, v) { return OPTIONS && OPTIONS[k] && OPTIONS[k].def != null ? OPTIONS[k].def : v; }
-    return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 5), occSec: d('occSec', 30), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), penalty: true, blocks: 0 };
+    return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 5), occSec: d('occSec', 20), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), penalty: true, blocks: 0 };
   }
   $('btn-new-class').onclick = function () {
     var last = null;
@@ -534,7 +534,7 @@
     $('c-lim').disabled = lock;
     $('c-lim-down').disabled = lock || s.limitMin <= limMin;
     $('c-lim-up').disabled = lock || s.limitMin >= limMax;
-    seg('c-occ', (o.occSec || {}).list || [20, 30, 45, 60], s.occSec, '초', function (x, v) { x.occSec = v; }, lock);
+    seg('c-occ', (o.occSec || {}).list || [10, 15, 20, 30], s.occSec, '초', function (x, v) { x.occSec = v; }, lock);
     seg('c-bosslimit', (o.bossLimitSec || {}).list || [20, 30, 45, 60], s.bossLimitSec, '초', function (x, v) { x.bossLimitSec = v; }, lock);
     seg('c-bossevery', (o.bossEverySec || {}).list || [10, 15, 30, 60], s.bossEverySec, '초', function (x, v) { x.bossEverySec = v; }, lock);
     seg('c-bosswait', (o.bossWaitSec || {}).list || [5, 8, 12, 20], s.bossWaitSec, '초', function (x, v) { x.bossWaitSec = v; }, lock);

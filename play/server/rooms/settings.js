@@ -6,7 +6,7 @@ const { TAGS } = require('../problems/parser');
 const OPTIONS = {
   max: { min: 2, max: 16, def: 4 },
   limitMin: { min: 1, max: 30, def: 5 },                   // 제한 시간(분, 1분 단위 직접 입력)
-  occSec: { list: [20, 30, 45, 60], def: 30 },            // 블록 점유 시간
+  occSec: { list: [10, 15, 20, 30], def: 20 },            // 블록 점유 시간 (v0.12.0: 10~30초, 기본 20초)
   bossEverySec: { list: [10, 15, 30, 60], def: 15 },      // 보스 등장 간격
   bossWaitSec: { list: [5, 8, 12, 20], def: 8 },          // 보스 잔류 시간
   bossLimitSec: { list: [20, 30, 45, 60], def: 30 },      // 보스 풀이 시간

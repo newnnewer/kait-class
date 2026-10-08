@@ -34,7 +34,7 @@
 
   // ── 소리 (6-2): 브라우저는 한 번 누르기 전에는 소리를 못 낸다 → '소리 켜기' 버튼 ──
   var SND = window.CGSound, soundOn = false, lastTick = 0;
-  SND.setVolume(0.6); // 교실 스피커용
+  SND.setVolume(1.2); // 교실 스피커용 (v0.12.0: 0.6 → 1.2)
   function renderSound() {
     var b = $('sb-sound');
     b.textContent = soundOn ? '🔊 소리 켜짐' : '🔈 소리 켜기';
@@ -111,6 +111,8 @@
     var before = B && B.phase;
     B = b; gotAt = Date.now();
     if (before && before !== b.phase) play(b.phase === 'playing' ? 'start' : 'end');
+    // v0.12.0: 새 판이 시작되면 지난 판의 전장 소식을 비운다
+    if (b.phase === 'playing' && before !== 'playing') { feed = []; $('sb-feed').innerHTML = ''; }
     syncBgm();
     $('sb-join').innerHTML = '';
     $('sb-join').appendChild(document.createTextNode('접속 '));

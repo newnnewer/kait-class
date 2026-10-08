@@ -293,7 +293,7 @@ test('봇 속도 설정은 느림·보통·빠름만', () => {
 // ── 5-2: 방해 아이템 · 방패 · 전광판 ──
 const { rollItem } = require('../server/game/items');
 
-test('아이템 확률 (v0.11.0): 방해 켜짐이면 도움 50 · 페널티 15 · 방해 20 · 방패 15, 꺼지면 도움 85 · 페널티 15', () => {
+test('아이템 확률 (v0.12.0): 방해 켜짐이면 도움 57.5 · 페널티 15 · 방해 20 · 방패 7.5, 꺼지면 도움 85 · 페널티 15', () => {
   const N = 40000;
   const cnt = { good: 0, attack: 0, bad: 0 };
   const per = {};
@@ -305,8 +305,8 @@ test('아이템 확률 (v0.11.0): 방해 켜짐이면 도움 50 · 페널티 15 
   }
   assert.ok(Math.abs(cnt.attack / N - 0.20) < 0.015, `방해 ${cnt.attack}`);
   assert.ok(Math.abs(cnt.bad / N - 0.15) < 0.015, `페널티 ${cnt.bad}`);
-  assert.ok(Math.abs(shield / N - 0.15) < 0.015, `방패 ${shield}`);
-  assert.ok(Math.abs(per.bomb / N - 0.10) < 0.01, `폭탄 ${per.bomb}`);
+  assert.ok(Math.abs(shield / N - 0.075) < 0.01, `방패 ${shield}`);
+  assert.ok(Math.abs(per.bomb / N - 0.115) < 0.01, `폭탄 ${per.bomb}`);
   assert.ok(Math.abs(per.freeze / N - 0.05) < 0.01, `자폭 ${per.freeze}`);
   // 방해 꺼짐: 방해 · 방패 없음, 도움 각 17%
   const c2 = { good: 0, bad: 0 }, p2 = {};
@@ -384,7 +384,7 @@ test('방패: 개인 덱 따로 최대 2개 · 2초 안에 가진 사람이 직�
   assert.strictEqual(m2.atk.got, 1);
 });
 
-test('방해 효과: 얼음·먹구름·방향 반전 8초 · 되살리기 6칸 · 뒤섞기(보스 공략 중인 사람만 빼고 모두 한 칸으로)', () => {
+test('방해 효과: 얼음·먹구름 8초 · 방향 반전 15초 · 되살리기 6칸 · 뒤섞기(보스 공략 중인 사람만 빼고 모두 한 칸으로)', () => {
   const x = setup({ teams: 3 });
   const xs = [x.student(), x.student(), x.student(), x.student()];
   xs.forEach((s, k) => { x.hub.join(s.p, s.sock, x.code); x.c.pickTeam(s.p, k < 3 ? 1 : 2); });
@@ -396,7 +396,7 @@ test('방해 효과: 얼음·먹구름·방향 반전 8초 · 되살리기 6칸 
   land(m);
   assert.ok(Math.abs(m.fx.freeze - t - 8000) < 200);
   assert.ok(Math.abs(m.fx.cloud - t - 8000) < 200);
-  assert.ok(Math.abs(m.fx.confuse - t - 8000) < 200);
+  assert.ok(Math.abs(m.fx.confuse - t - 15000) < 200);
   m.fx.freeze = 0;
   m.receiveAttack({ id: 'revive', name: '되살리기', desc: '' }, 2, 'x');
   land(m);

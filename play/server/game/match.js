@@ -15,7 +15,7 @@ const IDLE_MS = 60000;      // 아무도 입력하지 않으면 경고까지
 const IDLE_WARN_MS = 15000; // 경고 뒤 이만큼 더 없으면 방 종료
 // 집결 보스 (v0.7.0): 접속 중인 사람이 3명 이상인 조에서 보스 차례 4번에 1번.
 //   (n, 1) 또는 (n, 열-2) 에 나타나 5초 안에 모두 그 바로 왼쪽·오른쪽 칸에 모이면 성공 → 모두에게 도움 아이템
-const GATHER_MS = 5000;
+const GATHER_MS = 8000; // v0.12.0: 5초 → 8초
 const GATHER_MIN = 3;
 const GATHER_EVERY = 4;
 
@@ -36,7 +36,7 @@ class Match {
     this.shortCodes = codes.filter(c => c.length <= 6);
     if (!this.shortCodes.length) this.shortCodes = ['a = 1', 'f()', 'x += 1'];
     s = s || {};
-    this.occLimitMs = s.occMs || 30000;
+    this.occLimitMs = s.occMs || 20000;
     this.bossEveryMs = s.bossEveryMs || 15000;
     this.bossWaitMs = s.bossWaitMs || 8000;
     this.bossLimitMs = s.bossLimitMs || 30000;

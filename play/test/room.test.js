@@ -169,7 +169,7 @@ test('아이템: 폭탄(둘레 8칸, 점유 칸 포함) · 가로/세로 레이�
   assert.strictEqual(solved(), s0 - 4);
 });
 
-test('아이템 시간: 자폭 5초 · 혼란 8초 · 자동완성 10초', () => {
+test('아이템 시간: 자폭 5초 · 혼란 15초 · 자동완성 10초', () => {
   const { room, add } = makeRoom();
   const a = add('a', 3, 3);
   const t = Date.now();
@@ -177,7 +177,7 @@ test('아이템 시간: 자폭 5초 · 혼란 8초 · 자동완성 10초', () =>
   room.applyItem({ id: 'confuse', name: '혼란', kind: 'bad' }, a, 0);
   room.applyItem({ id: 'auto', name: '자동완성', kind: 'good' }, a, 0);
   assert.ok(Math.abs(room.fx.freeze - t - 5000) < 200);
-  assert.ok(Math.abs(room.fx.confuse - t - 8000) < 200);
+  assert.ok(Math.abs(room.fx.confuse - t - 15000) < 200);
   assert.ok(Math.abs(room.fx.auto - t - 10000) < 200);
 });
 

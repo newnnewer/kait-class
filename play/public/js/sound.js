@@ -13,7 +13,13 @@
   function ensure() {
     if (!AC) return null;
     if (!ctx) {
-      try { ctx = new AC(); master = ctx.createGain(); master.gain.value = S.volume; master.connect(ctx.destination); } catch (e) { ctx = null; return null; }
+      try {
+        ctx = new AC(); master = ctx.createGain(); master.gain.value = S.volume;
+        // v0.12.0: 크기를 1 넘게 올려도 소리가 겹칠 때 찢어지지 않게 끝에 리미터
+        var lim = ctx.createDynamicsCompressor();
+        lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.12;
+        master.connect(lim); lim.connect(ctx.destination);
+      } catch (e) { ctx = null; return null; }
     }
     if (ctx.state === 'suspended') { try { ctx.resume(); } catch (e) { /* 다음 입력 때 다시 */ } }
     return ctx;

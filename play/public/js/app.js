@@ -12,7 +12,7 @@
     on: (function () { try { return localStorage.getItem('kp.sfx') !== '0'; } catch (e) { return true; } })(),
     typing: (function () { try { return localStorage.getItem('kp.typesnd') !== '0'; } catch (e) { return true; } })()
   };
-  SND.setVolume(0.22); // 교실 30대가 함께 울리므로 작게
+  SND.setVolume(1.2); // v0.12.0: 전광판과 같은 크기 (예전 0.22)
   function sfx(name) {
     if (!sound.on) return;
     if (game && game.cls && cls && cls.sfx === false) return; // 선생님이 학생 효과음을 껐다
@@ -489,7 +489,7 @@
 
   function openCreate() {
     cr = cr || {
-      tags: [], max: optDefault('max') || 4, limitMin: optDefault('limitMin') || 5, occSec: optDefault('occSec') || 30,
+      tags: [], max: optDefault('max') || 4, limitMin: optDefault('limitMin') || 5, occSec: optDefault('occSec') || 20,
       botSpeed: optDefault('botSpeed') || 'normal',
       bossLimitSec: optDefault('bossLimitSec') || 30, bossEverySec: optDefault('bossEverySec') || 15, bossWaitSec: optDefault('bossWaitSec') || 8,
       penalty: true, auto: true, blocks: 72
@@ -550,7 +550,7 @@
     if (document.activeElement !== $('cr-lim')) $('cr-lim').value = cr.limitMin;
     $('cr-lim-down').disabled = cr.limitMin <= limMin;
     $('cr-lim-up').disabled = cr.limitMin >= limMax;
-    segButtons('cr-occ', (o.occSec || {}).list || [20, 30, 45, 60], cr.occSec, '초', function (v) { cr.occSec = v; });
+    segButtons('cr-occ', (o.occSec || {}).list || [10, 15, 20, 30], cr.occSec, '초', function (v) { cr.occSec = v; });
     segButtons('cr-bosslimit', (o.bossLimitSec || {}).list || [20, 30, 45, 60], cr.bossLimitSec, '초', function (v) { cr.bossLimitSec = v; });
     segButtons('cr-bossevery', (o.bossEverySec || {}).list || [10, 15, 30, 60], cr.bossEverySec, '초', function (v) { cr.bossEverySec = v; });
     segButtons('cr-bosswait', (o.bossWaitSec || {}).list || [5, 8, 12, 20], cr.bossWaitSec, '초', function (v) { cr.bossWaitSec = v; });
