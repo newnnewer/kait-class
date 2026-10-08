@@ -989,7 +989,7 @@
       endAt: t + (st.endMs || 0), idleUntil: st.idle ? t + st.idle.ms : 0,
       occ: occ, mode: 'move', myOcc: -1, pending: false,
       limits: st.limits || { occ: 30000, boss: 30000, bossWait: 8000 },
-      boss: st.boss ? { i: st.boss.i, phase: st.boss.phase, by: st.boss.by, until: t + st.boss.ms, got: st.boss.got || 0, need: st.boss.need || 0 } : null,
+      boss: st.boss ? { i: st.boss.i, phase: st.boss.phase, by: st.boss.by, until: t + st.boss.ms, got: st.boss.got || 0, need: st.boss.need || 0, ids: st.boss.ids || [] } : null,
       deck: st.deck || { slots: [], shields: 0 },
       incoming: (st.incoming || []).map(function (x) { x.until = t + x.ms; return x; }),
       fx: { auto: t + (fx.auto || 0), freeze: t + (fx.freeze || 0), confuse: t + (fx.confuse || 0), cloud: t + (fx.cloud || 0) },
@@ -1112,9 +1112,9 @@
     if (!game) return;
     var old = game.boss;
     if (m.i >= 0) {
-      game.boss = { i: m.i, phase: m.phase, by: m.by || null, until: now() + m.ms, got: m.got || 0, need: m.need || 0 };
+      game.boss = { i: m.i, phase: m.phase, by: m.by || null, until: now() + m.ms, got: m.got || 0, need: m.need || 0, ids: m.ids || [] };
       if (m.phase === 'wait') { game.radar = null; toast('보스 등장! 옆 칸에서 Delete · Backspace', 'boss', 2200); sfx('bossAppear'); }
-      if (m.phase === 'gather') { toast('집결 보스! ↑↓ 로 그 줄에 가서 Home / End — 모두 보스 옆으로!', 'boss', 3000); sfx('gather'); }
+      if (m.phase === 'gather') { toast('집결 보스! 보스 옆에서 Delete · Backspace — 모두가 잡아야 성공!', 'boss', 3000); sfx('gather'); }
     } else {
       game.boss = null;
       var at = m.at;
@@ -1124,7 +1124,7 @@
       else if (m.end === 'timeout') { wrong(at, '시간 초과'); if (m.by === game.meId) sfx('wrong'); }
       else if (m.end === 'escaped' || m.end === 'scattered') pop(at, 'escape');
       if (m.end === 'gather') sfx('clear');
-      if (m.end === 'scattered') toast('집결 실패 — 5초 안에 모두 모이지 못했어요', 'warn', 2200);
+      if (m.end === 'scattered') toast('집결 실패 — 시간 안에 모두 잡지 못했어요', 'warn', 2200);
     }
     // 보스 칸과 양옆 칸 (집결 보스는 양옆이 모이는 자리)
     [old, game.boss].forEach(function (b) { if (b && b.i >= 0) { renderCell(b.i); renderCell(b.i - 1); renderCell(b.i + 1); } });
@@ -1134,8 +1134,10 @@
   // 집결 보스: 모인 사람 수
   socket.on('gather', function (m) {
     if (!game || !game.boss || game.boss.phase !== 'gather') return;
-    game.boss.got = m.got; game.boss.need = m.need;
-    renderCell(game.boss.i);
+    game.boss.got = m.got; game.boss.need = m.need; game.boss.ids = m.ids || [];
+    var b = game.boss.i;
+    renderCell(b); renderCell(b - 1); renderCell(b + 1);
+    renderKeys(); renderMembers();
   });
 
   socket.on('radar', function (m) {
@@ -1358,7 +1360,7 @@
     el.classList.toggle('boss', !!boss);
     el.classList.toggle('boss-fight', !!(boss && boss.phase === 'fight'));
     // 집결 보스 (v0.7.0): 보스 칸은 주황, 양옆 칸은 모이는 자리
-    var gb = game.boss && game.boss.phase === 'gather' ? game.boss : null;
+    var gb = game.boss && game.boss.phase === 'gather' && !iGrabbed() ? game.boss : null;
     el.classList.toggle('gather', !!(boss && boss.phase === 'gather'));
     el.classList.toggle('gather-spot', !!(gb && Math.abs(i - gb.i) === 1 && Math.floor(i / game.board.cols) === Math.floor(gb.i / game.board.cols)));
     el.classList.toggle('radar', !!(game.radar && game.radar.i === i && !boss));
@@ -1370,7 +1372,7 @@
     } else if (boss && boss.phase === 'fight') {
       tag.textContent = (boss.by === game.meId ? '내가' : nickOf(boss.by)) + ' 공략 중';
     } else if (boss && boss.phase === 'gather') {
-      tag.textContent = '모여라 ' + (boss.got || 0) + '/' + (boss.need || 0);
+      tag.textContent = '잡아라 ' + (boss.got || 0) + '/' + (boss.need || 0);
     } else if (cell.solved && cell.boss) {
       tag.textContent = cell.boss;
     } else {
@@ -1530,7 +1532,9 @@
       if (p.bot) li.classList.add('bot');
       // 해결한 블록 수 막대 (v0.7.4) — 조원 중 가장 많이 푼 사람을 꽉 찬 막대로
       li.innerHTML = '<span class="av">' + AV.svg(p.kind, p.color) + '</span><span class="who"><b></b><span class="mbar"><i></i></span></span><em class="mnum"></em>';
-      li.querySelector('b').textContent = (p.bot ? '🤖 ' : '') + p.nick + (p.id === game.meId ? ' (나)' : p.bot ? ' (봇)' : '') + (!p.online && p.id !== game.meId ? ' · 연결 끊김' : '');
+      var gb = game.boss && game.boss.phase === 'gather' ? game.boss : null;
+      if (gb && !p.bot) li.classList.add((gb.ids || []).indexOf(p.id) >= 0 ? 'grabbed' : 'ungrabbed');
+      li.querySelector('b').textContent = (gb && !p.bot ? ((gb.ids || []).indexOf(p.id) >= 0 ? '✅ ' : '⏳ ') : '') + (p.bot ? '🤖 ' : '') + p.nick + (p.id === game.meId ? ' (나)' : p.bot ? ' (봇)' : '') + (!p.online && p.id !== game.meId ? ' · 연결 끊김' : '');
       var n = p.solved || 0;
       li.querySelector('.mbar i').style.width = (top ? Math.round(n / top * 100) : 0) + '%';
       li.querySelector('.mbar i').style.background = p.color || '';
@@ -1616,9 +1620,14 @@
   setInterval(tickFx, 200);
 
   // ── 아래쪽 키 안내 (지금 상태에 맞게) ──
+  /** 집결 보스를 내가 이미 잡았나 (v0.12.0) */
+  function iGrabbed() {
+    var b = game && game.boss;
+    return !!(b && b.phase === 'gather' && (b.ids || []).indexOf(game.meId) >= 0);
+  }
   function nextToBoss() {
     var b = game && game.boss;
-    if (!b || b.phase !== 'wait') return '';
+    if (!b || (b.phase !== 'wait' && b.phase !== 'gather')) return '';
     var i = game.me.r * game.board.cols + game.me.c;
     var sameRow = Math.floor(b.i / game.board.cols) === game.me.r;
     if (sameRow && b.i === i + 1) return 'Delete';
@@ -1642,8 +1651,11 @@
       label = '이동';
       list = [['← ↑ → ↓ · Tab · Shift+Tab', '한 칸'], ['Home / End', '줄 처음 · 끝'], ['Ctrl + Home / End', '판 처음 · 끝'], ['Ctrl + 방향키', '점프'], ['Enter', '블록 점유']];
       var nb = nextToBoss();
-      if (nb) list.unshift([nb, '보스 공략!']);
-      if (game.boss && game.boss.phase === 'gather') list.unshift(['↑ ↓ + Home / End', '집결 보스 옆으로!']);
+      var gat = game.boss && game.boss.phase === 'gather';
+      if (gat && iGrabbed()) list.unshift(['', '✅ 잡았어요 — 다른 조원을 기다리는 중 (움직여도 돼요)']);
+      else if (gat && nb) list.unshift([nb, '집결 보스 잡기!']);
+      else if (gat) list.unshift(['↑ ↓ + Home / End', '집결 보스 옆으로!']);
+      else if (nb) list.unshift([nb, '보스 공략!']);
       if (game.fx.auto > now()) list.push(['Tab', '⚡ 자동완성 (블록 안에서)']);
       else if (game.boss && game.boss.phase === 'wait') list.push(['Delete / Backspace', '보스 왼쪽 / 오른쪽에서']);
     }
@@ -1655,7 +1667,7 @@
     el.innerHTML = '<span class="mode' + cls + '">' + label + '</span>';
     list.forEach(function (k, n) {
       var s = document.createElement('span');
-      if (k[1] === '보스 공략!' || k[1] === '집결 보스 옆으로!' || k[1] === '막기!') s.className = 'hot';
+      if (k[1] === '보스 공략!' || k[1] === '집결 보스 옆으로!' || k[1] === '집결 보스 잡기!' || k[1] === '막기!') s.className = 'hot';
       s.innerHTML = k[0] ? '<kbd></kbd> ' : '';
       if (k[0]) s.firstChild.textContent = k[0];
       s.appendChild(document.createTextNode(k[1]));
@@ -2018,6 +2030,15 @@
     socket.emit('boss:grab', { key: key }, function (res) {
       if (!game) return;
       game.pending = false;
+      if (res && res.ok && res.gather) {
+        // 집결 보스 잡기 (v0.12.0) — 잡은 뒤에는 자리를 떠나도 된다
+        sfx('occupy');
+        if (res.got < res.need) toast('잡았어요! ' + res.got + '/' + res.need + ' — 이제 움직여도 돼요', 'good', 1800);
+        if (game.boss && game.boss.phase === 'gather' && game.boss.ids.indexOf(game.meId) < 0) game.boss.ids.push(game.meId);
+        renderKeys(); renderMembers();
+        if (game.boss) { renderCell(game.boss.i - 1); renderCell(game.boss.i + 1); }
+        return;
+      }
       if (res && res.ok) { openBossBubble(res); sfx('occupy'); }
     });
   }
@@ -2120,7 +2141,7 @@
     if (k === 'Enter') { e.preventDefault(); if (!e.repeat) tryOccupy(); return; }
     if (k === 'Delete' || k === 'Backspace') {
       e.preventDefault(); // Backspace 로 뒤로 가기 막기
-      if (!e.repeat && game.boss && game.boss.phase === 'wait') tryBoss(k);
+      if (!e.repeat && game.boss && (game.boss.phase === 'wait' || (game.boss.phase === 'gather' && !iGrabbed()))) tryBoss(k);
       return;
     }
     if (k === 'Process' || e.isComposing) { e.preventDefault(); warnHangul(); return; }

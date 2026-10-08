@@ -320,7 +320,7 @@ test('집결 보스: 사람 3명 이상일 때 4번째 보스 차례에 (n,1) �
   assert.strictEqual(room.gatherInfo().need, 3);
 });
 
-test('집결 보스: 왼쪽·오른쪽 칸에 모두 모이면 바로 성공 → 모두에게 도움 아이템 · 칸 해결', () => {
+test('집결 보스 (v0.12.0): 옆 칸에서 Delete · Backspace 로 각자 잡고, 잡은 뒤에는 떠나도 됨 → 모두 잡으면 성공', () => {
   const { room, io, add } = makeRoom();
   const a = add('a', 3, 7), b = add('b', 4, 0), c = add('c', 0, 0);
   const bot = { id: 'bot', nick: '봇', kind: 'cat', color: '#fff', online: true, socketId: null, bot: true };
@@ -330,12 +330,21 @@ test('집결 보스: 왼쪽·오른쪽 칸에 모두 모이면 바로 성공 →
   room.move(a, { to: 'home', seq: 1 });          // Home 은 보스 앞에서 멈춤 → (3,2) 보스 오른쪽
   assert.deepStrictEqual(room.pos.get('a'), { r: 3, c: 2 });
   room.move(b, { dir: 'U', seq: 1 });            // ↑ → (3,0) 보스 왼쪽
-  assert.deepStrictEqual(room.pos.get('b'), { r: 3, c: 0 });
+  assert.strictEqual(room.gatherInfo().got, 0, '서 있기만 해서는 안 잡힘');
+  assert.strictEqual(room.bossGrab(a, 'Delete').ok, false, '오른쪽 칸에서 Delete 는 안 됨');
+  assert.strictEqual(room.bossGrab(a, 'Backspace').ok, true);
+  assert.strictEqual(room.bossGrab(b, 'Delete').ok, true);
   assert.strictEqual(io.last('gather').data.got, 2);
+  assert.deepStrictEqual(io.last('gather').data.ids.sort(), ['a', 'b']);
+  room.move(a, { dir: 'D', seq: 2 });            // 잡은 뒤 떠나도 그대로
+  assert.strictEqual(room.gatherInfo().got, 2);
   assert.ok(room.boss, '아직 한 명 남음');
+  assert.strictEqual(room.bossGrab(c, 'Delete').ok, false, '멀리서는 못 잡음');
   room.pos.set('c', { r: 2, c: 0 });
   room.move(c, { dir: 'D', seq: 1 });            // ↓ 로 (3,0)
-  assert.strictEqual(room.boss, null, '모두 모였으니 성공');
+  assert.ok(room.boss, '옆에 와도 키를 눌러야 함');
+  room.bossGrab(c, 'Delete');
+  assert.strictEqual(room.boss, null, '모두 잡았으니 성공');
   assert.strictEqual(io.last('boss').data.end, 'gather');
   for (const id of ['a', 'b', 'c']) assert.strictEqual(room.deckOf(id).filter(Boolean).length, 1, id + ' 도움 아이템');
   assert.strictEqual(room.deckOf('bot').filter(Boolean).length, 0, '봇은 없음');
@@ -344,7 +353,18 @@ test('집결 보스: 왼쪽·오른쪽 칸에 모두 모이면 바로 성공 →
   assert.strictEqual(room.board.cells[3 * W + 1].bossBy, '모두');
 });
 
-test('집결 보스: 5초 안에 못 모이면 실패 · 사람이 서 있는 자리에는 안 나온다', () => {
+test('집결 보스: 잡지 않은 사람이 나가면 남은 사람만으로 성공', () => {
+  const { room, add } = makeRoom();
+  const a = add('a', 3, 0), b = add('b', 3, 2), c = add('c', 0, 5);
+  room.spawnGather({ r: 3, side: 0 });
+  room.bossGrab(a, 'Delete'); room.bossGrab(b, 'Backspace');
+  assert.ok(room.boss);
+  c.online = false;
+  room.sweep();
+  assert.strictEqual(room.boss, null);
+});
+
+test('집결 보스: 8초 안에 모두 못 잡으면 실패 · 사람이 서 있는 자리에는 안 나온다', () => {
   const { room, io, add } = makeRoom();
   add('a', 2, 1); add('b', 2, 10); add('c', 0, 5);
   room.spawnGather({ r: 2, side: 0 });

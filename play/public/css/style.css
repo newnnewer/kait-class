@@ -145,6 +145,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .members .mbar i { display: block; height: 100%; width: 0; border-radius: 4px; background: var(--green); transition: width .3s ease-out; }
 .members .mnum { font-style: normal; font-family: var(--pixel); font-size: 12px; color: #fff; min-width: 24px; text-align: right; }
 .members li.off { opacity: .45; }
+.members li.ungrabbed b { color: #FFB020; } /* v0.12.0: 집결 보스를 아직 안 잡은 조원 */
 
 .feed-card { min-height: 0; }
 .feed { display: flex; flex-direction: column; gap: 6px; overflow: auto; min-height: 0; }

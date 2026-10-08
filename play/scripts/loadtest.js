@@ -128,12 +128,14 @@ function student(no, plan) {
       const k = st.deck.slots.findIndex(x => x && !x.off);
       if (k >= 0) { itemsUsed++; return ack('item:use', { slot: k + 1 }); }
     }
-    // 집결 보스: 그 줄로 가서 Home(1열 보스) / End(오른쪽 보스)
+    // 집결 보스: 그 줄로 가서 Home(1열 보스) / End(오른쪽 보스) → 키로 잡기
     if (st.boss && st.boss.phase === 'gather') {
       const br = Math.floor(st.boss.i / cols), bc = st.boss.i % cols;
       if (st.occupying >= 0) { st.occupying = -1; s.emit('release'); return; }
       if (me.r !== br) return move({ dir: me.r < br ? 'D' : 'U' });
       if (Math.abs(me.c - bc) !== 1) { gathers++; return move({ to: bc === 1 ? 'home' : 'end' }); }
+      // v0.12.0: 옆 칸에 왔으면 Delete(왼쪽) / Backspace(오른쪽) 로 잡는다
+      if (st.grabbedBoss !== st.boss.i) { st.grabbedBoss = st.boss.i; return ack('boss:grab', { key: me.c < bc ? 'Delete' : 'Backspace' }); }
       return;
     }
     // 보스 공략 중: 잠시 생각하다가 아무 답이나 (가상 학생은 보스 답을 모른다)

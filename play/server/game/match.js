@@ -14,7 +14,8 @@ const MAX_INPUT = 200;
 const IDLE_MS = 60000;      // 아무도 입력하지 않으면 경고까지
 const IDLE_WARN_MS = 15000; // 경고 뒤 이만큼 더 없으면 방 종료
 // 집결 보스 (v0.7.0): 접속 중인 사람이 3명 이상인 조에서 보스 차례 4번에 1번.
-//   (n, 1) 또는 (n, 열-2) 에 나타나 5초 안에 모두 그 바로 왼쪽·오른쪽 칸에 모이면 성공 → 모두에게 도움 아이템
+//   (n, 1) 또는 (n, 열-2) 에 나타나 8초 안에 모두가 바로 왼쪽·오른쪽 칸에서 Delete / Backspace 로 잡으면 성공 → 모두에게 도움 아이템
+//   v0.12.0: 옆에 서 있기만 해서는 안 되고 각자 키로 잡는다. 잡은 사람은 자리를 떠나도 된다
 const GATHER_MS = 8000; // v0.12.0: 5초 → 8초
 const GATHER_MIN = 3;
 const GATHER_EVERY = 4;
@@ -368,7 +369,6 @@ class Match {
     }
     // seq: 브라우저가 미리 움직인 것과 맞춰 보는 번호
     this.emitAll('pos', { id: p.id, r: to.r, c: to.c, seq: msg.seq });
-    if (this.boss && this.boss.phase === 'gather') this.checkGather();
   }
 
   // ── 일반 블록 점유 ──
@@ -492,29 +492,46 @@ class Match {
     if (need < GATHER_MIN) return false;
     const i = this.gatherSpot(pref);
     if (i < 0) return false;
-    this.boss = { i, phase: 'gather', until: Date.now() + GATHER_MS, pid: null, got: 0 };
+    this.boss = { i, phase: 'gather', until: Date.now() + GATHER_MS, pid: null, got: 0, grabbed: new Set() };
     this.emitAll('boss', { i, phase: 'gather', ms: GATHER_MS, ...this.gatherInfo() });
-    this.feed('집결 보스 등장! 모두 보스 옆으로 모이세요', 'boss');
+    this.feed('집결 보스 등장! 모두 보스 옆에서 Delete · Backspace 로 잡으세요', 'boss');
     this.checkGather();
     return true;
   }
 
-  /** 지금 모인 사람 수 / 모여야 할 사람 수 (보스 바로 왼쪽·오른쪽 칸, 같은 줄) */
+  /** 지금 잡은 사람 수 / 잡아야 할 사람 수 (접속 중인 사람만) · ids: 잡은 사람 */
   gatherInfo() {
-    const boss = this.boss, cols = this.board.cols;
-    if (!boss) return { got: 0, need: 0 };
-    const r = Math.floor(boss.i / cols), c = boss.i % cols;
+    const boss = this.boss;
+    if (!boss || !boss.grabbed) return { got: 0, need: 0, ids: [] };
     const people = this.onlineHumans();
-    const got = people.filter(q => { const pp = this.pos.get(q.id); return pp && pp.r === r && (pp.c === c - 1 || pp.c === c + 1); }).length;
-    return { got, need: people.length };
+    const ids = people.filter(q => boss.grabbed.has(q.id)).map(q => q.id);
+    return { got: ids.length, need: people.length, ids };
   }
 
-  /** 모두 모였으면 바로 성공 (이동할 때마다 · 0.2초마다 확인) */
+  /** 집결 보스 잡기 (v0.12.0): 보스 바로 왼쪽 칸에서 Delete · 오른쪽 칸에서 Backspace */
+  gatherGrab(p, key) {
+    const boss = this.boss;
+    if (this.frozen()) return { ok: false, why: 'frozen' };
+    if (this.pausedAt) return { ok: false, why: 'paused' };
+    if (this.busy(p)) return { ok: false, why: 'busy' };
+    const cur = this.pos.get(p.id);
+    if (!cur) return { ok: false, why: 'none' };
+    const target = cur.r * this.board.cols + cur.c + (key === 'Delete' ? 1 : -1);
+    const sameRow = Math.floor(target / this.board.cols) === cur.r;
+    if (!sameRow || target !== boss.i) return { ok: false, why: key === 'Delete' ? 'left' : 'right' };
+    boss.grabbed.add(p.id);
+    const g = this.gatherInfo();
+    this.checkGather();
+    return { ok: true, gather: true, got: g.got, need: g.need };
+  }
+
+  /** 모두 잡았으면 바로 성공 (잡을 때마다 · 0.2초마다 확인 — 누가 나가면 남은 사람만으로) */
   checkGather() {
     const boss = this.boss;
     if (!boss || boss.phase !== 'gather' || this.ended || this.pausedAt) return;
     const g = this.gatherInfo();
-    if (g.got !== boss.got) { boss.got = g.got; this.emitAll('gather', g); }
+    const key = g.ids.join(',') + '/' + g.need;
+    if (key !== boss.gkey) { boss.gkey = key; boss.got = g.got; this.emitAll('gather', g); }
     if (g.need >= 1 && g.got >= g.need) this.gatherWin();
   }
 
@@ -523,13 +540,13 @@ class Match {
     this.boss = null;
     if (!this.external) this.nextBossAt = Date.now() + this.bossEveryMs;
     this.emitAll('boss', { i: -1, end: 'gather', at: i });
-    this.feed('모두 모였다! 조원 모두 도움 아이템 획득', 'good');
+    this.feed('모두 잡았다! 조원 모두 도움 아이템 획득', 'good');
     this.onEvent({ type: 'gather' });
     const shield = this.attacks && !!this.onAttack;
     for (const q of this.onlineHumans()) {
       const item = rollHelp({ shield });
       const kept = this.giveItem(q, item);
-      this.emitTo(q, 'item', { id: item.id, name: item.name, desc: kept ? '모두 모였다! 내 덱에 들어갔어요' : '모두 모였다! …하지만 덱이 가득 차서 사라졌어요', kind: 'gather', by: q.nick, lost: !kept });
+      this.emitTo(q, 'item', { id: item.id, name: item.name, desc: kept ? '모두 잡았다! 내 덱에 들어갔어요' : '모두 잡았다! …하지만 덱이 가득 차서 사라졌어요', kind: 'gather', by: q.nick, lost: !kept });
     }
     const cell = this.board.cells[i];
     if (cell && !cell.solved) {
@@ -565,6 +582,7 @@ class Match {
     if (this.ended) return { ok: false, why: 'ended' };
     this.touch(p);
     const boss = this.boss;
+    if (boss && boss.phase === 'gather') return this.gatherGrab(p, key);
     if (!boss || boss.phase !== 'wait') return { ok: false, why: 'none' };
     if (this.frozen()) return { ok: false, why: 'frozen' };
     if (this.pausedAt) return { ok: false, why: 'paused' };
@@ -631,7 +649,7 @@ class Match {
     this.boss = null;
     if (!this.external) this.nextBossAt = Date.now() + this.bossEveryMs;
     this.emitAll('boss', { i: -1, end: why, at: boss.i, by: p ? p.id : null });
-    const msg = { wrong: '보스 공략 실패 (오답)', timeout: '보스 공략 실패 (시간 초과)', giveup: '보스 공략 포기', left: '보스 공략이 중단됐어요', escaped: '보스가 달아났어요', scattered: '집결 실패 — 5초 안에 모두 모이지 못했어요' }[why];
+    const msg = { wrong: '보스 공략 실패 (오답)', timeout: '보스 공략 실패 (시간 초과)', giveup: '보스 공략 포기', left: '보스 공략이 중단됐어요', escaped: '보스가 달아났어요', scattered: `집결 실패 — ${GATHER_MS / 1000}초 안에 모두 잡지 못했어요` }[why];
     if (msg) this.feed(msg, 'muted');
   }
 
