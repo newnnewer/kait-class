@@ -685,6 +685,7 @@ a.solved{display:inline-block; min-width:52px; text-align:center; padding:5px 8p
          background:var(--ok-soft); color:var(--ok); border:1px solid #BFE6D0;
          border-radius:6px}
 a.solved:hover{background:var(--ok); color:#fff; border-color:var(--ok); text-decoration:none}
+a.solved.locked{border-style:dashed}   /* 잠긴 문제 (본인 · 선생님에게만 보임, 1.6.2) */
 
 
 /* ═══ 첫 화면 코드 연출 ═══════════════════════ */
@@ -752,6 +753,7 @@ a.solved:hover{background:var(--ok); color:#fff; border-color:var(--ok); text-de
          max-width:190px; overflow:hidden; text-overflow:ellipsis}
 .setmark.is-lesson{background:#fff; color:var(--b600); border:1px solid var(--b200)}
 .setmark.is-assess{background:#fff; color:var(--warn); border:1px solid #E8C989}
+.setmark.is-lock{background:#fff; color:var(--ink-3); border:1px dashed var(--b200)}
 a.setmark:hover{text-decoration:underline}
 
 /* 관리자 화면 (1.5.0): 위쪽 메뉴 띠를 어두운 남색으로. 학생 화면은 그대로 밝게 ('관리자' 표시는 1.6.1 에서 뺌) */

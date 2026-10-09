@@ -34,28 +34,36 @@ $acSubs  = (int)col("SELECT COUNT(*) FROM submissions WHERE user_id=? AND verdic
 $lastAt  = (string)col("SELECT created_at FROM submissions WHERE user_id=? ORDER BY id DESC LIMIT 1", [$uid]);
 $langUse = all("SELECT lang, COUNT(*) n FROM submissions WHERE user_id=? GROUP BY lang ORDER BY n DESC", [$uid]);
 
+/* 잠긴 문제(수업·평가에만 담아 둔 문제)도 본인·선생님에게는 보여 준다 (1.6.2).
+   남이 볼 때는 예전처럼 열린 문제만 — 아직 그 평가를 보지 않은 다른 반에 문제가 드러나지 않게.
+   잠긴 문제는 수업·평가 안에서만 열리므로, 링크에 그 문제를 낸 수업·평가 번호(set)를 붙인다. */
+$openOnly = $full ? '' : ' AND p.active=1';
+
 /* ── 푼 문제 ── */
-$solvedList = all("SELECT p.prob_no, p.title, MIN(s.created_at) AS first_at
+$solvedList = all("SELECT p.prob_no, p.title, p.active, MIN(s.created_at) AS first_at, MAX(s.set_id) AS set_id
                    FROM submissions s JOIN problems p ON p.id = s.problem_id
-                   WHERE s.user_id=? AND s.verdict='AC' AND p.active=1
+                   WHERE s.user_id=? AND s.verdict='AC'$openOnly
                    GROUP BY p.id ORDER BY p.prob_no", [$uid]);
 
-/* ── 분류별 ── */
+/* ── 분류별 ──
+   세는 문제 = 열린 문제 + (본인·선생님이 볼 때) 이 학생이 푼 잠긴 문제 (1.6.2).
+   아직 풀 수 없는 잠긴 문제까지 전체 수에 넣으면 영영 못 채우는 막대가 되므로 넣지 않는다. */
+$acSql = "EXISTS(SELECT 1 FROM submissions s
+                  WHERE s.user_id = :uid AND s.problem_id = pt.problem_id AND s.verdict='AC')";
 $byTag = all("SELECT tg.name,
                      COUNT(DISTINCT pt.problem_id) AS total,
-                     COUNT(DISTINCT CASE WHEN EXISTS(
-                       SELECT 1 FROM submissions s
-                        WHERE s.user_id = :uid AND s.problem_id = pt.problem_id AND s.verdict='AC'
-                     ) THEN pt.problem_id END) AS solved
+                     COUNT(DISTINCT CASE WHEN $acSql THEN pt.problem_id END) AS solved
               FROM tags tg
               JOIN problem_tags pt ON pt.tag_id = tg.id
-              JOIN problems p ON p.id = pt.problem_id AND p.active = 1
+              JOIN problems p ON p.id = pt.problem_id
+               AND (p.active = 1" . ($full ? " OR $acSql" : '') . ")
               GROUP BY tg.id HAVING total > 0 ORDER BY tg.name", [':uid' => $uid]);
 
 /* ── 못 푼 문제 (본인·선생님만) ── */
-$stuck = $full ? all("SELECT p.prob_no, p.title, COUNT(*) AS tries, MAX(s.created_at) AS last_at
+$stuck = $full ? all("SELECT p.prob_no, p.title, p.active, COUNT(*) AS tries, MAX(s.created_at) AS last_at,
+                             MAX(s.set_id) AS set_id
                       FROM submissions s JOIN problems p ON p.id = s.problem_id
-                      WHERE s.user_id=? AND p.active=1
+                      WHERE s.user_id=?
                         AND NOT EXISTS(SELECT 1 FROM submissions a
                                        WHERE a.user_id=s.user_id AND a.problem_id=s.problem_id
                                          AND a.verdict='AC')
@@ -78,6 +86,13 @@ if ($full) {
     $assess[] = ['title' => $a['title'], 'id' => (int)$a['id'],
                  'done' => $pg['done'], 'total' => $pg['total']];
   }
+}
+
+/* 문제 링크 — 잠긴 문제는 그 문제를 낸 수업·평가 안에서 열어야 보인다 */
+function prob_href(array $r): string {
+  $u = 'problem.php?no=' . (int)$r['prob_no'];
+  if (!(int)$r['active'] && !empty($r['set_id'])) $u .= '&set=' . (int)$r['set_id'];
+  return $u;
 }
 
 $name = $t['name'] !== '' ? $t['name'] : $t['login_id'];
@@ -179,7 +194,7 @@ page_head(['title' => $name . ' 님의 활동', 'root' => '', 'user' => $me, 'na
         <?php foreach ($stuck as $s): ?>
           <tr>
             <td class="num"><?= (int)$s['prob_no'] ?></td>
-            <td class="title"><a href="problem.php?no=<?= (int)$s['prob_no'] ?>"><?= h($s['title']) ?></a></td>
+            <td class="title"><a href="<?= h(prob_href($s)) ?>"><?= h($s['title']) ?></a><?= (int)$s['active'] ? '' : ' <span class="setmark is-lock" title="문제 모음에는 보이지 않는 문제 — 수업 · 평가에서 풂">잠김</span>' ?></td>
             <td class="center num"><?= (int)$s['tries'] ?>회</td>
             <td class="center num small"><?= h(substr((string)$s['last_at'], 2, 8)) ?></td>
           </tr>
@@ -197,7 +212,8 @@ page_head(['title' => $name . ' 님의 활동', 'root' => '', 'user' => $me, 'na
     <?php else: ?>
       <div class="solvedlist">
         <?php foreach ($solvedList as $s): ?>
-          <a class="solved" href="problem.php?no=<?= (int)$s['prob_no'] ?>" title="<?= h($s['title']) ?>">
+          <a class="solved<?= (int)$s['active'] ? '' : ' locked' ?>" href="<?= h(prob_href($s)) ?>"
+             title="<?= h($s['title']) . ((int)$s['active'] ? '' : ' (잠긴 문제 — 수업 · 평가에서 풂)') ?>">
             <?= (int)$s['prob_no'] ?>
           </a>
         <?php endforeach; ?>
