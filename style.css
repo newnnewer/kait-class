@@ -147,7 +147,10 @@ a.tag:hover{background:var(--b600); border-color:var(--b600); color:#fff; text-d
   padding:2px 8px; border-radius:4px; letter-spacing:-.02em; white-space:nowrap;
 }
 .v-AC{background:var(--ok); color:#fff}
-.v-WA,.v-RE,.v-TLE,.v-MLE{background:var(--bad-soft); color:var(--bad)}
+.v-WA{background:var(--bad-soft); color:var(--bad)}
+/* 결과마다 색을 나눈다 (1.6.1) — 예전에는 WA · RE · TLE · MLE 가 모두 같은 빨강이었다 */
+.v-RE{background:#F0E8FB; color:#6A3DB8}                 /* 실행 중 오류: 보라 */
+.v-TLE,.v-MLE{background:#FDE9DA; color:#B04A0A}          /* 시간 · 메모리 초과: 주황 */
 .v-CE,.v-IE{background:var(--warn-soft); color:var(--warn)}
 .v-wait{background:var(--b100); color:var(--b500)}
 .v-open{background:var(--b600); color:#fff}   /* 묶음 '진행중' — 초록(완료·정답)과 구분 */
@@ -655,6 +658,7 @@ table.list.setitems tr:has(.delmark input:checked) .num{text-decoration:line-thr
 .dline i{color:var(--ink-3); font-style:italic}
 .dmore{padding:2px 10px; color:var(--b300); font-family:var(--mono); font-size:12px}
 .diffbox .dnote{margin:0; padding:0 15px 12px; font-size:12.5px; color:var(--ink-3)}
+.diffbox .dnote.only{padding-top:12px}   /* 비교 없이 안내만 있을 때 (1.6.1) */
 
 /* 표 안의 버튼은 줄바꿈되지 않게 */
 table.list td .btn, table.list th.nowrap, table.list td.nowrap{white-space:nowrap}
@@ -682,8 +686,6 @@ a.solved{display:inline-block; min-width:52px; text-align:center; padding:5px 8p
          border-radius:6px}
 a.solved:hover{background:var(--ok); color:#fff; border-color:var(--ok); text-decoration:none}
 
-.who .sub2{margin-left:5px; font-size:12.5px; color:var(--ink-3); font-weight:500}
-a.who:hover .sub2{color:var(--b600)}
 
 /* ═══ 첫 화면 코드 연출 ═══════════════════════ */
 .codeplay{display:flex; flex-direction:column; align-items:center; gap:10px}
@@ -752,13 +754,11 @@ a.who:hover .sub2{color:var(--b600)}
 .setmark.is-assess{background:#fff; color:var(--warn); border:1px solid #E8C989}
 a.setmark:hover{text-decoration:underline}
 
-/* 관리자 화면 (1.5.0): 위쪽 메뉴 띠를 어두운 남색으로 + '관리자' 표시. 학생 화면은 그대로 밝게 */
+/* 관리자 화면 (1.5.0): 위쪽 메뉴 띠를 어두운 남색으로. 학생 화면은 그대로 밝게 ('관리자' 표시는 1.6.1 에서 뺌) */
 .top.is-admin{background:var(--b900); border-bottom:3px solid #F2B32E}
 .top.is-admin .brand{color:#fff}
 .top.is-admin .brand:hover{color:var(--b200)}
 .top.is-admin .brand.haslogo{background:#fff; padding:5px 9px; border-radius:7px}   /* 어두운 로고도 보이게 */
-.adminchip{margin-left:-10px; padding:2px 9px; border-radius:999px; background:#F2B32E; color:#2A1C00;
-           font-size:12px; font-weight:700; letter-spacing:.02em; white-space:nowrap}
 .top.is-admin .mainnav a{color:var(--b200)}
 .top.is-admin .mainnav a:hover{background:rgba(255,255,255,.1); color:#fff}
 .top.is-admin .mainnav a.on{background:#fff; color:var(--b900)}

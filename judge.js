@@ -270,8 +270,7 @@ async function apiThenReload(action, data, confirmMsg){
      처음 갈리는 줄에 표시를 해서 눈에 들어오게 한다. */
   function diffHtml(d) {
     if (d.mode === 'toolong') {
-      return '<div class="rlab">어디가 다른가</div>'
-           + '<p class="dnote">출력이 너무 길어 비교를 보여주지 않습니다.</p>';
+      return '<div class="diffbox"><p class="dnote only">출력이 너무 길어 비교를 보여주지 않습니다.</p></div>';
     }
 
     function lines(rows, more1, more2) {
@@ -288,11 +287,12 @@ async function apiThenReload(action, data, confirmMsg){
     }
 
     var h = '<div class="diffbox">';
-    h += '<div class="dhead">어디가 다른가';
-    if (d.line) h += ' <span class="small muted">' + d.line + '번째 줄부터 다릅니다</span>';
-    h += '</div>';
+    /* 문구 (1.6.1): 입력 칸이 있을 때만 '아래 입력에 대한' 을 붙인다 */
+    var hasIn = d.input !== undefined && d.input !== null && d.input !== '';
+    h += '<div class="dhead">' + (hasIn ? '아래 입력에 대한 ' : '') + '출력 결과가 '
+       + (d.line ? d.line + '번째 줄부터 ' : '') + '다릅니다.</div>';
 
-    if (d.input !== undefined && d.input !== null && d.input !== '') {
+    if (hasIn) {
       h += '<div class="dsec"><div class="dcap">입력</div>'
          + '<pre class="dpre">' + esc(d.input) + '</pre></div>';
     }

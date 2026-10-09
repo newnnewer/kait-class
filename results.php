@@ -5,18 +5,7 @@ require_once __DIR__ . '/guard.php';
 require_once __DIR__ . '/layout.php';
 $u = me();
 
-/* 수업·평가에서 낸 제출 표시 (1.5.0) — 모두에게는 종류만, 관리자에게는 이름까지 (누르면 현황표).
-   이름에는 반 이름 같은 것이 들어갈 수 있어 밖에는 내보이지 않는다. */
-function set_mark(?array $u, $setId, ?string $type, ?string $title): string {
-  if (!$setId || !$type) return '';
-  $name = SET_TYPE_NAME[$type] ?? '';
-  $cls  = 'setmark ' . ($type === 'assessment' ? 'is-assess' : 'is-lesson');
-  if (is_admin($u)) {
-    return ' <a class="' . $cls . '" href="admin/progress.php?id=' . (int)$setId . '" title="' . h($name . ' · ' . $title) . ' — 현황표">'
-         . h($name . ' · ' . $title) . '</a>';
-  }
-  return ' <span class="' . $cls . '">' . h($name) . '</span>';
-}
+/* set_mark() — 수업·평가 표시는 layout.php 로 옮김 (1.6.1, 나의 활동에서도 씀) */
 
 /* 한 건 자세히 보기 — 코드는 본인 것(과 관리자)만 */
 $detailId = (int)($_GET['id'] ?? 0);

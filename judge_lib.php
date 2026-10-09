@@ -169,7 +169,7 @@ function diff_allowed(array $sub): bool {
   return true;
 }
 
-/* 이 제출의 '어디가 다른가' 정보 (보여 줄 게 없으면 null).
+/* 이 제출의 '어디가 다른가' (기대한 출력과 내 출력 비교) 정보 (보여 줄 게 없으면 null).
    제출 직후(api.php poll)와 채점 결과 상세 보기(results.php)가 같은 것을 쓴다 (1.5.0). */
 function diff_for_submission(array $s): ?array {
   if (($s['verdict'] ?? '') !== 'WA' || ($s['fail_expected'] ?? null) === null || !diff_allowed($s)) return null;
@@ -184,8 +184,7 @@ function diff_for_submission(array $s): ?array {
 /* diff_for_submission() 결과를 HTML 로 — judge.js 의 diffHtml() 과 같은 모양 */
 function diff_html(array $d): string {
   if ($d['mode'] === 'toolong') {
-    return '<div class="diffbox"><div class="dhead">어디가 다른가</div>'
-         . '<p class="dnote">출력이 너무 길어 비교를 보여주지 않습니다.</p></div>';
+    return '<div class="diffbox"><p class="dnote only">출력이 너무 길어 비교를 보여주지 않습니다.</p></div>';
   }
   $lines = function (array $rows, bool $more1, bool $more2): string {
     $s = '<div class="dlines">';
@@ -198,10 +197,11 @@ function diff_html(array $d): string {
     if ($more2) $s .= '<div class="dmore">…</div>';
     return $s . '</div>';
   };
-  $h = '<div class="diffbox"><div class="dhead">어디가 다른가';
-  if ($d['line']) $h .= ' <span class="small muted">' . (int)$d['line'] . '번째 줄부터 다릅니다</span>';
-  $h .= '</div>';
-  if (($d['input'] ?? '') !== '') {
+  /* 문구 (1.6.1): 입력 칸이 있을 때만 '아래 입력에 대한' 을 붙인다 */
+  $hasIn = ($d['input'] ?? '') !== '';
+  $h = '<div class="diffbox"><div class="dhead">' . ($hasIn ? '아래 입력에 대한 ' : '') . '출력 결과가 '
+     . ($d['line'] ? (int)$d['line'] . '번째 줄부터 ' : '') . '다릅니다.</div>';
+  if ($hasIn) {
     $h .= '<div class="dsec"><div class="dcap">입력</div><pre class="dpre">' . h($d['input']) . '</pre></div>';
   }
   $h .= '<div class="dcols">'

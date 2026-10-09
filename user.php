@@ -63,8 +63,9 @@ $stuck = $full ? all("SELECT p.prob_no, p.title, COUNT(*) AS tries, MAX(s.create
 
 /* ── 최근 제출 ── */
 $recent = all("SELECT s.id, s.verdict, s.state, s.lang, s.max_time, s.created_at, s.user_id,
-                      p.prob_no, p.title
+                      p.prob_no, p.title, s.set_id, st.set_type, st.title AS set_title
                FROM submissions s JOIN problems p ON p.id = s.problem_id
+               LEFT JOIN sets st ON st.id = s.set_id   -- 수업 · 평가 표시 (1.6.1)
                WHERE s.user_id=? ORDER BY s.id DESC LIMIT 20", [$uid]);
 
 /* ── 평가 현황 (본인·선생님만) ── */
@@ -222,7 +223,7 @@ page_head(['title' => $name . ' 님의 활동', 'root' => '', 'user' => $me, 'na
         <?php foreach ($recent as $r): ?>
           <tr>
             <td class="center num"><?= (int)$r['prob_no'] ?></td>
-            <td class="title"><a href="problem.php?no=<?= (int)$r['prob_no'] ?>"><?= h($r['title']) ?></a></td>
+            <td class="title"><a href="problem.php?no=<?= (int)$r['prob_no'] ?>"><?= h($r['title']) ?></a><?= set_mark($me, $r['set_id'], $r['set_type'], $r['set_title']) ?></td>
             <td class="center"><?= verdict_badge($r['verdict'], $r['state']) ?></td>
             <td class="center num small">
               <?php if ($full): ?>

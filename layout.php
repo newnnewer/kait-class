@@ -174,7 +174,8 @@ function page_head(array $o): void {
 <?php if (DEMO_MODE): ?>
 <div class="demobar">체험 서버입니다 · 매일 새벽 4시에 처음 상태로 돌아갑니다 · 비밀번호 바꾸기 · 사이트 설정 · 파일 올리기는 쓸 수 없습니다</div>
 <?php endif; ?>
-<?php /* 관리자 화면은 위쪽 메뉴 띠를 어둡게 + '관리자' 표시 (1.5.0) — 학생 화면과 한눈에 구분되게 */ ?>
+<?php /* 관리자 화면은 위쪽 메뉴 띠를 어둡게 (1.5.0) — 학생 화면과 한눈에 구분되게.
+         메뉴가 두 줄로 넘어가지 않게 로고 옆 '관리자' 표시 · 이름 옆 '(나의 활동)' 은 뺐다 (1.6.1) */ ?>
 <header class="top<?= $isAdminArea ? ' is-admin' : '' ?>">
   <div class="top-in">
     <?php $logo = site_image_url('logo', $root); ?>
@@ -182,7 +183,6 @@ function page_head(array $o): void {
       <?php if ($logo !== ''): ?><img src="<?= $logo ?>" alt="<?= h($site) ?>">
       <?php else: ?><?= h($site) ?><?php endif; ?>
     </a>
-    <?php if ($isAdminArea): ?><span class="adminchip">관리자</span><?php endif; ?>
     <nav class="mainnav">
       <?php foreach (JNAV as $k => [$label, $sHref, $aHref, $guestOk, $adminOnly]): ?>
         <?php
@@ -198,8 +198,8 @@ function page_head(array $o): void {
       <?php endif; ?>
     </nav>
     <?php if ($u): ?>
-      <a class="who" href="<?= h($root) ?>user.php"
-         ><b><?= h($u['name'] !== '' ? $u['name'] : $u['login_id']) ?></b><span class="sub2">(나의 활동)</span></a>
+      <a class="who" href="<?= h($root) ?>user.php" title="나의 활동"
+         ><b><?= h($u['name'] !== '' ? $u['name'] : $u['login_id']) ?></b></a>
       <div class="util">
         <?php if ($isAdmin): ?>
           <?php if ($isAdminArea): ?>
@@ -291,6 +291,19 @@ function page_foot(string $root = ''): void {
 </body>
 </html>
 <?php }
+
+/* 수업·평가에서 낸 제출 표시 (1.5.0, 1.6.1 에 results.php 에서 옮김 — 채점 결과 · 나의 활동) — 모두에게는 종류만, 관리자에게는 이름까지 (누르면 현황표).
+   이름에는 반 이름 같은 것이 들어갈 수 있어 밖에는 내보이지 않는다. */
+function set_mark(?array $u, $setId, ?string $type, ?string $title): string {
+  if (!$setId || !$type) return '';
+  $name = SET_TYPE_NAME[$type] ?? '';
+  $cls  = 'setmark ' . ($type === 'assessment' ? 'is-assess' : 'is-lesson');
+  if (is_admin($u)) {
+    return ' <a class="' . $cls . '" href="admin/progress.php?id=' . (int)$setId . '" title="' . h($name . ' · ' . $title) . ' — 현황표">'
+         . h($name . ' · ' . $title) . '</a>';
+  }
+  return ' <span class="' . $cls . '">' . h($name) . '</span>';
+}
 
 /* 판정 배지.
    색만으로 구분하면 색각 이상이 있는 학생이 알아보기 어렵다.
