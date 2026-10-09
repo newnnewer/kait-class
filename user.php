@@ -26,18 +26,21 @@ $isAdmin = $me['role'] === 'admin';
 $full    = $isSelf || $isAdmin;   /* 자세히 볼 수 있는가 */
 $uid     = (int)$t['id'];
 
+/* 잠긴 문제(수업·평가에만 담아 둔 문제)도 본인·선생님에게는 모두 보여 준다 (1.6.2).
+   남이 볼 때는 '보는 사람이 볼 수 있는 문제'만 — 열린 문제 + 보는 사람도 참여하는 수업·평가의 문제.
+   아직 그 수업·평가를 받지 않은 반에 문제가 드러나지 않게. 위 요약 숫자 · 최근 제출도 같은 기준.
+   잠긴 문제는 수업·평가 안에서만 열리므로, 링크에 그 문제를 낸 수업·평가 번호(set)를 붙인다. */
+$visV     = $full ? '1' : problem_visible_sql($me, 'p');
+$openOnly = " AND $visV";
+
 /* ── 요약 ── */
-$solved  = (int)col("SELECT COUNT(DISTINCT problem_id) FROM submissions
-                     WHERE user_id=? AND verdict='AC'", [$uid]);
+$solved  = (int)col("SELECT COUNT(DISTINCT s.problem_id) FROM submissions s JOIN problems p ON p.id = s.problem_id
+                     WHERE s.user_id=? AND s.verdict='AC'$openOnly", [$uid]);
 $subs    = (int)col("SELECT COUNT(*) FROM submissions WHERE user_id=? AND state='done'", [$uid]);
 $acSubs  = (int)col("SELECT COUNT(*) FROM submissions WHERE user_id=? AND verdict='AC'", [$uid]);
 $lastAt  = (string)col("SELECT created_at FROM submissions WHERE user_id=? ORDER BY id DESC LIMIT 1", [$uid]);
 $langUse = all("SELECT lang, COUNT(*) n FROM submissions WHERE user_id=? GROUP BY lang ORDER BY n DESC", [$uid]);
 
-/* 잠긴 문제(수업·평가에만 담아 둔 문제)도 본인·선생님에게는 보여 준다 (1.6.2).
-   남이 볼 때는 예전처럼 열린 문제만 — 아직 그 평가를 보지 않은 다른 반에 문제가 드러나지 않게.
-   잠긴 문제는 수업·평가 안에서만 열리므로, 링크에 그 문제를 낸 수업·평가 번호(set)를 붙인다. */
-$openOnly = $full ? '' : ' AND p.active=1';
 
 /* ── 푼 문제 ── */
 $solvedList = all("SELECT p.prob_no, p.title, p.active, MIN(s.created_at) AS first_at, MAX(s.set_id) AS set_id
@@ -46,7 +49,7 @@ $solvedList = all("SELECT p.prob_no, p.title, p.active, MIN(s.created_at) AS fir
                    GROUP BY p.id ORDER BY p.prob_no", [$uid]);
 
 /* ── 분류별 ──
-   세는 문제 = 열린 문제 + (본인·선생님이 볼 때) 이 학생이 푼 잠긴 문제 (1.6.2).
+   세는 문제 = 열린 문제 + 이 학생이 푼 잠긴 문제 중 보는 사람이 볼 수 있는 것 (1.6.2).
    아직 풀 수 없는 잠긴 문제까지 전체 수에 넣으면 영영 못 채우는 막대가 되므로 넣지 않는다. */
 $acSql = "EXISTS(SELECT 1 FROM submissions s
                   WHERE s.user_id = :uid AND s.problem_id = pt.problem_id AND s.verdict='AC')";
@@ -56,7 +59,7 @@ $byTag = all("SELECT tg.name,
               FROM tags tg
               JOIN problem_tags pt ON pt.tag_id = tg.id
               JOIN problems p ON p.id = pt.problem_id
-               AND (p.active = 1" . ($full ? " OR $acSql" : '') . ")
+               AND (p.active = 1 OR ($acSql AND $visV))
               GROUP BY tg.id HAVING total > 0 ORDER BY tg.name", [':uid' => $uid]);
 
 /* ── 못 푼 문제 (본인·선생님만) ── */
@@ -71,10 +74,10 @@ $stuck = $full ? all("SELECT p.prob_no, p.title, p.active, COUNT(*) AS tries, MA
 
 /* ── 최근 제출 ── */
 $recent = all("SELECT s.id, s.verdict, s.state, s.lang, s.max_time, s.created_at, s.user_id,
-                      p.prob_no, p.title, s.set_id, st.set_type, st.title AS set_title
+                      p.prob_no, p.title, p.active, s.set_id, st.set_type, st.title AS set_title
                FROM submissions s JOIN problems p ON p.id = s.problem_id
                LEFT JOIN sets st ON st.id = s.set_id   -- 수업 · 평가 표시 (1.6.1)
-               WHERE s.user_id=? ORDER BY s.id DESC LIMIT 20", [$uid]);
+               WHERE s.user_id=?$openOnly ORDER BY s.id DESC LIMIT 20", [$uid]);
 
 /* ── 평가 현황 (본인·선생님만) ── */
 $assess = [];
@@ -239,7 +242,7 @@ page_head(['title' => $name . ' 님의 활동', 'root' => '', 'user' => $me, 'na
         <?php foreach ($recent as $r): ?>
           <tr>
             <td class="center num"><?= (int)$r['prob_no'] ?></td>
-            <td class="title"><a href="problem.php?no=<?= (int)$r['prob_no'] ?>"><?= h($r['title']) ?></a><?= set_mark($me, $r['set_id'], $r['set_type'], $r['set_title']) ?></td>
+            <td class="title"><a href="<?= h(prob_href($r)) ?>"><?= h($r['title']) ?></a><?= set_mark($me, $r['set_id'], $r['set_type'], $r['set_title']) ?></td>
             <td class="center"><?= verdict_badge($r['verdict'], $r['state']) ?></td>
             <td class="center num small">
               <?php if ($full): ?>

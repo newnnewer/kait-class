@@ -311,6 +311,23 @@ function problem_visible(?array $u, array $p, ?int $setId = null): bool {
                    [$setId, $p['id']]);
 }
 
+/* problem_visible() 을 목록용 SQL 조건으로 (1.6.2).
+   이 사람이 볼 수 있는 문제 = 열린 문제 + (관리자는 모두) + 자기가 참여하는 수업·평가에 담긴 잠긴 문제.
+   $owner 를 주면 그 열(예: s.user_id)이 보는 사람 자신인 행도 보여 준다 — 내 제출은 언제나 내가 본다.
+   숫자만 끼워 넣으므로(정수 변환) 자리 표시자 없이 어느 쿼리에나 붙일 수 있다. */
+function problem_visible_sql(?array $u, string $p = 'p', string $owner = ''): string {
+  if (is_admin($u)) return '1';
+  if (!$u) return "$p.active = 1";
+  $uid = (int)$u['id'];
+  $gid = isset($u['group_id']) && $u['group_id'] !== null ? (string)(int)$u['group_id'] : 'NULL';
+  return "($p.active = 1"
+       . ($owner !== '' ? " OR $owner = $uid" : '')
+       . " OR EXISTS(SELECT 1 FROM set_problems vsp JOIN sets vs ON vs.id = vsp.set_id
+                      WHERE vsp.problem_id = $p.id AND vs.active = 1
+                        AND (vs.visibility = 'all'
+                             OR EXISTS(SELECT 1 FROM set_targets vt WHERE vt.set_id = vs.id AND vt.group_id = $gid))))";
+}
+
 /* 기간을 한 줄로. 한쪽만 정했으면 그쪽만, 둘 다 없으면 빈 문자열. */
 function period_text(array $s): string {
   $a = fmt_dt_short($s['start_at'] ?? null);
