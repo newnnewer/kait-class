@@ -1,0 +1,151 @@
+/* KAIT-PLAY 인트로 (v0.13.0) — js/intro.js 와 짝. 시간표(초):
+   0.0~1.2 블록이 떨어짐 · 1.3 번쩍 · 1.45 블록이 깨지며 로고 · 2.0 TEAM CODING BATTLE
+   2.5~3.3 두 팀이 달려옴 · 3.35 VS 쾅 · 4.4 PRESS ANY KEY */
+.kpi {
+  --u: min(1vw, 1.75vh);
+  position: fixed; inset: 0; z-index: 1000; overflow: hidden; cursor: pointer;
+  background: radial-gradient(ellipse at 50% 38%, #1E2F66 0%, #0F1832 55%, #070C1E 100%);
+  color: #fff; user-select: none; -webkit-user-select: none;
+}
+.kpi::before { /* 점 무늬 (입장 화면 바탕과 같게) */
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(#1A2748 1px, transparent 1px); background-size: 22px 22px; opacity: .7;
+}
+.kpi.out { animation: kpi-out .38s ease-in forwards; pointer-events: none; }
+@keyframes kpi-out { to { opacity: 0; transform: scale(1.08); filter: blur(6px); } }
+
+/* 바닥 격자 — 오락실 느낌으로 앞으로 흘러옴 */
+.kpi-floor {
+  position: absolute; left: -50%; right: -50%; bottom: -8%; height: 52%;
+  background-image:
+    linear-gradient(rgba(155, 91, 245, .55) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(74, 92, 247, .45) 2px, transparent 2px);
+  background-size: 64px 64px;
+  transform: perspective(420px) rotateX(62deg); transform-origin: 50% 0;
+  -webkit-mask-image: linear-gradient(transparent, #000 40%); mask-image: linear-gradient(transparent, #000 40%);
+  animation: kpi-floor 1.1s linear infinite, kpi-fade .8s ease-out both;
+}
+@keyframes kpi-floor { to { background-position: 0 64px, 0 0; } }
+@keyframes kpi-fade { from { opacity: 0; } }
+
+.kpi-stage {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(var(--u) * 2.6);
+  animation: kpi-shake .35s 1.45s linear, kpi-shake2 .3s 3.35s linear;
+}
+@keyframes kpi-shake2 { 0%, 100% { transform: none; } 30% { transform: translate(.8%, .6%); } 60% { transform: translate(-.8%, -.4%); } }
+@keyframes kpi-shake {
+  0%, 100% { transform: none; }
+  20% { transform: translate(-1.2%, .8%); } 40% { transform: translate(1%, -1%); }
+  60% { transform: translate(-.7%, -.5%); } 80% { transform: translate(.5%, .6%); }
+}
+
+/* ① 블록 → 로고 */
+.kpi-hero { position: relative; display: grid; place-items: center; width: calc(var(--u) * 70); height: calc(var(--u) * 24); }
+.kpi-grid {
+  position: absolute; inset: 0; display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(3, 1fr);
+  gap: calc(var(--u) * 1.1);
+}
+.kpi-block {
+  display: grid; place-items: center; border-radius: calc(var(--u) * 1.2);
+  background: #172651; border: 2px solid #34508E; box-shadow: inset 0 -.35em 0 rgba(0, 0, 0, .25);
+  font-family: var(--mono); font-weight: 800; font-size: calc(var(--u) * 1.8); color: #C4D4EE; white-space: nowrap;
+  animation:
+    kpi-drop .5s var(--d) cubic-bezier(.3, 1.45, .55, 1) both,
+    kpi-charge .18s 1.27s ease-in both,
+    kpi-burst .7s 1.45s cubic-bezier(.2, .7, .3, 1) forwards;
+}
+.kpi-block.gold { background: linear-gradient(#FFD84A, #F5AE1A); border-color: #FFE58A; color: #3A2A00; }
+.kpi-block.boss { background: linear-gradient(#FF5C8A, #C2185B); border-color: #FF9AB8; color: #fff; font-family: var(--pixel); font-size: calc(var(--u) * 1.5); }
+@keyframes kpi-drop { from { transform: translateY(-75vh) rotate(-8deg); opacity: 0; } 40% { opacity: 1; } to { transform: none; } }
+@keyframes kpi-charge { to { background: #fff; border-color: #fff; color: #fff; box-shadow: 0 0 calc(var(--u) * 3) #9B5BF5; } }
+@keyframes kpi-burst {
+  from { background: #fff; border-color: #fff; color: transparent; }
+  to { transform: translate(var(--bx), var(--by)) rotate(var(--br)) scale(.3); opacity: 0; }
+}
+
+.kpi-shards { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.kpi-shards i {
+  position: absolute; width: calc(var(--u) * 1.3); height: calc(var(--u) * 1.3); border-radius: 2px; opacity: 0;
+  animation: kpi-shard .9s 1.45s cubic-bezier(.15, .7, .35, 1) forwards;
+}
+.kpi-shards i:nth-child(3n) { width: calc(var(--u) * .7); height: calc(var(--u) * .7); }
+@keyframes kpi-shard {
+  0% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translate(var(--sx), var(--sy)) rotate(var(--sr)); }
+}
+
+.kpi-ring {
+  position: absolute; left: 50%; top: 50%; width: calc(var(--u) * 20); height: calc(var(--u) * 20); margin: calc(var(--u) * -10) 0 0 calc(var(--u) * -10);
+  border-radius: 50%; border: calc(var(--u) * .8) solid #9B5BF5; opacity: 0;
+  animation: kpi-ring .8s 1.45s ease-out forwards;
+}
+@keyframes kpi-ring { 0% { opacity: .9; transform: scale(.2); } 100% { opacity: 0; transform: scale(4.5); border-width: 1px; } }
+
+.kpi-logo.logo {
+  position: relative; font-size: calc(var(--u) * 8.2);
+  filter: drop-shadow(0 0 calc(var(--u) * 2.5) rgba(123, 69, 245, .75));
+  animation: kpi-logo .6s 1.45s cubic-bezier(.2, 1.6, .4, 1) both, kpi-glow 2.4s 2.1s ease-in-out infinite;
+}
+@keyframes kpi-logo { from { opacity: 0; transform: scale(2.6); filter: blur(12px) brightness(3); } }
+@keyframes kpi-glow { 50% { filter: drop-shadow(0 0 calc(var(--u) * 4) rgba(240, 64, 154, .8)); } }
+
+.kpi-tag {
+  font-family: var(--pixel); font-size: calc(var(--u) * 1.9); letter-spacing: .25em; color: #FFD23F;
+  text-shadow: 0 .2em 0 #7A5200; margin-top: calc(var(--u) * -1.5);
+  animation: kpi-tag .45s 2s steps(12) both;
+}
+@keyframes kpi-tag { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+
+/* ② 두 팀 + VS */
+.kpi-vs { display: flex; align-items: flex-end; justify-content: center; gap: calc(var(--u) * 2.5); max-width: 100vw; }
+.kpi-team { display: flex; gap: calc(var(--u) * 1.2); padding: 0 calc(var(--u) * 1) calc(var(--u) * 1); position: relative; }
+.kpi-team::after { /* 팀 발판 빛 */
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--u) * 1.4); border-radius: 50%;
+  filter: blur(calc(var(--u) * .8)); opacity: 0; animation: kpi-fade .5s 3.35s ease-out forwards;
+}
+.kpi-team.left::after { background: #45B1F5; }
+.kpi-team.right::after { background: #FF5C8A; }
+.kpi-char { width: calc(var(--u) * 8); height: calc(var(--u) * 8); }
+.kpi-team.left .kpi-char { animation: kpi-run-l .7s calc(2.5s + var(--i) * .09s) cubic-bezier(.25, .9, .35, 1.08) both; }
+.kpi-team.right .kpi-char { animation: kpi-run-r .7s calc(2.5s + var(--i) * .09s) cubic-bezier(.25, .9, .35, 1.08) both; }
+.kpi-team.right .kpi-bob svg { transform: scaleX(-1); }
+@keyframes kpi-run-l { from { transform: translateX(-70vw); } }
+@keyframes kpi-run-r { from { transform: translateX(70vw); } }
+.kpi-bob { width: 100%; height: 100%; animation: kpi-hop .26s ease-in-out 2.5s 3, kpi-idle 1s calc(3.4s + var(--i) * .12s) ease-in-out infinite; }
+@keyframes kpi-hop { 50% { transform: translateY(-14%); } }
+@keyframes kpi-idle { 50% { transform: translateY(-8%); } }
+
+.kpi-vs-mark {
+  align-self: center; font-family: var(--pixel); font-size: calc(var(--u) * 5.5); line-height: 1;
+  animation: kpi-vs .4s 3.3s cubic-bezier(.2, 1.8, .4, 1) both;
+}
+.kpi-vs-mark span {
+  display: inline-block; background: linear-gradient(#FFE58A, #FFD23F 50%, #F57F17); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(.08em .08em 0 #C2185B) drop-shadow(0 0 calc(var(--u) * 2) rgba(255, 92, 138, .7));
+  animation: kpi-vs-pulse 1.2s 3.8s ease-in-out infinite;
+}
+@keyframes kpi-vs { from { opacity: 0; transform: scale(4) rotate(-20deg); } }
+@keyframes kpi-vs-pulse { 50% { transform: scale(1.1) rotate(-4deg); } }
+
+/* ③ PRESS ANY KEY */
+.kpi-press { display: flex; flex-direction: column; align-items: center; gap: calc(var(--u) * 1.2); margin-top: calc(var(--u) * 1); animation: kpi-fade .3s 4.4s both; }
+.kpi-press b { font-family: var(--pixel); font-weight: 400; font-size: calc(var(--u) * 2.4); letter-spacing: .12em; color: #fff; animation: kpi-blink 1s 4.4s steps(1) infinite; }
+.kpi-press span { font-family: var(--display); font-weight: 700; font-size: max(16px, calc(var(--u) * 2.1)); color: #C4D4EE; }
+@keyframes kpi-blink { 50% { opacity: 0; } }
+
+/* 번쩍 (로고 · VS) */
+.kpi-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.kpi-flash.f1 { animation: kpi-flash .45s 1.42s ease-out both; }
+.kpi-flash.f2 { animation: kpi-flash2 .3s 3.33s ease-out both; }
+@keyframes kpi-flash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes kpi-flash2 { 0% { opacity: 0; } 20% { opacity: .35; } 100% { opacity: 0; } }
+
+/* 움직임 줄이기: 로고 · 캐릭터 · 안내만 바로 */
+.kpi.reduce *, .kpi.reduce::before { animation: none !important; }
+.kpi.reduce .kpi-floor { animation: none !important; }
+.kpi.reduce .kpi-grid, .kpi.reduce .kpi-shards, .kpi.reduce .kpi-ring, .kpi.reduce .kpi-flash, .kpi.reduce .kpi-team::after { display: none; }
+
+@media (max-height: 520px) { .kpi-tag { display: none; } }
+/* 교사 화면(밝은 바탕)의 로고 색을 따르지 않게 */
+.kpi .kpi-logo.logo, .kpi .kpi-logo .lg-w { color: #fff; }

@@ -150,6 +150,21 @@
     $('btn-join').disabled = false;
     renderEnter();
     show('enter');
+    playIntro();
+  }
+
+  // ── 인트로 (v0.13.0): 이 탭에서 처음 입장 화면을 열 때만. 새로고침 · 재접속(서버가 나를 기억) 때는 안 나온다 ──
+  //   아무 키를 누른 순간(사용자 입력 안)이라야 브라우저가 소리를 허락한다 → 그때 효과음 + 입장 화면 배경음
+  function playIntro() {
+    var I = window.CGIntro;
+    if (!I || !I.shouldPlay()) return;
+    I.play({
+      onPress: function () {
+        SND.unlock();
+        if (sound.on) SND.play('intro');
+        setTimeout(updateBgm, 700); // 효과음이 끝날 즈음 배경음
+      }
+    });
   }
 
 
@@ -1675,7 +1690,7 @@
   function teacherMuted() { return !!(cls && cls.sfx === false && (current === 'team' || (game && game.cls))); }
   function renderSoundBtns() {
     var teacherOff = teacherMuted();
-    ['btn-sfx', 'w-sfx', 't-sfx'].forEach(function (id) {
+    ['btn-sfx', 'w-sfx', 't-sfx', 'e-sfx', 'l-sfx'].forEach(function (id) {
       var b = $(id);
       if (!b) return;
       b.textContent = teacherOff ? '소리 꺼짐(선생님)' : (sound.on ? '배경음 켬' : '배경음 끔') + ' · Ctrl+S';
@@ -1696,7 +1711,7 @@
     updateBgm();
     if (sound.on) sfx('occupy');
   }
-  ['btn-sfx', 'w-sfx', 't-sfx'].forEach(function (id) {
+  ['btn-sfx', 'w-sfx', 't-sfx', 'e-sfx', 'l-sfx'].forEach(function (id) {
     $(id).onclick = function () { SND.unlock(); toggleSound(); this.blur(); };
   });
 
@@ -1707,16 +1722,18 @@
     else if (current === 'game' && game) {
       if (!game.paused && !game.ended) { tune = 'game'; fast = game.endAt - Date.now() < 30000; }
     } else if (current === 'wait' || current === 'team') tune = 'lobby';
+    else if (current === 'enter' || current === 'lobby' || current === 'create') tune = 'title'; // v0.13.0
+    if (window.CGIntro && window.CGIntro.active()) tune = null; // 인트로 동안은 조용히 (키를 누르면 시작)
     SND.bgm(!!tune && sound.on && !teacherMuted(), fast, tune || 'game');
   }
   setInterval(updateBgm, 250);
 
-  // 단축키 (v0.11.0) — Ctrl+S: 소리 켜기/끄기 (대기실 · 팀 선택 · 게임 중, 코드 입력 중에도)
+  // 단축키 (v0.11.0) — Ctrl+S: 소리 켜기/끄기 (입장 화면 · 로비 · 방 만들기[v0.13.0] · 대기실 · 팀 선택 · 게임 중, 코드 입력 중에도)
   //   Ctrl+Enter: 방장이 게임 시작 (대기실). 한글 입력 상태에서도 되게 키 자리(e.code)로 본다
   window.addEventListener('keydown', function (e) {
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
     if (e.code === 'KeyS') {
-      if (current !== 'wait' && current !== 'team' && current !== 'game') return;
+      if (current === 'loading') return; // v0.13.0: 입장 화면 · 로비 · 방 만들기에서도
       e.preventDefault();
       if (!e.repeat) toggleSound();
       return;

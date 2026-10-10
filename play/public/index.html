@@ -7,6 +7,7 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/intro.css">
 </head>
 <body>
 <!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
@@ -33,6 +34,7 @@
     <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="grow"></span>
     <span class="pill ghost">공식전 · 팀 배틀 · 레이드</span>
+    <button type="button" class="snd-btn" id="e-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">배경음 켬 · Ctrl+S</button>
   </header>
 
   <div class="enter-body">
@@ -82,6 +84,7 @@
     <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill blue">로비</span>
     <span class="grow"></span>
+    <button type="button" class="snd-btn" id="l-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">배경음 켬 · Ctrl+S</button>
     <button type="button" class="me-chip" id="btn-profile">
       <span class="av" id="lobby-avatar"></span>
       <span class="who"><b id="lobby-nick"></b><span class="linklike">캐릭터 바꾸기</span></span>
@@ -381,6 +384,7 @@
 <script src="js/shared/chat.js"></script>
 <script src="js/avatar.js"></script>
 <script src="js/sound.js"></script>
+<script src="js/intro.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

@@ -870,4 +870,15 @@
     setTimeout(function () { $('btn-tr-ok').focus(); }, 50);
   });
   $('btn-tr-ok').onclick = function () { $('t-result').hidden = true; };
+
+  // ── 인트로 (v0.13.0): 이 탭에서 처음 열 때만 (새로고침 때는 안 나옴). 교사 화면은 배경음 없이 키를 누를 때 효과음만 ──
+  if (window.CGIntro && window.CGIntro.shouldPlay()) {
+    window.CGIntro.play({
+      onPress: function () {
+        var S = window.CGSound;
+        if (!S) return;
+        S.unlock(); S.setVolume(1); S.play('intro');
+      }
+    });
+  }
 })();

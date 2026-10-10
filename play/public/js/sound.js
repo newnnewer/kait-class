@@ -99,6 +99,8 @@
     start: function () { seq([N.G4, N.C5, N.E5, N.G5], 0.09, 'square', 0.45); },
     win: function () { seq([N.C5, N.E5, N.G5, N.C6, 0, N.A5, N.B5, N.C6], 0.1, 'square', 0.45); },
     end: function () { seq([N.G5, N.E5, N.C5, N.C4], 0.12, 'triangle', 0.45); },
+    // v0.13.0: 인트로에서 아무 키나 눌렀을 때 — 올라가는 화음 + 반짝
+    intro: function () { seq([N.C5, N.E5, N.G5, N.C6, N.E6, N.G6], 0.045, 'square', 0.4); tone(N.C7, 0.45, 'triangle', 0.4, 0.28); tone(N.G6, 0.45, 'triangle', 0.3, 0.28); noise(0.25, 0.25, 0, 5000); },
     clear: function () { seq([N.E6, N.G6, N.E7, N.C7, N.D7, N.G7], 0.07, 'square', 0.45); },
   };
   S.play = function (name) {
@@ -107,6 +109,7 @@
   };
 
   // ── 배경음: 짧은 칩튠을 반복. fast = 마지막 30초 ──
+  //   title: 입장 화면 · 로비 (v0.13.0, 인트로 다음 — 신나게, 하지만 작게)
   //   game: 게임 중 (전광판 · v0.11.0 부터 학생 기기도) · lobby: 대기실 · 팀 선택 화면 (느리고 잔잔하게)
   var TUNES = {
     game: {
@@ -114,6 +117,12 @@
       mel: ['E5', 'G5', 'A5', 'G5', 'E5', 'D5', 'C5', 'D5', 'E5', 'G5', 'C6', 'B5', 'A5', 'G5', 'E5', 0,
         'F5', 'A5', 'C6', 'A5', 'G5', 'E5', 'D5', 'E5', 'F5', 'E5', 'D5', 'B4', 'C5', 0, 'G4', 0],
       bass: ['C3', 0, 'C3', 'G3', 'A2', 0, 'A2', 'E3', 'F2', 0, 'F2', 'C3', 'G2', 0, 'G2', 'D3']
+    },
+    title: {
+      step: 0.15, fastStep: 0.15, melVol: 0.11, bassVol: 0.22, hat: true,
+      mel: ['C5', 'E5', 'G5', 'C6', 'B5', 'G5', 'E5', 'G5', 'A5', 0, 'A5', 'C6', 'B5', 'A5', 'G5', 0,
+        'F5', 'A5', 'C6', 'F6', 'E6', 'C6', 'A5', 'C6', 'D6', 'B5', 'G5', 'B5', 'C6', 0, 'G5', 0],
+      bass: ['C3', 'C3', 'G2', 'G2', 'A2', 'A2', 'E2', 'E2', 'F2', 'F2', 'C3', 'C3', 'G2', 'G2', 'G2', 'B2']
     },
     lobby: {
       step: 0.24, fastStep: 0.24, melVol: 0.12, bassVol: 0.22, hat: false,
