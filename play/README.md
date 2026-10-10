@@ -5,7 +5,8 @@
 - **KAIT-CLASS 와 함께 설치**됩니다 (KAIT-CLASS `install.sh` 14단계). 주소는 언제나 KAIT-CLASS 주소 뒤의 `/play/`.
 - KAIT-PLAY 만 설치 · 업데이트: KAIT-CLASS 소스 폴더에서 `sudo bash play/install.sh`
 - 설치 · 운영 안내: [deploy/INSTALL.md](deploy/INSTALL.md)
-- 현재 버전: **v0.12.0** — 입력란 흐린 글씨(따옴표 밖 빈칸 무시 · 틀린 글자 빨강) · 집결 보스를 Delete · Backspace 로 각자 잡기(8초) · 방해 아이템 대상 조 고르기 · 조 선택 잠그기 · 무작위로 섞기 · 전광판 순위 변동 그래프 · 점유 시간 10~30초(기본 20) · 방패 7.5% · 혼란 · 방향 반전 15초 · 소리 크게
+- 현재 버전: **v0.13.0** — 학생끼리 팀 대전(**대전방**, 2~4팀 × 1~8명) · 준비(레디) · 15초 자동 시작 · 방장 옮기기 · 내보내기 · 단축키 Ctrl+Enter(준비 · 시작) · Alt+Q(나가기) · 학생 방 점유 · 보스 · 페널티 고정 · 로비 두 칸(대전방 | 협동방) · 이름 '조' → '팀', 수업 게임 → 수업방 (임시)
+- v0.12.0 — 입력란 흐린 글씨(따옴표 밖 빈칸 무시 · 틀린 글자 빨강) · 집결 보스를 Delete · Backspace 로 각자 잡기(8초) · 방해 아이템 대상 팀 고르기 · 팀 선택 잠그기 · 무작위로 섞기 · 전광판 순위 변동 그래프 · 점유 시간 10~30초(기본 20) · 방패 7.5% · 혼란 · 방향 반전 15초 · 소리 크게
 - v0.11.0 — 아이템 확률 조정(페널티 15% · 방해 20% · 방패 15%) · 대기실과 게임 중 배경음(Ctrl+S 로 켜고 끄기) · 방장에게 입장 알림음 · 시작 단축키 Ctrl+Enter · 봇 표시 강화
 - v0.9.0 — KAIT-CLASS 1.2 에 이식. 주소 `/game/` → `/play/`, 설치 위치 `/opt/kait-play`, 컨테이너 `kait-play`,
   브라우저 저장 `cg.` → `kp.`(예전 값은 한 번 옮김), 화면 아래 저작권 표기, 쓰지 않는 글꼴(Black Han Sans) 정리
@@ -28,10 +29,10 @@ play/
 │  ├─ game/match.js       경기 한 판 — 점유 · 보스 · 아이템 · 제한 시간 · 방치 경고 · 결과
 │  ├─ rooms/lobby.js      로비 — 방 목록 · 방 만들기(1분 1개, 최대 60개)
 │  ├─ rooms/room.js       학생 방 — 대기실 ↔ 경기, 방장 이양, 10분 미시작 종료
-│  ├─ rooms/settings.js   방 설정 선택지와 검사 (학생 방 · 수업 게임)
-│  ├─ classes/hub.js      수업 게임 모음 — 방 코드(숫자 4자리) · 코드 찍어 보기 막기 · 학생 방 허용 스위치
-│  ├─ classes/classgame.js 수업 게임 — 조 편성 · 같은 씨앗의 여러 판 · 고정 보스 일정 · 일시정지 · 순위 · 기록
-│  ├─ classes/bot.js      봇 (조 인원 맞추기용, 서버 안에서 일반 블록만 풂)
+│  ├─ rooms/settings.js   방 설정 선택지와 검사 (학생 방 · 수업방)
+│  ├─ classes/hub.js      수업방 모음 — 방 코드(숫자 4자리) · 코드 찍어 보기 막기 · 학생 방 허용 스위치
+│  ├─ classes/classgame.js 수업방 — 팀 편성 · 같은 씨앗의 여러 판 · 고정 보스 일정 · 일시정지 · 순위 · 기록
+│  ├─ classes/bot.js      봇 (팀 인원 맞추기용, 서버 안에서 일반 블록만 풂)
 │  ├─ admin/auth.js       관리자 로그인 (처음 비밀번호 .env → 바꾸면 DB에 암호화 저장 · 5번 틀리면 1분 잠금)
 │  ├─ db.js               저장소 (node:sqlite → data/game.db: 게임 기록 · 설정)
 │  ├─ game/items.js       아이템 목록과 확률 (도움 · 페널티 15% · 방해 20% · 방패 15%)
@@ -66,7 +67,7 @@ BASE_PATH=/play PORT=3100 ADMIN_PASSWORD=test npm start   # http://localhost:310
 npm test
 FORCE_ITEM=freeze npm start   # 시험용: 보스를 맞히면 늘 이 아이템
 node scripts/bots.js 5 http://localhost:3100/play
-node scripts/bots.js 12 http://localhost:3100/play --class 1234   # 수업 게임에 가상 학생
+node scripts/bots.js 12 http://localhost:3100/play --class 1234   # 수업방에 가상 학생
 ```
 
 Windows PowerShell에서는 이렇게 실행합니다: `$env:BASE_PATH="/play"; $env:PORT="3100"; $env:ADMIN_PASSWORD="test"; npm start`

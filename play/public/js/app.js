@@ -1,4 +1,4 @@
-/* KAIT-PLAY — 브라우저 쪽 (입장 · 로비 · 방 만들기 · 대기실 · 수업 게임 조 선택 · 게임 · 결과) */
+/* KAIT-PLAY — 브라우저 쪽 (입장 · 로비 · 방 만들기 · 대기실 · 수업방 팀 선택 · 게임 · 결과) */
 (function () {
   'use strict';
 
@@ -7,7 +7,7 @@
   var MOVE = window.CGMove;
   var SND = window.CGSound;
 
-  // ── 소리 (6-2): 내 설정 + 수업 게임은 교사 스위치 ──
+  // ── 소리 (6-2): 내 설정 + 수업방은 교사 스위치 ──
   //   v0.12.0: 두 스위치가 따로 — 배경음 · 효과음(Ctrl+S) / 타자음 · 오류음(Ctrl+K)
   var sound = {
     on: (function () { try { return localStorage.getItem('kp.sfx') !== '0'; } catch (e) { return true; } })(),
@@ -152,6 +152,7 @@
     show('enter');
   }
 
+
   function pageToast(text, kind) {
     var el = $('page-toast');
     el.textContent = text;
@@ -177,9 +178,11 @@
     });
   };
 
-  // ── 로비 ──
-  var lobby = { rooms: [], filter: 'all', allowRooms: true };
+  // ── 로비 (v0.13.0): 위 수업방 코드 · 아래 두 칸(대전방 | 협동방) ──
+  var lobby = { rooms: [], allowRooms: true, filter: { 2: 'all', 3: 'all' } };
   var TAG_ORDER = ['출력', '입력', '변수', '연산자', '조건문', '반복문', '리스트', '함수'];
+  var LCOL = { 2: { id: 'lob-battle', mode: 'battle', name: '대전방' }, 3: { id: 'lob-coop', mode: 'coop', name: '협동방' } };
+  var FILTERS = [['all', '전체'], ['open', '모집중'], ['playing', '진행중']];
 
   function avatarSpan(kind, color, cls) {
     var s = document.createElement('span');
@@ -193,86 +196,100 @@
     if (text != null) e.textContent = text;
     return e;
   }
-
   socket.on('lobby', function (m) {
     lobby.rooms = m.rooms || [];
     lobby.allowRooms = m.allowRooms !== false;
     game = null;
     cls = null;
     closeResult(false);
-    if (current !== 'create' || !lobby.allowRooms) { room = null; show('lobby'); }
+    if (current !== 'create' || !lobby.allowRooms) {
+      room = null;
+      if (current !== 'lobby') show('lobby');
+    }
     renderLobby();
   });
+
+  function roomsOf(z) {
+    var mode = LCOL[z].mode, f = lobby.filter[z];
+    var list = lobby.rooms.filter(function (r) {
+      if ((r.mode || 'coop') !== mode) return false;
+      return f === 'all' || (f === 'open' ? r.phase === 'waiting' : r.phase !== 'waiting');
+    });
+    list.sort(function (a, b) { return (a.phase === 'waiting' ? 0 : 1) - (b.phase === 'waiting' ? 0 : 1); }); // 모집 중인 방을 앞에
+    return list;
+  }
+
+  /** 방 한 줄: [모집중] 2팀 · 5/8명 · #조건문 · 5분 — 이름 (대전방은 팀별 자리) */
+  function roomRow(r) {
+    var playing = r.phase !== 'waiting';
+    var li = el('li', 'lroom' + (playing ? ' playing' : ''));
+    li.setAttribute('role', 'button');
+    li.appendChild(el('span', 'badge' + (playing ? ' play' : ''), playing ? '진행중' : (r.count >= r.max ? '꽉 참' : '모집중')));
+    var info = [];
+    if (r.mode === 'battle') info.push(r.teams + '팀');
+    info.push(playing ? r.count + '명' : r.count + '/' + r.max + '명');
+    if (playing) info.push(r.pct + '%');
+    else info.push(r.tags.map(function (t) { return '#' + t; }).join(' '), r.limitMin + '분');
+    li.appendChild(el('span', 'lr-info', info.join(' · ')));
+    li.appendChild(el('b', 'lr-name', r.name));
+    if (r.mode === 'battle' && !playing && r.teamCounts) {
+      var tc = el('span', 'lr-teams');
+      r.teamCounts.forEach(function (k, i) {
+        var t = el('span', 'lr-team');
+        t.appendChild(el('em', null, (i + 1) + '팀'));
+        var dots = '';
+        for (var d = 0; d < r.teamSize; d++) dots += d < k ? '●' : '○';
+        t.appendChild(el('span', null, dots));
+        tc.appendChild(t);
+      });
+      li.appendChild(tc);
+    }
+    li.onclick = function (e) { joinRoom(r); };
+    return li;
+  }
+
+  function joinRoom(r) {
+    if (r.phase !== 'waiting') { pageToast('진행 중인 방에는 들어갈 수 없어요', 'warn'); return; }
+    if (r.count >= r.max) { pageToast('방이 꽉 찼어요', 'warn'); return; }
+    socket.emit('room:join', { id: r.id }, function (res) {
+      if (!res || !res.ok) { pageToast((res && res.error) || '들어가지 못했어요', 'warn'); return; }
+      openWait(res.room);
+    });
+  }
 
   function renderLobby() {
     if (ME) {
       $('lobby-avatar').innerHTML = AV.svg(ME.kind, ME.color);
       $('lobby-nick').textContent = ME.nick;
     }
-    $('btn-create').disabled = !lobby.allowRooms;
     $('rooms-off').hidden = lobby.allowRooms;
-    var open = lobby.rooms.filter(function (r) { return r.phase === 'waiting'; }).length;
-    $('lobby-count').textContent = '모집 중 ' + open + ' · 진행 중 ' + (lobby.rooms.length - open);
-    var fl = $('lobby-filter');
-    fl.innerHTML = '';
-    [['all', '전체'], ['open', '팀원 모집 중'], ['playing', '진행 중']].forEach(function (x) {
-      var b = el('button', null, x[1]);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(lobby.filter === x[0]));
-      b.onclick = function () { lobby.filter = x[0]; renderLobby(); };
-      fl.appendChild(b);
-    });
-    var list = lobby.rooms.filter(function (r) {
-      return lobby.filter === 'all' || (lobby.filter === 'open' ? r.phase === 'waiting' : r.phase !== 'waiting');
-    });
-    // 모집 중인 방을 앞에
-    list.sort(function (a, b) { return (a.phase === 'waiting' ? 0 : 1) - (b.phase === 'waiting' ? 0 : 1); });
-    var box = $('lobby-rooms');
-    box.innerHTML = '';
-    if (!list.length) {
-      var e = el('div', 'empty');
-      e.appendChild(el('b', null, lobby.rooms.length ? '이 조건에 맞는 방이 없어요' : '아직 열린 방이 없어요'));
-      e.appendChild(el('span', null, lobby.allowRooms ? '방 만들기를 눌러 첫 방을 열어 보세요' : '수업 게임 코드를 넣어 들어가세요'));
-      box.appendChild(e);
-      return;
-    }
-    list.forEach(function (r) {
-      var playing = r.phase !== 'waiting';
-      var card = el('article', 'room-card' + (playing ? ' playing' : ''));
-      var top = el('div', 'rc-top');
-      top.appendChild(el('span', 'badge' + (playing ? ' play' : ''), playing ? '진행 중' : '팀원 모집 중'));
-      top.appendChild(el('span', 'grow'));
-      top.appendChild(el('span', 'muted', '제한 ' + r.limitMin + '분'));
-      card.appendChild(top);
-      card.appendChild(el('h2', null, r.name));
-      var tl = el('div', 'tagline');
-      r.tags.forEach(function (t) { tl.appendChild(el('span', null, '#' + t)); });
-      card.appendChild(tl);
-      var bot = el('div', 'rc-bottom');
-      r.members.slice(0, 6).forEach(function (m) { bot.appendChild(avatarSpan(m.kind, m.color)); });
-      bot.appendChild(el('span', 'pixel', r.count + '/' + r.max));
-      bot.appendChild(el('span', 'grow'));
-      if (playing) {
-        var pg = el('div', 'rc-progress');
-        pg.appendChild(el('span', null, '진행 ' + r.pct + '% · 입장 불가'));
-        var bar = el('i'); var fill = el('b'); fill.style.width = r.pct + '%'; bar.appendChild(fill); pg.appendChild(bar);
-        bot.appendChild(pg);
-      } else {
-        var jb = el('button', 'join-btn', r.count >= r.max ? '꽉 참' : '들어가기');
-        jb.type = 'button';
-        jb.disabled = r.count >= r.max;
-        jb.setAttribute('aria-label', r.name + ' 들어가기');
-        jb.onclick = function () {
-          jb.disabled = true;
-          socket.emit('room:join', { id: r.id }, function (res) {
-            if (!res || !res.ok) { jb.disabled = false; pageToast((res && res.error) || '들어가지 못했어요', 'warn'); return; }
-            openWait(res.room);
-          });
-        };
-        bot.appendChild(jb);
+    [2, 3].forEach(function (z) {
+      var col = $(LCOL[z].id), mode = LCOL[z].mode;
+      var all = lobby.rooms.filter(function (r) { return (r.mode || 'coop') === mode; });
+      var open = all.filter(function (r) { return r.phase === 'waiting'; }).length;
+      col.querySelector('.lc-count').textContent = '모집중 ' + open + ' · 진행중 ' + (all.length - open);
+      var cb = col.querySelector('.lc-create');
+      cb.disabled = !lobby.allowRooms;
+      cb.onclick = function () { openCreate(mode); };
+      var fl = col.querySelector('.lc-filter');
+      fl.innerHTML = '';
+      FILTERS.forEach(function (x) {
+        var b = el('button', null, x[1]);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(lobby.filter[z] === x[0]));
+        b.onclick = function (e) { lobby.filter[z] = x[0]; renderLobby(); };
+        fl.appendChild(b);
+      });
+      var ul = col.querySelector('.lc-rooms');
+      ul.innerHTML = '';
+      var list = roomsOf(z);
+      if (!list.length) {
+        var e = el('li', 'lempty');
+        e.appendChild(el('b', null, all.length ? '이 조건에 맞는 방이 없어요' : '아직 열린 ' + LCOL[z].name + '이 없어요'));
+        e.appendChild(el('span', null, lobby.allowRooms ? '＋ 방 만들기로 첫 방을 열어 보세요' : '선생님이 학생 방을 꺼 두었어요'));
+        ul.appendChild(e);
       }
-      card.appendChild(bot);
-      box.appendChild(card);
+      list.forEach(function (r) { ul.appendChild(roomRow(r)); });
     });
   }
 
@@ -281,19 +298,19 @@
     if (ME) { enter.nick = ME.nick; enter.kind = ME.kind; enter.color = ME.color; }
     showEnter();
   };
-  $('btn-create').onclick = function () { openCreate(); };
 
   socket.on('closed', function (m) {
     var why = {
       timeout: '10분 동안 시작하지 않아 방이 닫혔어요', idle: '아무도 입력하지 않아 방이 끝났어요', empty: '방이 닫혔어요',
-      kicked: '선생님이 수업 게임에서 내보냈어요', 'class': '선생님이 수업 게임을 끝냈어요', 'class-idle': '오랫동안 쓰지 않아 수업 게임이 닫혔어요'
+      kicked: '선생님이 수업방에서 내보냈어요', 'class': '선생님이 수업방을 끝냈어요', 'class-idle': '오랫동안 쓰지 않아 수업방이 닫혔어요',
+      'room-kicked': '방장이 방에서 내보냈어요'
     }[m.reason] || '방이 닫혔어요';
     closeBubble(); closeBossBubble();
     pageToast(why, 'warn');
   });
 
-  // ── 수업 게임: 코드로 들어가기 · 조 선택 ──
-  var cls = null; // 서버가 보낸 수업 게임 정보
+  // ── 수업방: 코드로 들어가기 · 팀 선택 ──
+  var cls = null; // 서버가 보낸 수업방 정보
 
   $('class-code').addEventListener('input', function () {
     var v = this.value.replace(/[^0-9]/g, '').slice(0, 4);
@@ -325,19 +342,19 @@
 
   socket.on('class', function (d) {
     cls = d;
-    // 게임 중이면 화면은 그대로 (조별 상황판은 'standings' 로 온다)
+    // 게임 중이면 화면은 그대로 (팀별 상황판은 'standings' 로 온다)
     if (current === 'game' && game) { renderSoundBtns(); return; }
     if (current !== 'team') show('team');
     renderTeam();
   });
 
-  // 게임 중에 선생님이 '조 미선택'으로 옮겼다
+  // 게임 중에 선생님이 '팀 미선택'으로 옮겼다
   socket.on('class:bench', function () {
     closeBubble(); closeBossBubble();
     game = null;
     show('team');
     renderTeam();
-    pageToast('선생님이 조를 다시 정하고 있어요. 조를 골라 주세요', 'warn');
+    pageToast('선생님이 팀을 다시 정하고 있어요. 팀을 골라 주세요', 'warn');
   });
 
   function renderTeam() {
@@ -345,9 +362,9 @@
     var mine = myTeam();
     $('t-code').textContent = cls.code;
     if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
-    $('t-picked').textContent = mine ? mine + '조 선택' : '조를 골라 주세요';
+    $('t-picked').textContent = mine ? mine + '팀 선택' : '팀을 골라 주세요';
     $('t-picked').classList.toggle('none', !mine);
-    $('t-teaminfo').textContent = cls.teamLock ? '🔒 선생님이 조 선택을 잠갔어요 — 정해진 조로 참여해요' : '조마다 들어온 사람 수가 보여요 · 선생님이 조를 옮길 수도 있어요';
+    $('t-teaminfo').textContent = cls.teamLock ? '🔒 선생님이 팀 선택을 잠갔어요 — 정해진 팀으로 참여해요' : '팀마다 들어온 사람 수가 보여요 · 선생님이 팀을 옮길 수도 있어요';
     $('t-teaminfo').classList.toggle('locked', !!cls.teamLock);
     var box = $('t-teams');
     box.innerHTML = '';
@@ -356,42 +373,42 @@
       b.type = 'button';
       b.setAttribute('aria-pressed', String(t.no === mine));
       if (cls.teamLock && t.no !== mine) b.classList.add('locked');
-      b.appendChild(el('b', null, t.no + '조'));
+      b.appendChild(el('b', null, t.no + '팀'));
       var av = el('span', 'team-avs');
       t.members.slice(0, 6).forEach(function (p) { av.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av')); });
       if (t.members.length > 6) av.appendChild(el('em', null, '+' + (t.members.length - 6)));
       b.appendChild(av);
       b.appendChild(el('span', 'team-count', t.members.length + '명'));
-      b.onclick = function () {
-        if (t.no === myTeam()) return;
-        if (cls.teamLock) { pageToast('선생님이 조 선택을 잠갔어요', 'warn'); return; }
-        b.disabled = true;
-        socket.emit('class:team', { no: t.no }, function (res) {
-          b.disabled = false;
-          if (!res || !res.ok) pageToast((res && res.error) || '조를 고르지 못했어요', 'warn');
-        });
-      };
+      b.onclick = function (e) { pickClassTeam(t.no); };
       box.appendChild(b);
     });
     var st = $('t-status'), txt = st.querySelector('span');
     st.classList.toggle('playing', cls.phase === 'playing');
-    if (cls.phase === 'playing') txt.textContent = cls.paused ? '게임이 잠시 멈춰 있어요 — 조를 고르면 바로 참여해요' : '게임 진행 중 — 조를 고르면 바로 참여해요!';
-    else txt.textContent = mine ? '선생님이 게임을 시작하기를 기다리는 중' : '먼저 조를 골라 주세요';
+    if (cls.phase === 'playing') txt.textContent = cls.paused ? '게임이 잠시 멈춰 있어요 — 팀을 고르면 바로 참여해요' : '게임 진행 중 — 팀을 고르면 바로 참여해요!';
+    else txt.textContent = mine ? '선생님이 게임을 시작하기를 기다리는 중' : '먼저 팀을 골라 주세요';
     renderChat();
     renderSoundBtns();
+  }
+
+  function pickClassTeam(no) {
+    if (!cls || no > cls.teams.length || no === myTeam()) return;
+    if (cls.teamLock) { pageToast('선생님이 팀 선택을 잠갔어요', 'warn'); return; }
+    socket.emit('class:team', { no: no }, function (res) {
+      if (!res || !res.ok) pageToast((res && res.error) || '팀을 고르지 못했어요', 'warn');
+    });
   }
 
   $('btn-team-leave').onclick = function () {
     socket.emit('room:leave', {}, function () {});
   };
 
-  // 조별 상황판 (게임 화면 왼쪽)
+  // 팀별 상황판 (게임 화면 왼쪽)
   var standings = [];
   socket.on('standings', function (st) { standings = st || []; renderStand(); });
   function renderStand() {
     if (!game || !game.cls) return;
     var list = standings.filter(function (x) { return x.count > 0 || x.solved > 0 || x.done; }).slice();
-    // 완성한 조는 순위대로 위에, 나머지는 해결률 순
+    // 완성한 팀은 순위대로 위에, 나머지는 해결률 순
     list.sort(function (a, b) {
       if (a.rank && b.rank) return a.rank - b.rank;
       if (a.rank) return -1;
@@ -405,8 +422,8 @@
       li.appendChild(el('span', 'st-rank' + (k === 0 ? ' first' : ''), x.rank ? x.rank + '위' : String(k + 1)));
       var mid = el('div', 'st-mid');
       var top = el('div', 'st-top');
-      var name = el('b', null, x.no + '조');
-      if (x.no === game.team) name.appendChild(el('small', null, '우리 조'));
+      var name = el('b', null, x.no + '팀');
+      if (x.no === game.team) name.appendChild(el('small', null, '우리 팀'));
       top.appendChild(name);
       top.appendChild(el('span', 'st-pct', x.rank ? '완성' : x.pct + '%'));
       mid.appendChild(top);
@@ -416,13 +433,13 @@
     });
   }
 
-  // 우리 조가 판을 완성했다 → 다른 조를 기다린다
+  // 우리 팀이 판을 완성했다 → 다른 팀을 기다린다
   socket.on('team:done', function (m) {
     if (!game) return;
     game.ended = true;
     closeBubble(); closeBossBubble();
     $('done-rank').textContent = m.rank ? m.rank + '위' : '끝';
-    $('done-sub').textContent = '걸린 시간 ' + mmss(m.ms) + ' · 다른 조가 끝나기를 기다리는 중';
+    $('done-sub').textContent = m.clear === false && m.reason === 'idle' ? '아무도 입력하지 않아 우리 팀은 끝났어요 · 다른 팀을 기다리는 중' : '걸린 시간 ' + mmss(m.ms) + ' · 다른 팀이 끝나기를 기다리는 중';
     $('done').hidden = false;
     renderKeys();
     sfx(m.rank === 1 ? 'win' : 'clear');
@@ -497,13 +514,12 @@
   var BOT_SPEED_SHORT = { slow: '느림', normal: '보통', fast: '빠름' };
   function optDefault(k) { return OPTIONS && OPTIONS[k] ? OPTIONS[k].def : null; }
 
-  function openCreate() {
+  function openCreate(mode) {
     cr = cr || {
-      tags: [], max: optDefault('max') || 4, limitMin: optDefault('limitMin') || 5, occSec: optDefault('occSec') || 20,
-      botSpeed: optDefault('botSpeed') || 'normal',
-      bossLimitSec: optDefault('bossLimitSec') || 30, bossEverySec: optDefault('bossEverySec') || 15, bossWaitSec: optDefault('bossWaitSec') || 8,
-      penalty: true, auto: true, blocks: 72
+      tags: [], max: optDefault('max') || 4, teams: optDefault('roomTeams') || 2, teamSize: optDefault('teamSize') || 4, limitMin: optDefault('limitMin') || 5,
+      botSpeed: optDefault('botSpeed') || 'normal', auto: true, blocks: 72
     };
+    cr.mode = mode === 'battle' ? 'battle' : 'coop';
     $('cr-error').textContent = '';
     $('btn-open').disabled = false;
     show('create');
@@ -553,6 +569,17 @@
     info.textContent = !cr.tags.length ? '태그를 하나 이상 고르세요' :
       '일반 ' + cnt.normal + '문제 · 보스 ' + cnt.boss + '문제 출제' + (cnt.boss ? '' : ' — 보스 문제가 없어 보스가 나오지 않아요');
 
+    var battle = cr.mode === 'battle';
+    $('cr-title').textContent = battle ? '대전방 만들기' : '협동방 만들기';
+    $('cr-ppl-field').hidden = battle;
+    $('cr-team-field').hidden = !battle;
+    $('cr-tm').textContent = cr.teams + '팀';
+    $('cr-ts').textContent = cr.teamSize + '명';
+    $('cr-tm-down').disabled = cr.teams <= 2; $('cr-tm-up').disabled = cr.teams >= 4;
+    $('cr-ts-down').disabled = cr.teamSize <= 1; $('cr-ts-up').disabled = cr.teamSize >= 8;
+    $('cr-hint').textContent = battle
+      ? '팀마다 같은 판 · 같은 문제로 겨뤄요. 보스를 잡으면 다른 팀을 공격하는 방해 아이템과 방패가 나와요.'
+      : '모두가 한 판을 같이 깨요. 다른 팀을 공격하는 아이템과 방패는 나오지 않아요.';
     $('cr-ppl').textContent = cr.max;
     $('cr-ppl-down').disabled = cr.max <= 2;
     $('cr-ppl-up').disabled = cr.max >= 16;
@@ -560,10 +587,6 @@
     if (document.activeElement !== $('cr-lim')) $('cr-lim').value = cr.limitMin;
     $('cr-lim-down').disabled = cr.limitMin <= limMin;
     $('cr-lim-up').disabled = cr.limitMin >= limMax;
-    segButtons('cr-occ', (o.occSec || {}).list || [10, 15, 20, 30], cr.occSec, '초', function (v) { cr.occSec = v; });
-    segButtons('cr-bosslimit', (o.bossLimitSec || {}).list || [20, 30, 45, 60], cr.bossLimitSec, '초', function (v) { cr.bossLimitSec = v; });
-    segButtons('cr-bossevery', (o.bossEverySec || {}).list || [10, 15, 30, 60], cr.bossEverySec, '초', function (v) { cr.bossEverySec = v; });
-    segButtons('cr-bosswait', (o.bossWaitSec || {}).list || [5, 8, 12, 20], cr.bossWaitSec, '초', function (v) { cr.bossWaitSec = v; });
     var sb = $('cr-botspeed');
     sb.innerHTML = '';
     ((o.botSpeed || {}).list || ['slow', 'normal', 'fast']).forEach(function (v) {
@@ -573,20 +596,17 @@
       b.onclick = function () { cr.botSpeed = v; renderCreate(); };
       sb.appendChild(b);
     });
-    $('cr-pen').setAttribute('aria-pressed', String(cr.penalty));
-    $('cr-pentext').textContent = cr.penalty ? '보스 보상의 15%가 페널티' : '페널티 없이 좋은 아이템만';
     $('cr-auto').setAttribute('aria-pressed', String(cr.auto));
     $('cr-blk').textContent = cr.auto ? '자동' : String(cr.blocks);
     $('cr-blk-down').disabled = cr.auto || cr.blocks <= 24;
     $('cr-blk-up').disabled = cr.auto || cr.blocks >= 144;
-    $('cr-blkhelp').textContent = cr.auto ? '시작할 때 인원 × 24칸 (최대 96칸)' : '24 ~ 144칸, 12칸씩 (' + (cr.blocks / 12) + '줄)';
+    $('cr-blkhelp').textContent = cr.auto ? (battle ? '시작할 때 가장 큰 팀 인원 × 24칸 (최대 96칸)' : '시작할 때 인원 × 24칸 (최대 96칸)') : '24 ~ 144칸, 12칸씩 (' + (cr.blocks / 12) + '줄)';
 
     if (ME) { $('cr-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('cr-name').textContent = ME.nick + '의 방'; }
     var sum = [
-      ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'], ['최대 인원', cr.max + '명'], ['제한 시간', cr.limitMin + '분'],
-      ['블록 수', cr.auto ? '자동' : cr.blocks + '칸'], ['블록 점유', cr.occSec + '초'],
-      ['보스 간격 · 잔류', cr.bossEverySec + '초 · ' + cr.bossWaitSec + '초'], ['보스 풀이', cr.bossLimitSec + '초'],
-      ['봇 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통'], ['페널티', cr.penalty ? '있음' : '없음']
+      ['방식', battle ? '대전방' : '협동방'], ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
+      battle ? ['팀', cr.teams + '팀 × ' + cr.teamSize + '명 (최대 ' + (cr.teams * cr.teamSize) + '명)'] : ['최대 인원', cr.max + '명'], ['제한 시간', cr.limitMin + '분'],
+      ['블록 수', cr.auto ? '자동' : cr.blocks + '칸'], ['봇 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
     ];
     fillSummary($('cr-summary'), sum);
     $('btn-open').disabled = !cr.tags.length;
@@ -617,7 +637,10 @@
     else if (e.key === 'ArrowDown') { e.preventDefault(); setLimit(cr.limitMin - 1); }
   });
   $('cr-ppl-up').onclick = function () { cr.max = Math.min(16, cr.max + 1); renderCreate(); };
-  $('cr-pen').onclick = function () { cr.penalty = !cr.penalty; renderCreate(); };
+  $('cr-tm-down').onclick = function () { cr.teams = Math.max(2, cr.teams - 1); renderCreate(); };
+  $('cr-tm-up').onclick = function () { cr.teams = Math.min(4, cr.teams + 1); renderCreate(); };
+  $('cr-ts-down').onclick = function () { cr.teamSize = Math.max(1, cr.teamSize - 1); renderCreate(); };
+  $('cr-ts-up').onclick = function () { cr.teamSize = Math.min(8, cr.teamSize + 1); renderCreate(); };
   $('cr-auto').onclick = function () { cr.auto = !cr.auto; renderCreate(); };
   $('cr-blk-down').onclick = function () { cr.blocks = Math.max(24, cr.blocks - 12); renderCreate(); };
   $('cr-blk-up').onclick = function () { cr.blocks = Math.min(144, cr.blocks + 12); renderCreate(); };
@@ -626,8 +649,8 @@
     if (!cr.tags.length) return;
     $('btn-open').disabled = true;
     var settings = {
-      tags: cr.tags, max: cr.max, limitMin: cr.limitMin, occSec: cr.occSec, bossLimitSec: cr.bossLimitSec,
-      bossEverySec: cr.bossEverySec, bossWaitSec: cr.bossWaitSec, penalty: cr.penalty, blocks: cr.auto ? 0 : cr.blocks,
+      mode: cr.mode, teams: cr.teams, teamSize: cr.teamSize,
+      tags: cr.tags, max: cr.max, limitMin: cr.limitMin, blocks: cr.auto ? 0 : cr.blocks,
       botSpeed: cr.botSpeed
     };
     socket.emit('room:create', { settings: settings }, function (res) {
@@ -642,6 +665,7 @@
   function openWait(r) {
     room = r;
     room.closeAt = Date.now() + r.closeMs;
+    room.autoAt = r.autoMs ? Date.now() + r.autoMs : 0;
     if (current !== 'game') show('wait');
     renderWait();
   }
@@ -655,76 +679,173 @@
       var someone = (r.members || []).some(function (p) { return !before[p.id] && !p.bot && p.id !== ME.id; });
       if (someone) sfx('join');
     }
+    var lastTick = room && room.lastAutoTick;
     room = r;
     room.closeAt = Date.now() + r.closeMs;
+    room.autoAt = r.autoMs ? Date.now() + r.autoMs : 0;
+    room.lastAutoTick = lastTick;
     // 게임 중에는 대기실 화면으로 바꾸지 않는다 ('state' 로 게임 화면이 온다)
     if (r.phase === 'waiting' && current !== 'game') { show('wait'); renderWait(); }
     else if (r.phase === 'waiting' && current === 'game' && !wasPlaying) { /* 결과가 곧 온다 */ }
     if (current === 'wait') renderWait();
   });
 
+  // 대기실 사람 카드 하나 (협동방 슬롯 · 대전방 팀 칸 공용)
+  function personSlot(p, opt) {
+    var meId = ME && ME.id, amHost = room.hostId === meId, s = room.settings;
+    var d = el('div', 'slot' + (p.id === meId ? ' me' : '') + (p.bot ? ' bot' : '') + (p.online ? '' : ' off') + (p.ready ? ' ready' : ''));
+    d.setAttribute('data-pid', p.id);
+    var said = chat.say[p.id];
+    if (said && said.until > Date.now()) d.appendChild(el('span', 'say', said.text));
+    if (p.id === room.hostId) d.appendChild(el('span', 'host-badge', '방장'));
+    else if (p.bot) d.appendChild(el('span', 'bot-badge big', '🤖 봇'));
+    else d.appendChild(el('span', 'ready-badge' + (p.ready ? ' on' : ''), p.ready ? '✔ 준비' : '준비 전'));
+    d.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av'));
+    d.appendChild(el('b', null, (p.bot ? '🤖 ' : '') + p.nick));
+    d.appendChild(el('small', null, p.bot ? '봇 · ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통') : p.id === meId ? '나' : (p.online ? (p.id === room.hostId ? '방장' : p.ready ? '준비 완료' : '준비 전') : '연결 끊김')));
+    // 방장 관리 (마우스): 팀 옮기기 · 내보내기 / 봇 빼기
+    if (amHost && p.id !== meId && room.phase === 'waiting') {
+      var tools = el('span', 'slot-tools');
+      if (room.mode === 'battle') {
+        var sel = el('select', 'team-sel');
+        sel.setAttribute('aria-label', p.nick + ' 팀 옮기기');
+        room.teams.forEach(function (t) {
+          var o = el('option', null, t.no + '팀');
+          o.value = t.no;
+          if (t.no === opt.team) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.onchange = function () { roomAct('move', { id: p.id, no: Number(sel.value) }); };
+        tools.appendChild(sel);
+      }
+      var kb = el('button', 'btn small ghost-btn bot-out', p.bot ? '빼기' : '내보내기');
+      kb.type = 'button';
+      kb.onclick = function () {
+        if (p.bot) { roomBot({ op: 'remove', id: p.id }); return; }
+        if (Date.now() - (kb._arm || 0) > 3000) { kb._arm = Date.now(); kb.textContent = '한 번 더!'; setTimeout(function () { kb.textContent = '내보내기'; }, 3000); return; }
+        roomAct('kick', { id: p.id });
+      };
+      tools.appendChild(kb);
+      d.appendChild(tools);
+    }
+    return d;
+  }
+  function emptySlot(team) {
+    var meId = ME && ME.id, amHost = room.hostId === meId, s = room.settings;
+    if (amHost && !emptySlot.botShown[team || 0]) {
+      emptySlot.botShown[team || 0] = 1;
+      var ab = el('button', 'slot empty add-bot');
+      ab.type = 'button';
+      ab.appendChild(el('i', null, '+'));
+      ab.appendChild(el('span', null, '봇 넣기'));
+      ab.appendChild(el('small', null, '봇 속도: ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통')));
+      ab.onclick = function () { roomBot({ op: 'add', no: team || 0 }); };
+      return ab;
+    }
+    var mine = myRoomTeam();
+    var e = el(team && team !== mine ? 'button' : 'div', 'slot empty' + (team && team !== mine ? ' movable' : ''));
+    e.appendChild(el('i', null, '?'));
+    if (team && team !== mine) {
+      e.type = 'button';
+      e.appendChild(el('span', null, team + '팀으로 옮기기'));
+      e.onclick = function (ev) { pickRoomTeam(team); };
+    } else e.appendChild(el('span', null, '친구를 기다리는 중'));
+    return e;
+  }
+  emptySlot.botShown = {};
+  function myRoomTeam() {
+    if (!room || room.mode !== 'battle' || !ME) return 0;
+    for (var k = 0; k < room.teams.length; k++) if (room.teams[k].members.some(function (p) { return p.id === ME.id; })) return room.teams[k].no;
+    return 0;
+  }
+  function pickRoomTeam(no) {
+    if (!room || room.mode !== 'battle' || room.phase !== 'waiting') return;
+    if (no > room.teams.length) return;
+    if (no === myRoomTeam()) return;
+    roomAct('team', { no: no });
+  }
+  function roomAct(op, msg) {
+    $('w-error').textContent = '';
+    socket.emit('room:' + op, msg || {}, function (res) {
+      if (!res || !res.ok) $('w-error').textContent = (res && res.error) || '하지 못했어요';
+    });
+  }
+
   function renderWait() {
     if (!room) return;
-    var s = room.settings, meId = ME && ME.id;
+    var s = room.settings, meId = ME && ME.id, battle = room.mode === 'battle';
+    var amHost = room.hostId === meId;
     $('w-name').textContent = room.name;
+    $('w-mode').textContent = battle ? '대전방 · ' + s.teams + '팀 × ' + s.teamSize + '명' : '협동방';
     $('w-count').textContent = room.members.length + '/' + s.max;
-    var slots = $('w-slots');
-    slots.innerHTML = '';
-    slots.classList.toggle('many', s.max > 8);
-    var amHost = room.hostId === meId, botBtnShown = false;
-    for (var i = 0; i < s.max; i++) {
-      var p = room.members[i];
-      if (!p) {
-        // 방장에게는 첫 빈자리에 '봇 넣기' (v0.6.4)
-        if (amHost && !botBtnShown) {
-          botBtnShown = true;
-          var ab = el('button', 'slot empty add-bot');
-          ab.type = 'button';
-          ab.appendChild(el('i', null, '+'));
-          ab.appendChild(el('span', null, '봇 넣기'));
-          ab.appendChild(el('small', null, '봇 속도: ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통')));
-          ab.onclick = function () { roomBot({ op: 'add' }); };
-          slots.appendChild(ab);
-          continue;
-        }
-        var e = el('div', 'slot empty'); e.appendChild(el('i', null, '?')); e.appendChild(el('span', null, '친구를 기다리는 중')); slots.appendChild(e); continue;
+    emptySlot.botShown = {};
+    var slots = $('w-slots'), teams = $('w-teams');
+    slots.hidden = battle; teams.hidden = !battle;
+    if (battle) {
+      teams.innerHTML = '';
+      teams.className = 'wteams n' + room.teams.length + (s.teamSize > 4 ? ' big' : '');
+      var mine = myRoomTeam();
+      room.teams.forEach(function (t) {
+        var col = el('section', 'wteam' + (t.no === mine ? ' mine' : ''));
+        col.style.setProperty('--tc', TEAM_COLORS[(t.no - 1) % TEAM_COLORS.length]);
+        var hd = el('div', 'wt-head');
+        hd.appendChild(el('b', null, t.no + '팀'));
+        hd.appendChild(el('span', 'pixel', t.members.length + '/' + s.teamSize));
+        if (t.no === mine) hd.appendChild(el('em', null, '우리 팀'));
+        col.appendChild(hd);
+        var g = el('div', 'wt-slots');
+        t.members.forEach(function (p) { g.appendChild(personSlot(p, { team: t.no })); });
+        for (var i = t.members.length; i < s.teamSize; i++) g.appendChild(emptySlot(t.no));
+        col.appendChild(g);
+        teams.appendChild(col);
+      });
+    } else {
+      slots.innerHTML = '';
+      slots.classList.toggle('many', s.max > 8);
+      for (var i = 0; i < s.max; i++) {
+        var p = room.members[i];
+        slots.appendChild(p ? personSlot(p, {}) : emptySlot(0));
       }
-      var d = el('div', 'slot' + (p.id === meId ? ' me' : '') + (p.bot ? ' bot' : '') + (p.online ? '' : ' off'));
-      d.setAttribute('data-pid', p.id);
-      var said = chat.say[p.id];
-      if (said && said.until > Date.now()) d.appendChild(el('span', 'say', said.text));
-      if (p.id === room.hostId) d.appendChild(el('span', 'host-badge', '방장'));
-      if (p.bot) d.appendChild(el('span', 'bot-badge big', '🤖 봇'));
-      d.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av'));
-      d.appendChild(el('b', null, (p.bot ? '🤖 ' : '') + p.nick));
-      d.appendChild(el('small', null, p.bot ? '봇 · ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통') : p.id === meId ? '나' : (p.online ? '준비 완료' : '연결 끊김')));
-      if (p.bot && amHost) {
-        var rb = el('button', 'btn small ghost-btn bot-out', '빼기');
-        rb.type = 'button';
-        rb.onclick = (function (id) { return function () { roomBot({ op: 'remove', id: id }); }; })(p.id);
-        d.appendChild(rb);
-      }
-      slots.appendChild(d);
     }
-    fillSummary($('w-summary'), [
-      ['태그', s.tags.join(' · ')], ['최대 인원', s.max + '명'], ['제한 시간', s.limitMin + '분'],
-      ['블록 수', s.blocks ? s.blocks + '칸' : '자동 (인원 × 24)'], ['블록 점유', s.occSec + '초'],
-      ['보스 간격 · 잔류', s.bossEverySec + '초 · ' + s.bossWaitSec + '초'], ['보스 풀이', s.bossLimitSec + '초'],
-      ['봇 속도', BOT_SPEED_SHORT[s.botSpeed] || '보통'], ['페널티', s.penalty ? '있음' : '없음']
-    ]);
-    var host = room.hostId === meId;
-    $('w-host').hidden = !host;
-    $('w-guest').hidden = host;
+    var sum = [['방식', battle ? '대전방' : '협동방'], ['태그', s.tags.join(' · ')]];
+    sum.push(battle ? ['팀', s.teams + '팀 × ' + s.teamSize + '명'] : ['최대 인원', s.max + '명']);
+    sum.push(['제한 시간', s.limitMin + '분'],
+      ['블록 수', s.blocks ? s.blocks + '칸' : (battle ? '자동 (가장 큰 팀 × 24)' : '자동 (인원 × 24)')],
+      ['봇 속도', BOT_SPEED_SHORT[s.botSpeed] || '보통']);
+    if (battle) sum.push(['방해 아이템', '늘 나옴']);
+    fillSummary($('w-summary'), sum);
+    // 시작 조건 · 준비 · 자동 시작
+    var chk = room.check || { ok: true }, me = null;
+    room.members.forEach(function (p) { if (p.id === meId) me = p; });
+    $('w-host').hidden = !amHost;
+    $('w-guest').hidden = amHost;
+    $('btn-start').disabled = !chk.ok;
+    var rb = $('btn-ready'), ready = !!(me && me.ready);
+    rb.setAttribute('aria-pressed', String(ready));
+    rb.firstChild.textContent = ready ? '✔ 준비 완료' : '준비';
+    rb.classList.toggle('on', ready);
+    $('w-guestinfo').textContent = ready ? '한 번 더 누르면 준비가 풀려요 · 모두 준비하면 15초 뒤 자동 시작' : 'Ctrl + Enter 로 준비! 모두 준비해야 시작할 수 있어요';
+    var msg = '';
+    if (chk.why === 'rival') msg = battle ? '상대 팀이 없어요 — 다른 팀에도 사람이나 봇이 있어야 시작할 수 있어요' : '';
+    else if (chk.why === 'ready') msg = chk.notReady + '명이 아직 준비하지 않았어요';
+    if (chk.ok && chk.warn === 'uneven') {
+      msg = room.teams.filter(function (t) { return t.members.length; }).map(function (t) { return t.no + '팀 ' + t.members.length + '명'; }).join(' · ') + ' — 인원이 달라요';
+    }
+    $('w-check').textContent = msg;
+    $('w-check').hidden = !msg;
+    $('w-check').classList.toggle('warn', !!(chk.ok && chk.warn));
+    $('btn-fill').hidden = !(amHost && battle && (chk.why === 'rival' || chk.warn === 'uneven'));
     $('w-startinfo').innerHTML = '';
     $('w-startinfo').appendChild(document.createTextNode('지금 시작하면 '));
-    $('w-startinfo').appendChild(el('b', null, room.members.length + '명 · ' + room.blocksNow + '칸'));
-    $('w-startinfo').appendChild(document.createTextNode('으로 정해져요'));
+    $('w-startinfo').appendChild(el('b', null, (battle ? room.teams.filter(function (t) { return t.members.length; }).length + '팀 · ' : room.members.length + '명 · ') + room.blocksNow + '칸'));
+    $('w-startinfo').appendChild(document.createTextNode(battle ? '(팀마다)으로 정해져요' : '으로 정해져요'));
     tickClocks();
     renderChat();
     renderSoundBtns();
   }
+  var TEAM_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
 
-  // ── 대기실 · 조 선택 화면 채팅 (v0.7.3): 정해 둔 문구만 · 게임 중에는 없음 ──
+  // ── 대기실 · 팀 선택 화면 채팅 (v0.7.3): 정해 둔 문구만 · 게임 중에는 없음 ──
   var CH = window.CGChat;
   var chat = { tab: 'reply', until: 0, say: {} }; // say: 사람 id → { text, until } (대기실 카드 위 말풍선 3초)
   function chatCtx() {
@@ -800,7 +921,7 @@
     renderChat();
     if (!ME || m.pid !== ME.id) sfx('chat');
   });
-  // 키보드: 숫자 1~6 보내기 · ← → 묶음 바꾸기 (대기실 · 조 선택 화면에서만, 글 칸에 있을 때는 안 함)
+  // 키보드: 숫자 1~6 보내기 · ← → 묶음 바꾸기 (대기실 · 팀 선택 화면에서만, 글 칸에 있을 때는 안 함)
   window.addEventListener('keydown', function (e) {
     if (current !== 'wait' && current !== 'team') return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -832,6 +953,8 @@
   $('btn-wait-leave').onclick = function () {
     socket.emit('room:leave', {}, function () {});
   };
+  $('btn-ready').onclick = function (e) { roomAct('ready'); };
+  $('btn-fill').onclick = function () { roomBot({ op: 'fill' }); };
   $('btn-start').onclick = function () {
     $('btn-start').disabled = true;
     $('w-error').textContent = '';
@@ -847,6 +970,7 @@
     closeBubble(); closeBossBubble();
     game = null;
     $('rs-teams').hidden = true;
+    $('rs-graph').hidden = true;
     $('rs-players').hidden = false;
     $('btn-result-ok').textContent = '대기실로';
     var box = document.querySelector('#overlay-result .result');
@@ -875,18 +999,20 @@
   });
   function closeResult(focusWait) { $('overlay-result').hidden = true; }
 
-  // 수업 게임 한 판 결과 — 조별 순위
-  var CLASS_REASON = { clear: '모든 조가 판 완성!', time: '시간 종료', stop: '선생님이 게임을 끝냈어요' };
+  // 수업방 한 판 결과 — 팀별 순위
+  var CLASS_REASON = { clear: '모든 팀이 판 완성!', time: '시간 종료', stop: '선생님이 게임을 끝냈어요', out: '게임 끝' };
   socket.on('class:result', function (r) {
-    var mine = game && game.team ? game.team : myTeam();
+    var battle = r.mode === 'battle';
+    var mine = game && game.team ? game.team : battle ? myRoomTeam() : myTeam();
     closeBubble(); closeBossBubble();
     game = null;
     var my = r.teams.filter(function (t) { return t.no === mine; })[0];
     if (sound.on && !(cls && cls.sfx === false)) SND.play(my && my.rank === 1 ? 'win' : 'end');
+    drawRankGraph(r);
     var box = document.querySelector('#overlay-result .result');
     box.classList.toggle('fail', !(my && my.rank === 1));
     $('rs-kind').textContent = CLASS_REASON[r.reason] || '게임 끝';
-    $('rs-title').textContent = my ? my.no + '조 ' + my.rank + '위' : '게임 끝';
+    $('rs-title').textContent = my ? my.no + '팀 ' + my.rank + '위' : '게임 끝';
     var stats = $('rs-stats');
     stats.innerHTML = '';
     var mineRows = [['걸린 시간', mmss(my ? my.ms : r.ms)], ['해결한 블록', my ? my.solved + ' / ' + my.total : '-'], ['보스 격파', (my ? my.bosses : 0) + '마리']];
@@ -896,12 +1022,12 @@
     r.teams.forEach(function (t) {
       var li = el('li', t.no === mine ? 'me' : '');
       li.appendChild(el('span', 'rt-rank', t.rank + '위'));
-      li.appendChild(el('b', null, t.no + '조'));
-      li.appendChild(el('em', null, t.clear ? '완성 · ' + mmss(t.ms) : '해결률 ' + t.pct + '%'));
+      li.appendChild(el('b', null, t.no + '팀'));
+      li.appendChild(el('em', null, t.clear ? '완성 · ' + mmss(t.ms) : t.reason === 'forfeit' ? '기권 · ' + t.pct + '%' : '해결률 ' + t.pct + '%'));
       ol.appendChild(li);
     });
     ol.hidden = false;
-    // 우리 조원 기록
+    // 우리 팀원 기록
     var pl = $('rs-players');
     pl.innerHTML = '';
     (my ? my.members : []).forEach(function (p) {
@@ -912,13 +1038,53 @@
       pl.appendChild(li);
     });
     pl.hidden = !(my && my.members.length);
-    $('btn-result-ok').textContent = '조 선택으로';
+    $('btn-result-ok').textContent = battle ? '대기실로' : '팀 선택으로';
     $('overlay-result').hidden = false;
-    show('team');
-    renderTeam();
+    if (battle) { show('wait'); renderWait(); }
+    else { show('team'); renderTeam(); }
     setTimeout(function () { $('btn-result-ok').focus(); }, 50);
   });
   $('btn-result-ok').onclick = function () { closeResult(true); };
+
+  // 결과 화면의 순위 변동 그래프 (v0.13.0, 전광판 그래프를 작게) — 판이 끝난 순간까지
+  function drawRankGraph(r) {
+    var box = $('rs-graph');
+    var hist = r.history || [];
+    box.hidden = hist.length < 2 || r.teams.length < 2;
+    if (box.hidden) return;
+    box.innerHTML = '';
+    var NS = 'http://www.w3.org/2000/svg';
+    function sv(tag, a, text) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); if (text != null) e.textContent = text; return e; }
+    var W = 460, H = Math.max(120, 40 + r.teams.length * 34), L = 44, R = 56, T = 16, B = 26;
+    var span = Math.max(hist[hist.length - 1].t, 10000), n = Math.max(2, r.teams.length);
+    var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
+    var y = function (k) { return T + (H - T - B) * (k - 1) / (n - 1); };
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%', role: 'img' });
+    for (var k = 1; k <= r.teams.length; k++) {
+      svg.appendChild(sv('line', { x1: L, x2: W - R + 10, y1: y(k), y2: y(k), class: 'grid' }));
+      svg.appendChild(sv('text', { x: L - 10, y: y(k) + 5, class: 'ylab', 'text-anchor': 'end' }, k + '위'));
+    }
+    svg.appendChild(sv('text', { x: L, y: H - 6, class: 'xlab', 'text-anchor': 'middle' }, '시작'));
+    svg.appendChild(sv('text', { x: x(span), y: H - 6, class: 'xlab', 'text-anchor': 'middle' }, '끝 ' + mmss(span)));
+    var mine = game && game.team ? game.team : (r.mode === 'battle' ? myRoomTeam() : myTeam());
+    r.teams.forEach(function (t) {
+      var d = '', prev = null;
+      hist.forEach(function (p) {
+        var i = p.order.indexOf(t.no);
+        if (i < 0) { prev = null; return; }
+        var px = x(p.t), py = y(i + 1);
+        if (!prev) d += 'M' + px.toFixed(1) + ' ' + py.toFixed(1);
+        else { var mx = (prev[0] + px) / 2; d += 'C' + mx.toFixed(1) + ' ' + prev[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + py.toFixed(1) + ' ' + px.toFixed(1) + ' ' + py.toFixed(1); }
+        prev = [px, py];
+      });
+      if (!prev) return;
+      var c = TEAM_COLORS[(t.no - 1) % TEAM_COLORS.length];
+      svg.appendChild(sv('path', { d: d, class: 'ln' + (t.no === mine ? ' mine' : ''), stroke: c }));
+      svg.appendChild(sv('circle', { cx: prev[0], cy: prev[1], r: 6, fill: c }));
+      svg.appendChild(sv('text', { x: prev[0] + 10, y: prev[1] + 5, class: 'tlab' + (t.no === mine ? ' mine' : '') }, t.no + '팀'));
+    });
+    box.appendChild(svg);
+  }
 
   function mmss(ms) {
     var t = Math.max(0, Math.ceil(ms / 1000));
@@ -929,7 +1095,15 @@
   // 대기실 닫힘 · 게임 제한 시간 · 방치 경고 초 세기
   function tickClocks() {
     var t = Date.now();
-    if (room && current === 'wait') $('w-close').textContent = mmss(room.closeAt - t);
+    if (room && current === 'wait') {
+      $('w-close').textContent = mmss(room.closeAt - t);
+      var ab = $('w-auto'), left = room.autoAt ? Math.ceil((room.autoAt - t) / 1000) : 0;
+      ab.hidden = !(room.autoAt && left > 0 && room.phase === 'waiting');
+      if (!ab.hidden) {
+        ab.textContent = '모두 준비 완료! ' + left + '초 뒤에 자동으로 시작해요';
+        if (left <= 5 && left !== room.lastAutoTick) { room.lastAutoTick = left; sfx('tick'); }
+      }
+    }
     if (game && current === 'game') {
       var left = game.endAt - (game.paused ? game.pauseAt : t);
       var tm = $('g-timer');
@@ -953,10 +1127,11 @@
     if (Date.now() - leaveArm > 3000) {
       leaveArm = Date.now();
       b.textContent = '한 번 더 누르면 나가요';
-      setTimeout(function () { b.textContent = '나가기'; }, 3000);
+      toast('한 번 더 누르면 나가요 (Alt + Q)', 'warn', 2500);
+      setTimeout(function () { b.textContent = '나가기 · Alt+Q'; }, 3000);
       return;
     }
-    b.textContent = '나가기';
+    b.textContent = '나가기 · Alt+Q';
     closeBubble(); closeBossBubble();
     game = null;
     socket.emit('room:leave', {}, function () {});
@@ -991,7 +1166,7 @@
     closeBubble(); closeBossBubble();
     var t = now(), fx = st.fx || {};
     $('overlay-result').hidden = true;
-    var isClass = st.room.mode === 'class';
+    var isClass = st.room.mode === 'class' || st.room.mode === 'battle'; // 팀 대전 (수업방 · 대전방)
     game = {
       board: st.board, players: players, meId: st.meId,
       cls: isClass, team: isClass ? st.room.team : 0, ended: !!st.ended, paused: false, pauseAt: 0, occUntil: 0, bossUntil: 0,
@@ -1011,11 +1186,11 @@
     if (game.countdownUntil) { game.paused = true; game.pauseAt = t; game.lastCd = 0; }
     buildBoard();
     $('g-feed').innerHTML = '';
-    $('g-room').textContent = st.room.name || '학생 방';
-    $('g-mode').textContent = isClass ? '수업 게임 · ' + st.room.name : '자유 대전';
+    $('g-room').textContent = st.room.name || '협동방';
+    $('g-mode').textContent = st.room.mode === 'class' ? '수업방 · ' + st.room.name : st.room.mode === 'battle' ? '대전방 · ' + st.room.name : '협동방';
     $('g-stand-card').hidden = !isClass;
     $('g-progress-card').hidden = isClass;
-    $('g-team-title').textContent = isClass ? '우리 조원' : '우리 팀';
+    $('g-team-title').textContent = isClass ? '우리 팀원' : '우리 팀';
     $('done').hidden = true;
     $('aim').hidden = true; clearTimeout(aimTimer);
     $('paused').hidden = true;
@@ -1023,7 +1198,7 @@
     var tg = $('g-tags');
     tg.innerHTML = '';
     (st.room.tags || []).forEach(function (x) { tg.appendChild(el('span', null, '#' + x)); });
-    $('btn-leave').textContent = '나가기';
+    $('btn-leave').textContent = '나가기 · Alt+Q';
     $('idle').hidden = !game.idleUntil;
     show('game');
     renderAll();
@@ -1177,14 +1352,14 @@
   socket.on('item', function (m) {
     var el = $('banner');
     // 입력 중 · 보스 공략 중에는 말풍선을 가리지 않게 판 맨 위에 작게 · 반투명으로 (v0.7.1)
-    // good 아이템 · bad 페널티 · attack 우리가 쏜 방해 · hit 다른 조의 공격을 맞음 · blocked 방패로 막음
+    // good 아이템 · bad 페널티 · attack 우리가 쏜 방해 · hit 다른 팀의 공격을 맞음 · blocked 방패로 막음
     // v0.7.0: get 보스 보상이 덱으로 · gather 집결 보스 성공 보상
     var KIND = { good: ['good', '아이템'], bad: ['bad', '페널티'], attack: ['attack', '공격 발사!'], hit: ['bad', '공격 받음!'], blocked: ['shielded', '방패!'],
       get: [m.lost ? 'bad' : 'good', m.lost ? '덱이 가득 참' : '아이템 획득!'], gather: [m.lost ? 'bad' : 'good', '모두 잡았다!'] }[m.kind] || ['good', '아이템'];
     el.className = 'banner show ' + KIND[0];
     fitBanner();
     el.querySelector('.bn-kind').textContent = KIND[1];
-    el.querySelector('.bn-name').textContent = m.kind === 'attack' ? m.to + '조에 ' + m.name : m.name;
+    el.querySelector('.bn-name').textContent = m.kind === 'attack' ? m.to + '팀에 ' + m.name : m.name;
     el.querySelector('.bn-desc').textContent = m.desc + ' · ' + m.by;
     clearTimeout(el._t);
     el._t = setTimeout(function () { el.className = 'banner'; }, 2600);
@@ -1225,7 +1400,7 @@
       }
       box.appendChild(s);
     }
-    // 방패 칸: 수업 게임에서만 (학생 방이라도 가진 게 있으면)
+    // 방패 칸: 수업방에서만 (학생 방이라도 가진 게 있으면)
     if (game.cls || d.shields) {
       var sh = el('div', 'dk-slot shield' + (d.shields ? '' : ' empty'));
       sh.appendChild(el('kbd', null, 'Ctrl+Shift+9'));
@@ -1240,16 +1415,16 @@
     if (!sl) return;
     sl.classList.remove('used'); void sl.offsetWidth; sl.classList.add('used');
   }
-  var USE_WHY = { empty: '칸이 비어 있어요', 'attacks-off': '선생님이 방해 아이템을 껐어요', 'no-target': '공격할 조가 없어요 — 아이템은 그대로 있어요',
-    'bad-target': '그 조는 공격할 수 없어요 — 아이템은 그대로 있어요',
+  var USE_WHY = { empty: '칸이 비어 있어요', 'attacks-off': '선생님이 방해 아이템을 껐어요', 'no-target': '공격할 팀이 없어요 — 아이템은 그대로 있어요',
+    'bad-target': '그 팀은 공격할 수 없어요 — 아이템은 그대로 있어요',
     frozen: '얼음 중에는 아이템을 쓸 수 없어요', paused: '일시정지 중이에요', ended: '게임이 끝났어요' };
-  // ── 방해 아이템 대상 고르기 (v0.12.0): Ctrl+Shift+번호 → 숫자 키로 조 번호 (3초 안에 안 고르면 바로 위 순위 조) ──
+  // ── 방해 아이템 대상 고르기 (v0.12.0): Ctrl+Shift+번호 → 숫자 키로 팀 번호 (3초 안에 안 고르면 바로 위 순위 팀) ──
   var AIM_MS = 3000, aimTimer = null;
-  /** 공격할 수 있는 조 (우리 조 · 끝난 조 · 아무도 없는 조 빼고) */
+  /** 공격할 수 있는 팀 (우리 팀 · 끝난 팀 · 아무도 없는 팀 빼고) */
   function aimTargets() {
     return standings.filter(function (x) { return x.no !== game.team && !x.done && (x.count > 0 || x.solved > 0); });
   }
-  /** 기본 대상: 바로 위 순위 조 (1등이면 2등) — 서버와 같은 순서 */
+  /** 기본 대상: 바로 위 순위 팀 (1등이면 2등) — 서버와 같은 순서 */
   function aimDefault() {
     var live = standings.filter(function (x) { return !x.done && (x.count > 0 || x.solved > 0 || x.no === game.team); }).slice();
     live.sort(function (a, b) { return (b.total ? b.solved / b.total : 0) - (a.total ? a.solved / a.total : 0) || b.solved - a.solved || a.no - b.no; });
@@ -1278,14 +1453,14 @@
     var box = $('aim');
     if (!game || !game.aim) { box.hidden = true; return; }
     var a = game.aim, def = aimDefault();
-    box.querySelector('.aim-title').textContent = '🎯 ' + a.item.name + ' — 몇 조를 공격할까요?';
+    box.querySelector('.aim-title').textContent = '🎯 ' + a.item.name + ' — 몇 팀을 공격할까요?';
     var list = box.querySelector('.aim-teams');
     list.innerHTML = '';
     aimTargets().forEach(function (x) {
       var b = el('button', 'aim-team' + (x.no === def ? ' def' : ''));
       b.type = 'button';
       b.appendChild(el('kbd', null, String(x.no)));
-      b.appendChild(el('b', null, x.no + '조'));
+      b.appendChild(el('b', null, x.no + '팀'));
       b.appendChild(el('span', null, x.pct + '%' + (x.no === def ? ' · 기본' : '')));
       b.onmousedown = function (e) { e.preventDefault(); };
       b.onclick = function () { if (game && game.aim) fireSlot(game.aim.slot, x.no); };
@@ -1303,7 +1478,7 @@
       e.preventDefault();
       if (e.repeat) return true;
       var to = Number(m[2]);
-      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 조는 공격할 수 없어요' : to + '조는 공격할 수 없어요', 'warn', 1400); return true; }
+      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 팀은 공격할 수 없어요' : to + '팀은 공격할 수 없어요', 'warn', 1400); return true; }
       fireSlot(game.aim.slot, to);
       return true;
     }
@@ -1359,9 +1534,9 @@
     if (!x) return;
     var mine = (game.deck && game.deck.shields) || 0;
     box.classList.toggle('can', mine > 0);
-    box.querySelector('.in-title').textContent = '⚠ ' + x.from + '조의 ' + x.name + ' 공격!' + (game.incoming.length > 1 ? ' (+' + (game.incoming.length - 1) + ')' : '');
+    box.querySelector('.in-title').textContent = '⚠ ' + x.from + '팀의 ' + x.name + ' 공격!' + (game.incoming.length > 1 ? ' (+' + (game.incoming.length - 1) + ')' : '');
     box.querySelector('.in-help').textContent = mine > 0 ? '지금 Ctrl+Shift+9 로 막기! (내 방패 ' + mine + ')'
-      : (x.holders && x.holders.length ? '방패: ' + x.holders.join(', ') + ' — Ctrl+Shift+9' : '우리 조에 방패가 없어요');
+      : (x.holders && x.holders.length ? '방패: ' + x.holders.join(', ') + ' — Ctrl+Shift+9' : '우리 팀에 방패가 없어요');
     tickIncoming();
   }
   function tickIncoming() {
@@ -1391,6 +1566,7 @@
   });
 
   socket.on('feed', addFeed);
+
   function addFeed(f) {
     var ul = $('g-feed');
     var li = document.createElement('li');
@@ -1502,7 +1678,7 @@
 
   function renderAll() { layout(); renderMembers(); renderProgress(); renderKeys(); tickFx(); renderSoundBtns(); }
 
-  // 선생님이 수업 게임의 학생 소리를 껐는지 (조 선택 화면 · 수업 게임 중)
+  // 선생님이 수업방의 학생 소리를 껐는지 (팀 선택 화면 · 수업방 중)
   function teacherMuted() { return !!(cls && cls.sfx === false && (current === 'team' || (game && game.cls))); }
   function renderSoundBtns() {
     var teacherOff = teacherMuted();
@@ -1531,7 +1707,7 @@
     $(id).onclick = function () { SND.unlock(); toggleSound(); this.blur(); };
   });
 
-  // ── 배경음 (v0.11.0): 대기실 · 조 선택 화면은 잔잔한 곡, 게임 중은 게임 곡 (마지막 30초 빠르게) ──
+  // ── 배경음 (v0.11.0): 대기실 · 팀 선택 화면은 잔잔한 곡, 게임 중은 게임 곡 (마지막 30초 빠르게) ──
   function updateBgm() {
     var tune = null, fast = false;
     if (!$('overlay-result').hidden) tune = null; // 결과 화면에서는 쉰다
@@ -1542,7 +1718,7 @@
   }
   setInterval(updateBgm, 250);
 
-  // 단축키 (v0.11.0) — Ctrl+S: 소리 켜기/끄기 (대기실 · 조 선택 · 게임 중, 코드 입력 중에도)
+  // 단축키 (v0.11.0) — Ctrl+S: 소리 켜기/끄기 (대기실 · 팀 선택 · 게임 중, 코드 입력 중에도)
   //   Ctrl+Enter: 방장이 게임 시작 (대기실). 한글 입력 상태에서도 되게 키 자리(e.code)로 본다
   window.addEventListener('keydown', function (e) {
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
@@ -1558,10 +1734,31 @@
       return;
     }
     if ((e.code === 'Enter' || e.code === 'NumpadEnter') && current === 'wait') {
+      // v0.13.0: 방장 = 시작, 다른 사람 = 준비 / 준비 풀기
       e.preventDefault();
-      var b = $('btn-start');
-      if (!e.repeat && room && ME && room.hostId === ME.id && !b.disabled) b.click();
+      if (e.repeat || !room || !ME) return;
+      if (room.hostId === ME.id) { var b = $('btn-start'); if (!b.disabled) b.click(); else if (room.check && room.check.why === 'ready') $('w-error').textContent = room.check.notReady + '명이 아직 준비하지 않았어요'; }
+      else roomAct('ready');
     }
+  }, true);
+
+  // v0.13.0: Alt+Q = 나가기 (대기실 · 수업방 팀 선택 · 게임 중). 실수 방지로 두 번 눌러야 나간다.
+  //   왼쪽 Alt (오른쪽 Alt 는 한/영 키). 한글 입력 상태에서도 되게 키 자리(e.code)로 본다
+  function isAltQ(e) { return e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.code === 'KeyQ'; }
+  var quitArm = 0;
+  window.addEventListener('keydown', function (e) {
+    if (!isAltQ(e)) return;
+    if (current !== 'wait' && current !== 'team' && current !== 'game') return;
+    e.preventDefault();
+    if (e.repeat) return;
+    if (current === 'game') { if (game) $('btn-leave').click(); return; } // 게임 '나가기' 단추와 같음 (두 번)
+    if (Date.now() - quitArm > 3000) {
+      quitArm = Date.now();
+      pageToast('Alt + Q 를 한 번 더 누르면 ' + (current === 'wait' ? '방' : '수업방') + '에서 나가요', 'warn');
+      return;
+    }
+    quitArm = 0;
+    socket.emit('room:leave', {}, function () {});
   }, true);
   // 타자음 · 오류음 켜기/끄기 (버튼 · Ctrl+K, v0.12.0)
   function toggleTyping() {
@@ -1630,7 +1827,7 @@
       var li = document.createElement('li');
       if (!p.online && p.id !== game.meId) li.className = 'off';
       if (p.bot) li.classList.add('bot');
-      // 해결한 블록 수 막대 (v0.7.4) — 조원 중 가장 많이 푼 사람을 꽉 찬 막대로
+      // 해결한 블록 수 막대 (v0.7.4) — 팀원 중 가장 많이 푼 사람을 꽉 찬 막대로
       li.innerHTML = '<span class="av">' + AV.svg(p.kind, p.color) + '</span><span class="who"><b></b><span class="mbar"><i></i></span></span><em class="mnum"></em>';
       var gb = game.boss && game.boss.phase === 'gather' ? game.boss : null;
       if (gb && !p.bot) li.classList.add((gb.ids || []).indexOf(p.id) >= 0 ? 'grabbed' : 'ungrabbed');
@@ -1697,7 +1894,7 @@
     updateGhost();
     renderKeys();
     if (fx.cloud > t) parts.push('<span class="fx-chip fx-cloud">먹구름 ' + sec(fx.cloud) + '</span>');
-    if (game.shields) parts.push('<span class="fx-chip fx-shield">조 방패 ×' + game.shields + '</span>');
+    if (game.shields) parts.push('<span class="fx-chip fx-shield">팀 방패 ×' + game.shields + '</span>');
     // 먹구름: 판 · 말풍선의 코드를 가린다
     var cloudy = fx.cloud > t;
     $('board-wrap').classList.toggle('cloudy', cloudy);
@@ -1739,7 +1936,7 @@
     if (!game) return;
     var list, label, cls = '';
     if (game.ended) {
-      label = '완성'; list = [['', '다른 조가 끝나기를 기다리는 중']];
+      label = '완성'; list = [['', '다른 팀이 끝나기를 기다리는 중']];
     } else if (game.mode === 'occupy') {
       label = '입력 중'; cls = ' typing';
       list = [['', '흐린 글씨를 따라 치기 (띄어쓰기는 무시)'], ['Backspace', '지우기'], ['Enter', '제출'], ['Esc', '점유 풀기']];
@@ -1752,14 +1949,14 @@
       list = [['← ↑ → ↓ · Tab · Shift+Tab', '한 칸'], ['Home / End', '줄 처음 · 끝'], ['Ctrl + Home / End', '판 처음 · 끝'], ['Ctrl + 방향키', '점프'], ['Enter', '블록 점유']];
       var nb = nextToBoss();
       var gat = game.boss && game.boss.phase === 'gather';
-      if (gat && iGrabbed()) list.unshift(['', '✅ 잡았어요 — 다른 조원을 기다리는 중 (움직여도 돼요)']);
+      if (gat && iGrabbed()) list.unshift(['', '✅ 잡았어요 — 다른 팀원을 기다리는 중 (움직여도 돼요)']);
       else if (gat && nb) list.unshift([nb, '집결 보스 잡기!']);
       else if (gat) list.unshift(['↑ ↓ + Home / End', '집결 보스 옆으로!']);
       else if (nb) list.unshift([nb, '보스 공략!']);
       if (game.fx.auto > now()) list.push(['Tab', '⚡ 자동완성 (블록 안에서)']);
       else if (game.boss && game.boss.phase === 'wait') list.push(['Delete / Backspace', '보스 왼쪽 / 오른쪽에서']);
     }
-    if (game.aim) list = [['숫자', '공격할 조'], ['Enter', '기본 (바로 위 순위 조)'], ['Esc', '취소']];
+    if (game.aim) list = [['숫자', '공격할 팀'], ['Enter', '기본 (바로 위 순위 팀)'], ['Esc', '취소']];
     if (game.incoming && game.incoming.length && game.deck && game.deck.shields) list.unshift(['Ctrl+Shift+9', '막기!']);
     if (game.deck && game.deck.slots && game.deck.slots.some(Boolean)) list.push(['Ctrl+Shift+1~5', '아이템']);
     var key = label + '|' + list.map(function (k) { return k.join(); }).join('|');
@@ -2220,6 +2417,7 @@
   window.addEventListener('keydown', function (e) {
     if (current !== 'game' || !game) return;
     if (!$('overlay-offline').hidden || !$('overlay-kicked').hidden) return;
+    if (isAltQ(e)) return; // 나가기 (위에서 처리)
     if (blockShortcut(e)) { e.preventDefault(); return; }
     // 방치 경고 중이면 어떤 키든 '여기 있어요'
     if (game.idleUntil) { game.idleUntil = 0; $('idle').hidden = true; socket.emit('poke'); }
@@ -2236,7 +2434,7 @@
       return;
     }
 
-    // 일시정지 · 우리 조 판 완성: 움직이지 않는다 (Esc 로 점유 풀기만 된다)
+    // 일시정지 · 우리 팀 판 완성: 움직이지 않는다 (Esc 로 점유 풀기만 된다)
     if (game.paused || game.ended) {
       if (e.key !== 'Escape') e.preventDefault();
       return;

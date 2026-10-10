@@ -188,6 +188,12 @@ function student(no, plan) {
     if (plan.host && r.phase === 'waiting' && r.members.length >= PER && r.hostId === st.id) {
       setTimeout(() => ack('room:start', {}, x => { if (x && x.ok) games++; }), rand(1500, 4000));
     }
+    // v0.13.0: 방장이 아니면 준비 (모두 준비해야 시작 · 15초 뒤 자동 시작)
+    const meInRoom = r.members.find(x => x.id === st.id);
+    if (r.phase === 'waiting' && r.hostId !== st.id && meInRoom && !meInRoom.ready && !st.readying) {
+      st.readying = true;
+      setTimeout(() => ack('room:ready', {}, () => { st.readying = false; }), rand(300, 1500));
+    }
     if (r.phase === 'waiting' && Math.random() < 0.15) setTimeout(() => s.emit('chat', { id: pick(['ok', 'hello', 'ready', 'go', 'again', 'hehe']) }), rand(200, 1500));
   });
   s.on('lobby', l => {

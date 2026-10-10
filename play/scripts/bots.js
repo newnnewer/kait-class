@@ -73,7 +73,7 @@ for (let i = 0; i < N; i++) {
   }
 
   // 로비: 모집 중이고 빈자리가 있는 방에 들어간다
-  let inRoom = false, joining = false;
+  let inRoom = false, joining = false, readying = false, myId = null;
   s.on('lobby', l => {
     inRoom = false; board = null;
     if (CLASS) {
@@ -95,7 +95,15 @@ for (let i = 0; i < N; i++) {
       if (r && r.ok) { inRoom = true; console.log(`가상 학생 ${i + 1} → ${room.name}`); }
     });
   });
-  s.on('room', () => { inRoom = true; });
+  s.on('room', r => {
+    inRoom = true;
+    // v0.13.0: 방장이 아니면 준비 (모두 준비해야 시작)
+    const me = r && r.members && r.members.find(x => x.id === myId);
+    if (r && r.phase === 'waiting' && me && me.id !== r.hostId && !me.ready && !readying) {
+      readying = true;
+      setTimeout(() => s.emit('room:ready', {}, () => { readying = false; }), 500);
+    }
+  });
   s.on('result', () => { board = null; });
 
   s.on('connect', () => {
@@ -103,6 +111,7 @@ for (let i = 0; i < N; i++) {
       s.emit('join', { kind: pick(KINDS), color: pick(COLORS) }, (r) => {
         if (!r || !r.ok) return console.log('입장 실패', r && r.error);
         joined++;
+        myId = r.me && r.me.id;
         if (joined === N) console.log(`가상 학생 ${N}명 접속 — 모집 중인 방이 있으면 들어가요. Ctrl + C 로 끝내기`);
         clearInterval(timer);
         timer = setInterval(tick, 500 + Math.random() * 500);

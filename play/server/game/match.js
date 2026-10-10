@@ -1,5 +1,5 @@
 'use strict';
-// 경기 한 판 — 한 방(한 조)이 판 하나를 함께 채운다.
+// 경기 한 판 — 한 방(한 팀)이 판 하나를 함께 채운다.
 //   점유 → 타이핑 → 채점 · 보스 · 아이템 · 페널티 · 제한 시간 · 방치 경고
 //   v0.7.0: 아이템은 잡은 사람의 개인 덱으로 (원할 때 사용) · 공격은 2초 뒤에 들어오고 방패로 직접 막음 · 집결 보스
 // 방(rooms/room.js)이 시작할 때 만들고, 끝나면 onEnd(결과)로 알려 준다.
@@ -13,7 +13,7 @@ const { randomSeed, makeRng, shuffle } = require('../rng');
 const MAX_INPUT = 200;
 const IDLE_MS = 60000;      // 아무도 입력하지 않으면 경고까지
 const IDLE_WARN_MS = 15000; // 경고 뒤 이만큼 더 없으면 방 종료
-// 집결 보스 (v0.7.0): 접속 중인 사람이 3명 이상인 조에서 보스 차례 4번에 1번.
+// 집결 보스 (v0.7.0): 접속 중인 사람이 3명 이상인 팀에서 보스 차례 4번에 1번.
 //   (n, 1) 또는 (n, 열-2) 에 나타나 8초 안에 모두가 바로 왼쪽·오른쪽 칸에서 Delete / Backspace 로 잡으면 성공 → 모두에게 도움 아이템
 //   v0.12.0: 옆에 서 있기만 해서는 안 되고 각자 키로 잡는다. 잡은 사람은 자리를 떠나도 된다
 const GATHER_MS = 8000; // v0.12.0: 5초 → 8초
@@ -26,7 +26,7 @@ class Match {
    * info: { id, name, tags } — 화면에 보여 줄 방 정보
    * codes: 출제할 일반 문제 코드, bosses: 보스 문제
    * s: { blocks, occMs, bossEveryMs, bossWaitMs, bossLimitMs, penalty, limitMs, idleMs?, idleWarnMs? }
-   *    수업 게임: external(보스를 수업 게임이 정한 일정에 내보냄) · noIdle(방치 종료 없음) · keepEmpty(모두 나가도 계속)
+   *    수업방: external(보스를 수업방이 정한 일정에 내보냄) · noIdle(방치 종료 없음) · keepEmpty(모두 나가도 계속)
    */
   constructor({ io, channel, info, codes, bosses, s, onEnd, seed }) {
     this.io = io;
@@ -49,8 +49,8 @@ class Match {
     this.noIdle = !!s.noIdle;
     this.keepEmpty = !!s.keepEmpty;
     this.pausedAt = 0;         // 일시정지한 시각 (0 = 진행 중)
-    // 방해 아이템 (수업 게임, 5-2): attacks = 켜짐 여부(교사 스위치, 게임 중에 바뀔 수 있음)
-    //   onAttack(item, p) → 수업 게임이 대상 조를 골라 공격하고 { to, blocked } 를 돌려준다 (대상이 없으면 null)
+    // 방해 아이템 (수업방, 5-2): attacks = 켜짐 여부(교사 스위치, 게임 중에 바뀔 수 있음)
+    //   onAttack(item, p) → 수업방이 대상 팀을 골라 공격하고 { to, blocked } 를 돌려준다 (대상이 없으면 null)
     //   onEvent(e) → 전광판에 보낼 소식 (아이템 · 보스 격파)
     this.attacks = !!s.attacks;
     this.onAttack = s.onAttack || null;
@@ -156,7 +156,7 @@ class Match {
     if (!this.stats.has(p.id)) this.stats.set(p.id, { solved: 0, bosses: 0 });
   }
 
-  /** 게임 중에 들어온 사람 (수업 게임의 지각생 · 조 옮기기) — 보스 칸이 아닌 곳에 세운다 */
+  /** 게임 중에 들어온 사람 (수업방의 지각생 · 팀 옮기기) — 보스 칸이 아닌 곳에 세운다 */
   join(p) {
     if (this.members.has(p.id)) { this.sendState(p); return; }
     let pos = this.randomPos();
@@ -195,7 +195,7 @@ class Match {
     if (this.idleWarn) { this.idleWarn = false; this.emitAll('idle', { warn: false }); }
   }
 
-  // ── 일시정지 (수업 게임) — 모든 시계를 멈췄다가 멈춘 만큼 뒤로 민다 ──
+  // ── 일시정지 (수업방) — 모든 시계를 멈췄다가 멈춘 만큼 뒤로 민다 ──
   pause() {
     if (this.ended || this.pausedAt) return;
     this.pausedAt = Date.now();
@@ -225,7 +225,7 @@ class Match {
 
   // ── 개인 덱 (v0.7.0) ──
 
-  /** 조 전체 방패 수 (전광판·교사 화면용) */
+  /** 팀 전체 방패 수 (전광판·교사 화면용) */
   get shields() { let n = 0; for (const [id, k] of this.shieldOf) if (this.members.has(id)) n += k; return n; }
   deckOf(id) { let d = this.decks.get(id); if (!d) { d = new Array(DECK_SIZE).fill(null); this.decks.set(id, d); } return d; }
   deckMsg(id) {
@@ -236,7 +236,7 @@ class Match {
     };
   }
   sendDeck(p) { this.emitTo(p, 'deck', this.deckMsg(p.id)); }
-  /** 방패를 가진 조원 (공격 경고에 이름을 보여 준다) */
+  /** 방패를 가진 팀원 (공격 경고에 이름을 보여 준다) */
   shieldHolders() { return [...this.members.values()].filter(q => (this.shieldOf.get(q.id) || 0) > 0).map(q => q.nick); }
 
   /** 덱에 아이템 넣기 — 방패는 따로 (최대 2). 자리가 없으면 false (아이템은 사라짐) */
@@ -260,9 +260,9 @@ class Match {
 
   /**
    * 덱의 아이템 쓰기 (Ctrl+Shift+1~5). slot: 1~5
-   * 폭탄·레이저는 쓰는 사람이 서 있는 칸 기준. 공격은 그 순간 바로 위 순위 조에게 (2초 뒤 들어감).
+   * 폭탄·레이저는 쓰는 사람이 서 있는 칸 기준. 공격은 그 순간 바로 위 순위 팀에게 (2초 뒤 들어감).
    */
-  /** to: 방해 아이템의 대상 조 번호 (v0.12.0, 0 이면 바로 위 순위 조) */
+  /** to: 방해 아이템의 대상 팀 번호 (v0.12.0, 0 이면 바로 위 순위 팀) */
   useItem(p, slot, to) {
     if (this.ended) return { ok: false, why: 'ended' };
     if (this.pausedAt) return { ok: false, why: 'paused' };
@@ -275,13 +275,13 @@ class Match {
     if (item.kind === 'attack') {
       if (!this.attacks || !this.onAttack) return { ok: false, why: 'attacks-off' };
       const r = this.onAttack(item, p, to || 0);
-      if (!r) return { ok: false, why: 'no-target' }; // 공격할 조가 없으면 아이템은 그대로
-      if (r.bad) return { ok: false, why: 'bad-target', to }; // 고른 조를 공격할 수 없음 (우리 조 · 없는 조 · 끝난 조)
+      if (!r) return { ok: false, why: 'no-target' }; // 공격할 팀이 없으면 아이템은 그대로
+      if (r.bad) return { ok: false, why: 'bad-target', to }; // 고른 팀을 공격할 수 없음 (우리 팀 · 없는 팀 · 끝난 팀)
       d[k] = null;
       this.sendDeck(p);
       this.atk.sent += 1;
-      this.emitAll('item', { id: item.id, name: item.name, desc: `${r.to}조에 ${item.name} 발사! (${item.desc})`, kind: 'attack', by: p.nick, to: r.to });
-      this.feed(`${p.nick} → ${r.to}조 ${item.name}`, 'attack');
+      this.emitAll('item', { id: item.id, name: item.name, desc: `${r.to}팀에 ${item.name} 발사! (${item.desc})`, kind: 'attack', by: p.nick, to: r.to });
+      this.feed(`${p.nick} → ${r.to}팀 ${item.name}`, 'attack');
       return { ok: true, item: { id: item.id, name: item.name, kind: 'attack', to: r.to } };
     }
     d[k] = null;
@@ -290,15 +290,15 @@ class Match {
     return { ok: true, item: { id: item.id, name: item.name, kind: item.kind } };
   }
 
-  // ── 공격 받기 · 막기 (v0.7.0: 2초 안에 방패를 가진 조원이 Ctrl+Shift+9) ──
+  // ── 공격 받기 · 막기 (v0.7.0: 2초 안에 방패를 가진 팀원이 Ctrl+Shift+9) ──
 
   incomingMsg(x) {
     return { id: x.id, name: x.item.name, desc: x.item.desc, from: x.fromNo, fromNick: x.fromNick, ms: this.msLeft(x.until), holders: this.shieldHolders() };
   }
 
   /**
-   * 다른 조의 방해가 온다 (수업 게임). 바로 맞지 않고 2초 기다린다.
-   * done(blocked): 막았거나 맞았을 때 수업 게임에 알려 준다
+   * 다른 팀의 방해가 온다 (수업방). 바로 맞지 않고 2초 기다린다.
+   * done(blocked): 막았거나 맞았을 때 수업방에 알려 준다
    */
   receiveAttack(item, fromNo, fromNick, done) {
     const x = { id: ++this.incomingSeq, item, fromNo, fromNick, until: Date.now() + DEFEND_MS, done: false, cb: done || (() => {}) };
@@ -323,8 +323,8 @@ class Match {
     this.atk.blocked += 1;
     this.emitAll('shield', { n: this.shields });
     this.emitAll('incoming:end', { id: x.id, blocked: true, by: p.nick });
-    this.emitAll('item', { id: 'shield', name: '방패', desc: `${p.nick} 님이 ${x.fromNo}조의 ${x.item.name} 공격을 막았어요!`, kind: 'blocked', by: p.nick });
-    this.feed(`${x.fromNo}조의 ${x.item.name} → ${p.nick} 방패로 막음!`, 'good');
+    this.emitAll('item', { id: 'shield', name: '방패', desc: `${p.nick} 님이 ${x.fromNo}팀의 ${x.item.name} 공격을 막았어요!`, kind: 'blocked', by: p.nick });
+    this.feed(`${x.fromNo}팀의 ${x.item.name} → ${p.nick} 방패로 막음!`, 'good');
     x.cb(true, p.nick);
     return { ok: true, blocked: x.item.name };
   }
@@ -335,13 +335,13 @@ class Match {
     const b = this.board, item = x.item;
     this.atk.got += 1;
     this.emitAll('incoming:end', { id: x.id, blocked: false });
-    this.emitAll('item', { id: item.id, name: item.name, desc: `${x.fromNo}조의 공격! ${item.desc}`, kind: 'hit', by: `${x.fromNo}조 ${x.fromNick}` });
-    this.feed(`${x.fromNo}조의 공격: ${item.name}`, 'bad');
+    this.emitAll('item', { id: item.id, name: item.name, desc: `${x.fromNo}팀의 공격! ${item.desc}`, kind: 'hit', by: `${x.fromNo}팀 ${x.fromNick}` });
+    this.feed(`${x.fromNo}팀의 공격: ${item.name}`, 'bad');
     switch (item.id) {
       case 'ice': case 'cloud': case 'flip': this.startEffect(item.id); break;
       case 'revive': this.revive(POWER.revive, 'revive'); break;
       case 'shuffle': {
-        // 보스 공략 중인 사람을 뺀 모든 조원을 무작위의 같은 한 칸으로 (점유 중이면 풀림)
+        // 보스 공략 중인 사람을 뺀 모든 팀원을 무작위의 같은 한 칸으로 (점유 중이면 풀림)
         let pos = this.randomPos();
         for (let k = 0; k < 30 && this.boss && pos.r * b.cols + pos.c === this.boss.i; k++) pos = this.randomPos();
         this.moveAll(() => ({ r: pos.r, c: pos.c }), 'shuffle');
@@ -542,7 +542,7 @@ class Match {
     this.boss = null;
     if (!this.external) this.nextBossAt = Date.now() + this.bossEveryMs;
     this.emitAll('boss', { i: -1, end: 'gather', at: i });
-    this.feed('모두 잡았다! 조원 모두 도움 아이템 획득', 'good');
+    this.feed('모두 잡았다! 팀원 모두 도움 아이템 획득', 'good');
     this.onEvent({ type: 'gather' });
     const shield = this.attacks && !!this.onAttack;
     for (const q of this.onlineHumans()) {
@@ -557,8 +557,8 @@ class Match {
     }
   }
 
-  /** q: 수업 게임은 모든 조에 같은 문제를 넘겨준다 (없으면 이 판의 순서대로)
-   *  gather: 수업 게임이 정한 집결 보스 차례 ({ r, side }) — 조건이 안 되면 보통 보스 */
+  /** q: 수업방은 모든 팀에 같은 문제를 넘겨준다 (없으면 이 판의 순서대로)
+   *  gather: 수업방이 정한 집결 보스 차례 ({ r, side }) — 조건이 안 되면 보통 보스 */
   spawnBoss(q, gather) {
     if (this.boss || this.ended) return false;
     // 학생 방: 보스 차례 4번에 1번은 집결 보스 (레이더로 자리를 미리 보여 준 차례는 보통 보스)

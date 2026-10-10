@@ -1,21 +1,20 @@
 'use strict';
-// 수업 게임 하나 — 교사가 만들고, 학생은 방 코드(숫자 4자리)로 들어와 조를 고른다.
-//   · 방 코드와 조 편성은 교사가 '수업 끝내기'를 누를 때까지 유지 → 여러 판을 이어서 할 수 있다
-//   · 한 판(round): 조마다 판(Match) 하나. 모든 조가 같은 씨앗 → 같은 배치 · 같은 문제 순서
-//   · 보스: "게임 시작부터 N초마다" 모든 조에 같은 문제. 그 차례에 보스가 남아 있는 조는 한 번 건너뜀
-//   · 순위: 판을 완성한 순서 → 시간이 끝나면(또는 교사가 끝내면) 남은 조는 해결률 순
-//   · 일시정지: 모든 조의 입력과 모든 시계가 멈춘다
-//   · 게임 중에도 들어오거나 조를 옮길 수 있다 (지각생)
+// 수업방 하나 — 교사가 만들고, 학생은 방 코드(숫자 4자리)로 들어와 팀을 고른다.
+//   · 방 코드와 팀 편성은 교사가 '수업 끝내기'를 누를 때까지 유지 → 여러 판을 이어서 할 수 있다
+//   · 한 판(round): 팀마다 판(Match) 하나. 모든 팀이 같은 씨앗 → 같은 배치 · 같은 문제 순서
+//   · 보스: "게임 시작부터 N초마다" 모든 팀에 같은 문제. 그 차례에 보스가 남아 있는 팀은 한 번 건너뜀
+//   · 순위: 판을 완성한 순서 → 시간이 끝나면(또는 교사가 끝내면) 남은 팀은 해결률 순
+//   · 일시정지: 모든 팀의 입력과 모든 시계가 멈춘다
+//   · 게임 중에도 들어오거나 팀을 옮길 수 있다 (지각생)
 
-const { Match } = require('../game/match');
+const { TeamRound } = require('../game/teamround');
 const { recommendBlocks } = require('../game/board');
 const { randomSeed, makeRng, shuffle } = require('../rng');
 const { rollNick } = require('../nick');
-const { makeBot, stepBot } = require('./bot');
+const { makeBot } = require('./bot');
 const CHAT = require('../../public/js/shared/chat');
-const RANK_SNAP_MS = 10000; // v0.12.0: 순위 변동 그래프 기록 간격
 
-const MAX_BOTS = 40; // 수업 게임 하나에 넣을 수 있는 봇 수
+const MAX_BOTS = 40; // 수업방 하나에 넣을 수 있는 봇 수
 
 class ClassGame {
   constructor({ hub, code, settings }) {
@@ -23,14 +22,14 @@ class ClassGame {
     this.io = hub.io;
     this.code = code;
     this.settings = settings;
-    this.chatLog = [];         // 조 선택 화면 채팅 최근 8개 (v0.7.3)
-    this.teamLock = false;     // v0.12.0: 교사가 조 선택을 잠금 (학생은 조를 못 고름 · 교사는 옮길 수 있음)
+    this.chatLog = [];         // 팀 선택 화면 채팅 최근 8개 (v0.7.3)
+    this.teamLock = false;     // v0.12.0: 교사가 팀 선택을 잠금 (학생은 팀을 못 고름 · 교사는 옮길 수 있음)
     this.channel = 'class:' + code;
     this.teachChannel = 'teach:' + code;
     this.boardChannel = 'board:' + code; // 전광판
     this.lastBoardAt = 0;
     this.members = new Map();  // id → player (들어온 순서)
-    this.teamOf = new Map();   // id → 조 번호 (0 = 아직 안 고름)
+    this.teamOf = new Map();   // id → 팀 번호 (0 = 아직 안 고름)
     this.kicked = new Set();   // 강퇴한 브라우저 열쇠
     this.phase = 'waiting';    // waiting | playing
     this.round = null;
@@ -52,13 +51,16 @@ class ClassGame {
   teamMembers(no) { return [...this.members.values()].filter(p => this.teamOf.get(p.id) === no); }
 
   // ── 시간 (일시정지를 뺀 흐른 시간) ──
-  elapsed() {
-    const r = this.round;
-    if (!r) return 0;
-    const now = Date.now();
-    return now - r.startedAt - r.pausedMs - (r.pausedAt ? now - r.pausedAt : 0);
-  }
-  remainMs() { return this.round ? Math.max(0, this.round.limitMs - this.elapsed()) : 0; }
+  elapsed() { return this.round ? this.round.elapsed() : 0; }
+  remainMs() { return this.round ? this.round.remainMs() : 0; }
+
+  // ── 공용 팀 대전(TeamRound)이 쓰는 것 ──
+  get label() { return this.code; }
+  get mode() { return 'class'; }
+  get noIdle() { return true; }
+  teamCount() { return this.settings.teams; }
+  attacksOn() { return this.settings.attacks !== false; }
+  standingsTo() { return [this.channel, this.teachChannel]; }
 
   // ── 알림 ──
 
@@ -136,36 +138,31 @@ class ClassGame {
     this.sendTimer.unref();
   }
 
-  /** 조별 상황판 — 조마다 해결률 · 완성 순위 */
+  /** 팀별 상황판 (게임 전에는 들어온 팀만) */
   standings() {
-    const r = this.round;
+    if (this.round) return this.round.standings();
     const out = [];
     for (let no = 1; no <= this.settings.teams; no++) {
-      const m = r && r.matches.get(no);
       const count = this.teamMembers(no).length;
-      if (!m) { if (count || r) out.push({ no, count, solved: 0, total: r ? r.blocks : 0, pct: 0, rank: null, done: false }); continue; }
-      const total = m.board.cells.length;
-      const solved = m.board.cells.filter(c => c.solved).length;
-      const res = r.results.get(no);
-      out.push({ no, count, solved, total, pct: Math.round(solved / total * 100), rank: res && res.clear ? res.rank : null, done: !!res, ms: res ? res.ms : null });
+      if (count) out.push({ no, count, solved: 0, total: 0, pct: 0, rank: null, done: false });
     }
     return out;
   }
 
   sendStandings(force) {
+    if (this.round) { this.round.sendStandings(force); return; }
     const st = this.standings();
     const key = JSON.stringify(st);
     if (!force && key === this.lastStandKey) return;
     this.lastStandKey = key;
-    this.io.to(this.channel).emit('standings', st);
-    this.io.to(this.teachChannel).emit('standings', st);
+    for (const ch of this.standingsTo()) this.io.to(ch).emit('standings', st);
   }
 
-  // ── 학생: 들어오기 · 조 고르기 · 나가기 ──
+  // ── 학생: 들어오기 · 팀 고르기 · 나가기 ──
 
   join(p, socket) {
-    if (this.closed) return { ok: false, error: '끝난 수업 게임이에요' };
-    if (this.kicked.has(p.token)) return { ok: false, error: '이 수업 게임에는 다시 들어갈 수 없어요' };
+    if (this.closed) return { ok: false, error: '끝난 수업방이에요' };
+    if (this.kicked.has(p.token)) return { ok: false, error: '이 수업방에는 다시 들어갈 수 없어요' };
     this.members.set(p.id, p);
     if (!this.teamOf.has(p.id)) this.teamOf.set(p.id, 0);
     p.room = this;
@@ -177,14 +174,14 @@ class ClassGame {
   }
 
   pickTeam(p, no) {
-    if (this.teamLock) return { ok: false, error: '선생님이 조 선택을 잠갔어요' };
+    if (this.teamLock) return { ok: false, error: '선생님이 팀 선택을 잠갔어요' };
     no = Math.round(Number(no));
-    if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 조예요' };
+    if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
     this.setTeam(p, no);
     return { ok: true };
   }
 
-  /** 조 바꾸기 (학생이 고르거나 교사가 옮김). 게임 중이면 판도 옮긴다 */
+  /** 팀 바꾸기 (학생이 고르거나 교사가 옮김). 게임 중이면 판도 옮긴다 */
   setTeam(p, no) {
     const old = this.teamOf.get(p.id) || 0;
     if (old === no) return;
@@ -203,7 +200,7 @@ class ClassGame {
         this.sendDone(no, p);
       }
     } else if (r && sock) {
-      sock.emit('class:bench', {}); // 게임 중에 조에서 빠짐 → 조 선택 화면으로
+      sock.emit('class:bench', {}); // 게임 중에 팀에서 빠짐 → 팀 선택 화면으로
     }
     this.touch();
     this.changed();
@@ -223,7 +220,7 @@ class ClassGame {
     this.sendStandings();
   }
 
-  /** 새로고침·재접속: 있던 곳(조 선택 화면 또는 경기)으로 되돌려 보낸다 */
+  /** 새로고침·재접속: 있던 곳(팀 선택 화면 또는 경기)으로 되돌려 보낸다 */
   resend(p, socket) {
     socket.leave('lobby');
     socket.join(this.channel);
@@ -257,14 +254,14 @@ class ClassGame {
   }
 
   /** 학생은 시작할 수 없다 (교사 화면에서만) */
-  start() { return { ok: false, error: '수업 게임은 선생님이 시작해요' }; }
+  start() { return { ok: false, error: '수업방은 선생님이 시작해요' }; }
 
   // ── 교사 ──
 
   updateSettings(s) {
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 설정을 바꿀 수 없어요' };
     this.settings = s;
-    // 조 수를 줄였으면 없어진 조의 학생은 '조 미선택'으로
+    // 팀 수를 줄였으면 없어진 팀의 학생은 '팀 미선택'으로
     for (const p of this.members.values()) {
       const no = this.teamOf.get(p.id);
       if (no > s.teams) {
@@ -278,7 +275,7 @@ class ClassGame {
     return { ok: true };
   }
 
-  /** 조를 안 고른 학생을 사람이 적은 조부터 채워 넣는다 */
+  /** 팀을 안 고른 학생을 사람이 적은 팀부터 채워 넣는다 */
   autoAssign() {
     const n = this.settings.teams;
     for (const p of this.teamMembers(0)) {
@@ -289,7 +286,7 @@ class ClassGame {
     return { ok: true };
   }
 
-  /** v0.12.0: 조 선택 잠그기 / 풀기 */
+  /** v0.12.0: 팀 선택 잠그기 / 풀기 */
   setTeamLock(on) {
     this.teamLock = !!on;
     this.touch();
@@ -297,7 +294,7 @@ class ClassGame {
     return { ok: true, on: this.teamLock };
   }
 
-  /** v0.12.0: 학생(조 미선택 포함)을 무작위로 섞어 고르게 나눈다. 봇은 제자리 — 봇까지 센 인원이 고르게 */
+  /** v0.12.0: 학생(팀 미선택 포함)을 무작위로 섞어 고르게 나눈다. 봇은 제자리 — 봇까지 센 인원이 고르게 */
   shuffleTeams() {
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 섞을 수 없어요' };
     const n = this.settings.teams;
@@ -324,7 +321,7 @@ class ClassGame {
     const p = this.members.get(String(pid));
     if (!p) return { ok: false, error: '없는 학생이에요' };
     no = Math.round(Number(no));
-    if (!(no >= 0 && no <= this.settings.teams)) return { ok: false, error: '없는 조예요' };
+    if (!(no >= 0 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
     this.setTeam(p, no);
     return { ok: true };
   }
@@ -344,12 +341,12 @@ class ClassGame {
     return { ok: true };
   }
 
-  // ── 봇 (조 인원 맞추기) ──
+  // ── 봇 (팀 인원 맞추기) ──
 
-  /** no 조에 봇 한 명 */
+  /** no 팀에 봇 한 명 */
   addBot(no) {
     no = Math.round(Number(no));
-    if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 조예요' };
+    if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
     if (this.bots().length >= MAX_BOTS) return { ok: false, error: `봇은 ${MAX_BOTS}명까지 넣을 수 있어요` };
     const used = new Set([...this.hub.nicks(), ...[...this.members.values()].map(p => p.nick)]);
     const bot = makeBot(rollNick(used));
@@ -368,16 +365,16 @@ class ClassGame {
     return { ok: true };
   }
 
-  /** 모든 조를 가장 큰 조 인원까지 봇으로 채운다 */
+  /** 모든 팀을 가장 큰 팀 인원까지 봇으로 채운다 */
   fillBots() {
     const n = this.settings.teams;
     const size = no => this.teamMembers(no).length;
     let target = 0;
     for (let no = 1; no <= n; no++) target = Math.max(target, size(no));
-    if (!target) return { ok: false, error: '조를 고른 학생이 없어요' };
+    if (!target) return { ok: false, error: '팀을 고른 학생이 없어요' };
     let added = 0;
     for (let no = 1; no <= n; no++) {
-      // v0.7.6: 아무도 없는 조도 채운다 (예전에는 건너뜀 → 사람이 1조에만 있으면 '이미 맞춰져 있음'이 됐음)
+      // v0.7.6: 아무도 없는 팀도 채운다 (예전에는 건너뜀 → 사람이 1팀에만 있으면 '이미 맞춰져 있음'이 됐음)
       while (size(no) < target) {
         const r = this.addBot(no);
         if (!r.ok) return added ? { ok: true, added, error: r.error } : r;
@@ -387,7 +384,7 @@ class ClassGame {
     return { ok: true, added };
   }
 
-  /** 수업 게임에서 봇을 모두 뺀다 */
+  /** 수업방에서 봇을 모두 뺀다 */
   clearBots() {
     for (const b of this.bots()) this.leave(b, null);
     this.touch();
@@ -401,158 +398,40 @@ class ClassGame {
     if (!codes.length) return { ok: false, error: '고른 태그에 문제가 없어요' };
     const teams = [];
     for (let no = 1; no <= s.teams; no++) if (this.teamMembers(no).length) teams.push(no);
-    if (!teams.length) return { ok: false, error: '조를 고른 학생이 없어요' };
-    const biggest = Math.max(...teams.map(no => this.teamMembers(no).length));
+    if (!teams.length) return { ok: false, error: '팀을 고른 학생이 없어요' };
     const seed = (opts && opts.seed != null) ? opts.seed >>> 0 : randomSeed();
     this.lastResult = null;
     this.phase = 'playing';
-    this.round = {
-      seed, codes, bosses,
-      blocks: s.blocks || recommendBlocks(biggest),
-      limitMs: s.limitMin * 60000,
-      startedAt: Date.now(), pausedAt: 0, pausedMs: 0,
-      matches: new Map(), results: new Map(), clearCount: 0, stopped: false,
-      bossQueue: shuffle(bosses, makeRng((seed ^ 0x5bd1e995) >>> 0)),
-      bossPos: 0,
-      everyMs: s.bossEverySec * 1000,
-      nextSlot: s.bossEverySec * 1000, // 흐른 시간 기준 다음 보스 차례
-      countdownUntil: 0,
-      history: [],               // v0.12.0: 순위 기록 (전광판 순위 변동 그래프) — [{ t: 흐른 ms, order: [1위 조, 2위 조, …] }]
-      nextSnap: 0,
-    };
-    // 시작 카운트다운 (v0.7.6): 5초 동안 모든 시계를 멈춰 둔다 (일시정지 가림막 없이, 판마다 카운트다운 화면)
     const cd = this.hub.countdownMs == null ? 5000 : this.hub.countdownMs;
-    if (cd > 0) {
-      this.round.pausedAt = Date.now();
-      this.round.countdownUntil = Date.now() + cd;
-      this.round.countdownTimer = setTimeout(() => {
-        const r = this.round;
-        if (!r || !r.countdownUntil) return;
-        r.countdownUntil = 0;
-        if (r.pausedAt) { r.pausedMs += Date.now() - r.pausedAt; r.pausedAt = 0; }
-        this.changed();
-      }, cd);
-      this.round.countdownTimer.unref();
-    }
-    for (const no of teams) this.ensureMatch(no);
-    const r = this.round;
-    r.timer = setInterval(() => { try { this.tick(); } catch (e) { console.error('[오류] class tick:', e); } }, 200);
-    r.timer.unref();
+    this.round = new TeamRound({ owner: this, teams, seed, codes, bosses, countdownMs: cd });
     this.touch();
     this.changed();
     this.sendStandings(true);
     return { ok: true };
   }
 
-  /** 조의 판 — 없으면 같은 씨앗으로 만든다 (게임 중에 처음 사람이 들어온 조도 같은 판) */
-  ensureMatch(no) {
-    const r = this.round;
-    let m = r.matches.get(no);
-    if (m) return m;
-    const s = this.settings;
-    m = new Match({
-      io: this.io, channel: this.teamChannel(no), seed: r.seed,
-      info: { id: this.code, name: `${no}조`, tags: s.tags, mode: 'class', team: no },
-      codes: r.codes, bosses: r.bosses,
-      s: {
-        blocks: r.blocks,
-        occMs: s.occSec * 1000,
-        bossEveryMs: r.everyMs,
-        bossWaitMs: s.bossWaitSec * 1000,
-        bossLimitMs: s.bossLimitSec * 1000,
-        penalty: s.penalty,
-        limitMs: Math.max(1000, this.remainMs()),
-        external: true, noIdle: true, keepEmpty: true,
-        countdownMs: r.countdownUntil ? Math.max(0, r.countdownUntil - Date.now()) : 0,
-        attacks: s.attacks !== false,
-        onAttack: (item, p, to) => this.attack(no, item, p, to),
-        onEvent: e => this.boardEvent(no, e),
-      },
-      onEnd: result => this.teamEnded(no, result),
-    });
-    m.nextBossAt = Date.now() + Math.max(0, r.nextSlot - this.elapsed());
-    r.matches.set(no, m);
-    for (const p of this.teamMembers(no)) m.add(p);
-    for (const p of this.teamMembers(no)) m.sendState(p);
-    if (r.pausedAt && !r.countdownUntil) m.pause();
-    return m;
-  }
+  ensureMatch(no) { return this.round.ensureMatch(no); }
+  gatherSpotFor(turn) { return this.round.gatherSpotFor(turn); }
+  sendDone(no, p) { if (this.round) this.round.sendDone(no, p); }
+  tick() { if (this.round) this.round.tick(); }
+  rankOrder() { return this.round ? this.round.rankOrder() : []; }
+  attack(fromNo, item, p, to) { return this.round ? this.round.attack(fromNo, item, p, to) : null; }
 
-  /** 집결 보스 자리 (모든 조 같게): 몇 번째 줄 · 왼쪽(1열)/오른쪽(열-2) */
-  gatherSpotFor(turn) {
-    const r = this.round;
-    const rng = makeRng(((r.seed ^ 0x27d4eb2d) + turn * 2654435761) >>> 0);
-    const rows = Math.ceil(r.blocks / 12);
-    return { r: Math.floor(rng() * rows), side: rng() < 0.5 ? 0 : 1 };
-  }
+  /** 0.2초마다 (TeamRound) — 전광판은 0.5초마다 */
+  onRoundTick() { if (Date.now() - this.lastBoardAt >= 500) this.sendBoard(); }
 
-  /** 판을 완성한 조에게 "N위 완성!" (게임 중에 그 조로 들어온 사람에게도) */
-  sendDone(no, p) {
-    const res = this.round && this.round.results.get(no);
-    if (!res) return;
-    const payload = { rank: res.clear ? res.rank : null, ms: res.ms, clear: res.clear };
-    if (p) { const sock = this.socketOf(p); if (sock) sock.emit('team:done', payload); }
-    else this.io.to(this.teamChannel(no)).emit('team:done', payload);
-  }
-
-  tick() {
-    const r = this.round;
-    if (!r || r.pausedAt) return;
-    // 봇 움직이기 (판마다 다른 봇이 노리는 칸은 피한다)
-    const taken = new Map();
-    for (const bot of this.bots()) {
-      const m = this.matchOf(bot);
-      if (!m) continue;
-      if (!taken.has(m)) taken.set(m, new Set());
-      try { stepBot(bot, m, this.settings.botSpeed, taken.get(m)); } catch (e) { console.error('[오류] bot:', e); }
-    }
-    const el = this.elapsed();
-    // 보스 차례: 모든 조에 같은 문제. 아직 보스가 남아 있는 조는 건너뛴다
-    if (r.bossQueue.length) {
-      let fired = false;
-      while (el >= r.nextSlot) {
-        const q = r.bossQueue[r.bossPos % r.bossQueue.length];
-        r.bossPos += 1;
-        // 4번에 1번은 집결 보스 — 모든 조에 같은 줄 · 같은 쪽 (씨앗으로 정함). 3명 미만 조는 보통 보스
-        const gather = r.bossPos % 4 === 0 ? this.gatherSpotFor(r.bossPos) : null;
-        for (const m of r.matches.values()) if (!m.ended) m.spawnBoss(q, gather);
-        r.nextSlot += r.everyMs;
-        fired = true;
-      }
-      if (fired) {
-        const at = Date.now() + (r.nextSlot - el);
-        for (const m of r.matches.values()) m.nextBossAt = at; // 레이더가 쓰는 시각
-      }
-    }
-    // 순위 기록: 10초마다 (일시정지 · 카운트다운 동안은 흐른 시간이 멈추므로 기록도 멈춤)
-    if (el >= r.nextSnap) { this.snapRanks(el); r.nextSnap += RANK_SNAP_MS; }
-    this.sendStandings();
-    if (Date.now() - this.lastBoardAt >= 500) this.sendBoard();
-  }
-
-  /** 지금 순위 (v0.12.0) — 완성한 조는 완성 순, 나머지는 해결률 · 해결 블록 수 · 조 번호 순 (전광판과 같은 순서) */
-  rankOrder() {
-    const r = this.round;
-    if (!r) return [];
-    const list = [...r.matches.entries()].map(([no, m]) => {
-      const res = r.results.get(no);
-      const solved = m.board.cells.filter(c => c.solved).length;
-      return { no, solved, pct: solved / m.board.cells.length, rank: res && res.clear ? res.rank : 0 };
-    });
-    list.sort((a, b) => {
-      if (a.rank && b.rank) return a.rank - b.rank;
-      if (a.rank) return -1;
-      if (b.rank) return 1;
-      return b.pct - a.pct || b.solved - a.solved || a.no - b.no;
-    });
-    return list.map(x => x.no);
-  }
-
-  snapRanks(el) {
-    const r = this.round;
-    if (!r) return;
-    r.history.push({ t: Math.round(el), order: this.rankOrder() });
-    if (r.history.length > 400) r.history.shift(); // 혹시 몰라 (30분 = 180개)
+  /** 판에서 생긴 소식 → 전광판 */
+  onRoundEvent(type, d) {
+    const board = this.io.to(this.boardChannel);
+    if (type === 'attack') { board.emit('board:attack', d); return; }
+    if (type === 'clear') { board.emit('board:feed', { text: `${d.no}팀 CLEAR! ${d.rank}위`, kind: 'clear' }); return; }
+    if (type !== 'match') return;
+    const no = d.no, e = d.e;
+    let text = null, kind = 'info';
+    if (e.type === 'boss') { text = `${no}팀 ${e.nick} 보스 격파!`; kind = 'boss'; }
+    else if (e.type === 'gather') { text = `${no}팀 모두 잡았다! (집결 보스)`; kind = 'good'; }
+    else if (e.type === 'item') { text = `${no}팀 ${e.item.kind === 'bad' ? '페널티' : '아이템'} ${e.item.name}`; kind = e.item.kind === 'bad' ? 'bad' : 'good'; }
+    if (text) board.emit('board:feed', { text, kind });
   }
 
   /** 소리 (6-2): 학생 효과음 · 전광판 배경음 켜고 끄기 — 게임 중에도 바로 */
@@ -571,60 +450,16 @@ class ClassGame {
   /** 방해 아이템 켜기/끄기 — 게임 중에도 바로 적용 */
   setAttacks(on) {
     this.settings = { ...this.settings, attacks: !!on };
-    if (this.round) for (const m of this.round.matches.values()) m.attacks = !!on;
+    if (this.round) this.round.setAttacks(on);
     this.io.to(this.boardChannel).emit('board:feed', { text: `방해 아이템 ${on ? '켜짐' : '꺼짐'}`, kind: 'info' });
     this.touch();
     this.changed();
     return { ok: true, attacks: !!on };
   }
 
-  /**
-   * fromNo 조가 덱의 방해 아이템을 썼다 → to 조를 공격 (v0.12.0: 학생이 고름)
-   *   to 가 0 이면 바로 위 순위 조 (1등이면 2등을). 고른 조가 우리 조 · 없는 조 · 끝난 조면 { bad: true }
-   * 순위: 지금 해결률(같으면 해결 블록 수, 조 번호). 판을 이미 끝낸 조는 빼고 센다.
-   * 공격은 2초 뒤에 들어가고 그 사이 대상 조가 방패로 막을 수 있다 (v0.7.0) — 결과는 나중에 알린다.
-   * 돌려주는 값: { to } / 공격할 조가 없으면 null (아이템은 덱에 남음)
-   */
-  attack(fromNo, item, p, to) {
-    const r = this.round;
-    if (!r) return null;
-    const live = [...r.matches.entries()]
-      .filter(([no, m]) => !m.ended && !r.results.has(no))
-      .map(([no, m]) => ({ no, m, solved: m.board.cells.filter(c => c.solved).length, total: m.board.cells.length }))
-      .sort((a, b) => (b.solved / b.total) - (a.solved / a.total) || b.solved - a.solved || a.no - b.no);
-    const k = live.findIndex(x => x.no === fromNo);
-    if (k < 0 || live.length < 2) return null;
-    let target = live[k === 0 ? 1 : k - 1];
-    if (to) {
-      target = live.find(x => x.no === to && x.no !== fromNo);
-      if (!target) return { bad: true };
-    }
-    target.m.receiveAttack(item, fromNo, p.nick, (blocked, byNick) => {
-      this.io.to(this.boardChannel).emit('board:attack', { from: fromNo, to: target.no, id: item.id, name: item.name, desc: item.desc, blocked });
-      this.io.to(this.channel).emit('class:feed', { text: `${fromNo}조 → ${target.no}조 ${item.name}${blocked ? ' (방패에 막힘)' : '!'}`, kind: blocked ? 'info' : 'attack' });
-      // 공격한 조에도 결과를 알려 준다
-      const from = r.matches.get(fromNo);
-      if (from && !from.ended) {
-        from.emitAll('item', { id: blocked ? 'shield' : item.id, name: blocked ? '막힘' : item.name,
-          desc: blocked ? `${target.no}조 ${byNick} 님이 방패로 막았어요` : `${target.no}조에 ${item.name} 명중!`, kind: blocked ? 'blocked' : 'attack', by: p.nick, to: target.no });
-        from.feed(`${target.no}조에 ${item.name} ${blocked ? '→ 방패에 막힘' : '명중!'}`, blocked ? 'muted' : 'attack');
-      }
-    });
-    return { to: target.no };
-  }
-
-  /** 판에서 생긴 소식 → 전광판 소식 줄 */
-  boardEvent(no, e) {
-    let text = null, kind = 'info';
-    if (e.type === 'boss') { text = `${no}조 ${e.nick} 보스 격파!`; kind = 'boss'; }
-    else if (e.type === 'gather') { text = `${no}조 모두 잡았다! (집결 보스)`; kind = 'good'; }
-    else if (e.type === 'item') { text = `${no}조 ${e.item.kind === 'bad' ? '페널티' : '아이템'} ${e.item.name}`; kind = e.item.kind === 'bad' ? 'bad' : 'good'; }
-    if (text) this.io.to(this.boardChannel).emit('board:feed', { text, kind });
-  }
-
   // ── 전광판 ──
 
-  /** 전광판에 보여 줄 모든 것 (조마다 작은 판 · 효과 · 방패) */
+  /** 전광판에 보여 줄 모든 것 (팀마다 작은 판 · 효과 · 방패) */
   boardState() {
     const r = this.round, s = this.settings, now = Date.now();
     const teams = [];
@@ -668,87 +503,28 @@ class ClassGame {
     this.io.to(this.boardChannel).emit('board', this.boardState());
   }
 
-  teamEnded(no, result) {
-    const r = this.round;
-    if (!r || r.results.has(no)) return;
-    const clear = result.reason === 'clear';
-    const rec = {
-      no, clear, reason: result.reason, ms: Math.min(this.elapsed(), r.limitMs),
-      solved: result.solved, total: result.total, bosses: result.bosses, players: result.players,
-      atk: result.atk || { sent: 0, got: 0, blocked: 0 },
-    };
-    if (clear) { r.clearCount += 1; rec.rank = r.clearCount; }
-    r.results.set(no, rec);
-    if (clear) {
-      this.sendDone(no);
-      this.io.to(this.boardChannel).emit('board:feed', { text: `${no}조 CLEAR! ${rec.rank}위`, kind: 'clear' });
-    }
-    this.sendStandings(true);
-    this.changed();
-    // 모든 조가 끝났으면 (모두 완성 · 시간 끝 · 교사가 끝냄) 한 판 마무리
-    if ([...r.matches.keys()].every(k => r.results.has(k))) setImmediate(() => this.finishRound());
-  }
-
   pause(on) {
     const r = this.round;
     if (!r) return { ok: false, error: '진행 중인 게임이 없어요' };
-    if (r.countdownUntil) return { ok: false, error: '시작 카운트다운 중이에요 — 잠시 뒤에 눌러 주세요' };
-    if (on && !r.pausedAt) {
-      r.pausedAt = Date.now();
-      for (const m of r.matches.values()) m.pause();
-    } else if (!on && r.pausedAt) {
-      const d = Date.now() - r.pausedAt;
-      r.pausedMs += d;
-      r.pausedAt = 0;
-      for (const m of r.matches.values()) m.resume();
-    }
+    const res = r.pause(on);
+    if (!res.ok) return res;
     this.io.to(this.channel).emit('class:pause', { on: !!r.pausedAt });
     this.touch();
     this.changed();
-    return { ok: true, paused: !!r.pausedAt };
+    return res;
   }
 
-  /** 교사가 '게임 종료' — 남은 조는 해결률 순 */
+  /** 교사가 '게임 종료' — 남은 팀은 해결률 순 */
   stop() {
-    const r = this.round;
-    if (!r) return { ok: false, error: '진행 중인 게임이 없어요' };
-    if (r.countdownUntil) { clearTimeout(r.countdownTimer); r.countdownUntil = 0; }
-    if (r.pausedAt) { r.pausedMs += Date.now() - r.pausedAt; r.pausedAt = 0; for (const m of r.matches.values()) { m.countdownUntil = 0; m.resume(); } }
-    r.stopped = true;
-    for (const m of r.matches.values()) if (!m.ended) m.finish('stop');
+    if (!this.round) return { ok: false, error: '진행 중인 게임이 없어요' };
+    this.round.stop();
     return { ok: true };
   }
 
-  finishRound() {
-    const r = this.round;
-    if (!r || r.finished) return;
-    r.finished = true;
-    clearInterval(r.timer);
-    for (const m of r.matches.values()) m.stop();
-    const list = [...r.results.values()].map(x => ({
-      no: x.no, clear: x.clear, rank: x.rank || null, ms: x.ms,
-      solved: x.solved, total: x.total, pct: Math.round(x.solved / x.total * 100), bosses: x.bosses, atk: x.atk,
-      members: x.players.map(p => ({ nick: p.nick, kind: p.kind, color: p.color, solved: p.solved, bosses: p.bosses, bot: !!p.bot })),
-      bots: x.players.filter(p => p.bot).length,
-    }));
-    // 완성한 조는 완성 순서, 나머지는 해결한 블록이 많은 순 (같으면 같은 순위)
-    const cleared = list.filter(x => x.clear).sort((a, b) => a.rank - b.rank);
-    const rest = list.filter(x => !x.clear).sort((a, b) => b.pct - a.pct || b.solved - a.solved);
-    let rank = cleared.length;
-    rest.forEach((x, k) => {
-      if (k === 0 || x.pct !== rest[k - 1].pct || x.solved !== rest[k - 1].solved) rank = cleared.length + k + 1;
-      x.rank = rank;
-    });
-    const teams = cleared.concat(rest);
-    // v0.12.0: 끝난 순간의 순위도 순위 기록에 넣는다 (게임이 끝난 뒤 전광판에 그래프를 남김)
-    const endT = Math.round(Math.min(this.elapsed(), r.limitMs));
-    const hist = (r.history || []).filter(h => h.t < endT);
-    hist.push({ t: endT, order: teams.map(x => x.no) });
-    const endedAt = Date.now();
-    const reason = teams.every(x => x.clear) ? 'clear' : r.stopped ? 'stop' : 'time';
-    const result = { code: this.code, startedAt: r.startedAt, endedAt, reason, limitMs: r.limitMs, blocks: r.blocks, ms: Math.min(this.elapsed(), r.limitMs), teams, history: hist };
+  /** 한 판이 끝남 (TeamRound) → 기록 저장 · 결과 보내기 */
+  onRoundEnd(result) {
     try {
-      result.id = this.hub.db.saveGame({ code: this.code, startedAt: r.startedAt, endedAt, reason, settings: this.settings, result });
+      result.id = this.hub.db.saveGame({ code: this.code, startedAt: result.startedAt, endedAt: result.endedAt, reason: result.reason, settings: this.settings, result });
     } catch (e) { console.error('[저장소] 게임 기록 저장 실패:', e.message); }
     this.round = null;
     this.phase = 'waiting';
@@ -764,7 +540,7 @@ class ClassGame {
   close(reason) {
     if (this.closed) return;
     const r = this.round;
-    if (r) { clearInterval(r.timer); for (const m of r.matches.values()) m.stop(); this.round = null; }
+    if (r) { r.kill(); this.round = null; }
     this.closed = true;
     for (const p of [...this.members.values()]) {
       const no = this.teamOf.get(p.id) || 0;

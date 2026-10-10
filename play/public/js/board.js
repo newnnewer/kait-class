@@ -62,14 +62,14 @@
     socket.emit('admin:hello', { key: key }, function (res) {
       if (!res || !res.ok) { msg('로그인이 풀렸어요', '교사 화면에서 다시 로그인한 뒤 "전광판 열기"를 눌러 주세요.'); return; }
       socket.emit('board:watch', { code: CODE }, function (r) {
-        if (!r || !r.ok) { msg('수업 게임이 없어요', (r && r.error) || '코드를 확인해 주세요'); return; }
+        if (!r || !r.ok) { msg('수업방이 없어요', (r && r.error) || '코드를 확인해 주세요'); return; }
         update(r.board);
       });
     });
   });
   socket.on('disconnect', function () { setTimeout(function () { if (!socket.connected) msg('서버와 연결이 끊겼어요', '다시 연결하는 중…'); }, 2000); });
   socket.on('board', update);
-  socket.on('teach:closed', function () { msg('수업이 끝났어요', '선생님이 수업 게임을 끝냈어요. 이 창을 닫아도 돼요.'); });
+  socket.on('teach:closed', function () { msg('수업이 끝났어요', '선생님이 수업방을 끝냈어요. 이 창을 닫아도 돼요.'); });
 
   // ── 소식 줄 · 공격 띠 ──
   var feed = [];
@@ -95,11 +95,11 @@
   socket.on('board:attack', function (a) {
     play(a.blocked ? 'shield' : 'hit');
     if (a.blocked) {
-      band('blocked', 'SHIELD', a.from + '조 ' + a.name + ' → ' + a.to + '조 방패로 막음!', '', 4000);
-      addFeed({ text: a.from + '조 → ' + a.to + '조 ' + a.name + ' (막힘)', kind: 'info' });
+      band('blocked', 'SHIELD', a.from + '팀 ' + a.name + ' → ' + a.to + '팀 방패로 막음!', '', 4000);
+      addFeed({ text: a.from + '팀 → ' + a.to + '팀 ' + a.name + ' (막힘)', kind: 'info' });
     } else {
-      band('attack', 'ATTACK', a.from + '조 → ' + a.to + '조 ' + a.name + '!', a.to + '조 ' + a.desc, 4500);
-      addFeed({ text: a.from + '조 → ' + a.to + '조 ' + a.name + '!', kind: 'attack' });
+      band('attack', 'ATTACK', a.from + '팀 → ' + a.to + '팀 ' + a.name + '!', a.to + '팀 ' + a.desc, 4500);
+      addFeed({ text: a.from + '팀 → ' + a.to + '팀 ' + a.name + '!', kind: 'attack' });
     }
   });
   socket.on('board:feed', function (f) {
@@ -117,7 +117,7 @@
     $('sb-join').innerHTML = '';
     $('sb-join').appendChild(document.createTextNode('접속 '));
     $('sb-join').appendChild(el('b', null, ADDR.replace(/^https?:\/\//, '')));
-    $('sb-join').appendChild(document.createTextNode(' · 수업 게임 코드 '));
+    $('sb-join').appendChild(document.createTextNode(' · 수업방 코드 '));
     $('sb-join').appendChild(el('b', 'code', b.code));
     var at = $('sb-attacks');
     at.textContent = '방해 아이템 ' + (b.attacks ? 'ON' : 'OFF');
@@ -139,7 +139,7 @@
     b.teams.forEach(function (t) {
       var c = el('div', 'sb-tl');
       var h = el('div', 'sb-tl-head');
-      h.appendChild(el('b', null, t.no + '조'));
+      h.appendChild(el('b', null, t.no + '팀'));
       var nb = t.members.filter(function (p) { return p.bot; }).length;
       h.appendChild(el('span', null, t.members.length + '명' + (nb ? ' (봇 ' + nb + ')' : '')));
       c.appendChild(h);
@@ -162,7 +162,7 @@
       r.teams.forEach(function (t) {
         var li = el('li', t.rank === 1 ? 'first' : '');
         li.appendChild(el('span', 'rk', t.rank + '위'));
-        li.appendChild(el('b', null, t.no + '조'));
+        li.appendChild(el('b', null, t.no + '팀'));
         li.appendChild(el('span', null, t.clear ? '완성 ' + mmss(t.ms) : '해결률 ' + t.pct + '%'));
         if (withChart) { var sw = el('i', 'sb-sw'); sw.style.background = teamColor(t.no); li.insertBefore(sw, li.children[1]); }
         ol.appendChild(li);
@@ -190,12 +190,12 @@
   });
   setView(view);
 
-  // 조 색 (조 번호로 고정 — 순위가 바뀌어도 색은 그대로). 어두운 바탕에서 색약도 구분되게 고른 8색
+  // 팀 색 (팀 번호로 고정 — 순위가 바뀌어도 색은 그대로). 어두운 바탕에서 색약도 구분되게 고른 8색
   var TEAM_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
   function teamColor(no) { return TEAM_COLORS[(no - 1) % TEAM_COLORS.length]; }
 
   // 오른쪽: 지금 순위 (작게)
-  var bars = {}; // 조 번호 → 한 줄
+  var bars = {}; // 팀 번호 → 한 줄
   function renderBars(teams) {
     var box = $('sb-bars');
     var seen = {};
@@ -214,7 +214,7 @@
       r.classList.toggle('done', !!t.rank);
       r.querySelector('.sb-rank').textContent = t.rank ? t.rank : k + 1;
       r.querySelector('.sb-sw').style.background = teamColor(t.no);
-      r.querySelector('.sb-bname span').textContent = t.no + '조';
+      r.querySelector('.sb-bname span').textContent = t.no + '팀';
       r.querySelector('.sb-bfill').style.width = t.pct + '%';
       r.querySelector('.sb-bval').textContent = t.rank ? 'CLEAR' : t.pct + '%';
       var fx = t.fx || {}, chips = [];
@@ -265,7 +265,7 @@
       svg.appendChild(svgEl('text', { x: x(m * 60000), y: H - 12, class: 'xlab', 'text-anchor': 'middle' }, m ? m + '분' : '시작'));
     }
     if (b.fit) svg.appendChild(svgEl('text', { x: x(span), y: H - 12, class: 'xlab', 'text-anchor': 'middle' }, '끝 ' + mmss(span)));
-    // 선: 조마다. 칸 사이는 부드러운 S자 (가운데에서 꺾임)
+    // 선: 팀마다. 칸 사이는 부드러운 S자 (가운데에서 꺾임)
     var lines = svgEl('g', {}), heads = svgEl('g', {});
     teams.forEach(function (t) {
       var d = '', prev = null, last = null;
@@ -285,7 +285,7 @@
       lines.appendChild(svgEl('path', { d: d, class: 'ln-gap' }));
       lines.appendChild(svgEl('path', { d: d, class: 'ln', stroke: c }));
       heads.appendChild(svgEl('circle', { cx: last[0], cy: last[1], r: 9, fill: c, class: 'dot' }));
-      heads.appendChild(svgEl('text', { x: last[0] + 18, y: last[1] + 8, class: 'tlab' }, t.no + '조'));
+      heads.appendChild(svgEl('text', { x: last[0] + 18, y: last[1] + 8, class: 'tlab' }, t.no + '팀'));
     });
     svg.appendChild(lines);
     svg.appendChild(heads);
@@ -293,7 +293,7 @@
     box.appendChild(svg);
   }
 
-  var cards = {}; // 조 번호 → { el, mini, cells }
+  var cards = {}; // 팀 번호 → { el, mini, cells }
   function renderPlay(b) {
     $('sb-time-label').textContent = '남은 시간';
     var teams = b.teams.filter(function (t) { return t.cells; });
@@ -335,7 +335,7 @@
     var e = c.el;
     e.classList.toggle('first', k === 0);
     e.querySelector('.sb-rank').textContent = t.rank ? t.rank : k + 1;
-    e.querySelector('.sb-name').textContent = t.no + '조';
+    e.querySelector('.sb-name').textContent = t.no + '팀';
     var pct = e.querySelector('.sb-pct');
     pct.textContent = t.pct + '%';
     pct.classList.toggle('done', !!t.rank);
@@ -353,7 +353,7 @@
       if (c.cells[j] !== t.cells[j]) c.mini.children[j].className = t.cells[j] === '0' ? '' : 's' + t.cells[j];
     }
     c.cells = t.cells;
-    // 가림막: 완성 > 얼음 > 먹구름 > (시간이 끝나 멈춘 조)
+    // 가림막: 완성 > 얼음 > 먹구름 > (시간이 끝나 멈춘 팀)
     var fx = t.fx || {};
     var over = null;
     if (t.rank) over = ['clear', 'CLEAR!', '기록 ' + mmss(t.ms)];
@@ -362,7 +362,7 @@
     else if (fx.cloud > 0) over = ['cloud', '먹구름', Math.ceil(fx.cloud / 1000) + '초'];
     c.over.hidden = !over;
     if (over) { c.over.className = 'sb-over ' + over[0]; c.over.querySelector('b').textContent = over[1]; c.over.querySelector('span').textContent = over[2]; }
-    // 조원
+    // 팀원
     var foot = e.querySelector('.sb-card-foot');
     foot.innerHTML = '';
     t.members.slice(0, 10).forEach(function (p) { foot.appendChild(av(p)); });

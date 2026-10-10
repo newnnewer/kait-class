@@ -1,6 +1,6 @@
 {
   "name": "kait-play",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "description": "KAIT-PLAY — 팀 블록 점령 코딩 게임 (예전 이름: 코딩 대항전)",
   "main": "server/index.js",

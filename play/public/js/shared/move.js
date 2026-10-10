@@ -32,7 +32,7 @@
     // Ctrl+방향키 — 엑셀 방식
     //  · 지금 칸과 다음 칸이 모두 미해결: 미해결 덩어리의 끝까지
     //  · 그 밖: 해결 칸을 건너뛰고 다음 미해결 칸까지 (없으면 판 끝)
-    //  · 판 끝이나 막힌 칸(보스) 바로 앞에서 멈춘다. 다른 조원은 무시한다.
+    //  · 판 끝이나 막힌 칸(보스) 바로 앞에서 멈춘다. 다른 팀원은 무시한다.
     if (!b.solved(idx(b, r, c)) && !b.solved(idx(b, nr, nc))) {
       while (inside(b, nr, nc) && !b.blocked(idx(b, nr, nc)) && !b.solved(idx(b, nr, nc))) {
         r = nr; c = nc; nr += dr; nc += dc;

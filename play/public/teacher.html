@@ -44,19 +44,19 @@
   </footer>
 </main>
 
-<!-- 수업 게임 목록 · 지난 기록 -->
+<!-- 수업방 목록 · 지난 기록 -->
 <main id="screen-home" class="screen page" hidden>
   <header class="top">
     <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill ghost">교사</span>
     <div class="seg" role="group" aria-label="보기" id="home-tabs">
-      <button type="button" data-tab="classes" aria-pressed="true">수업 게임</button>
+      <button type="button" data-tab="classes" aria-pressed="true">수업방</button>
       <button type="button" data-tab="records" aria-pressed="false">지난 기록</button>
       <button type="button" data-tab="bank" aria-pressed="false">문제 은행</button>
     </div>
     <span class="grow"></span>
     <div class="switch-row">
-      <span><b>학생 방 만들기 허용</b><small class="muted">끄면 학생이 자유 대전 방을 새로 만들 수 없어요</small></span>
+      <span><b>학생 방 만들기 허용</b><small class="muted">끄면 학생이 대전방 · 협동방을 새로 만들 수 없어요</small></span>
       <button type="button" class="toggle" id="home-rooms" aria-pressed="true" aria-label="학생 방 만들기 허용"><span></span></button>
     </div>
     <a class="btn small ghost-btn" href="sounds.html" target="_blank" rel="noopener" style="text-decoration:none">소리 미리듣기</a>
@@ -67,14 +67,14 @@
   <p class="pw-warn" id="pw-warn" hidden>지금은 설치할 때 정한 <b>처음 비밀번호</b>(.env)를 쓰고 있어요. <button type="button" class="linklike" id="btn-pw2">비밀번호 바꾸기</button>로 나만 아는 비밀번호로 바꿔 주세요.</p>
   <section id="tab-classes" class="home-body">
     <div class="home-head">
-      <h1>열려 있는 수업 게임</h1>
+      <h1>열려 있는 수업방</h1>
       <span class="grow"></span>
       <button type="button" class="btn yellow big-btn" id="btn-new-class">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>
-        새 수업 게임</button>
+        새 수업방</button>
     </div>
     <div class="class-list" id="class-list"></div>
-    <p class="muted">수업 게임은 '수업 끝내기'를 누르거나 3시간 동안 쓰지 않으면 닫혀요. 서버를 다시 시작해도 닫혀요.</p>
+    <p class="muted">수업방은 '수업 끝내기'를 누르거나 3시간 동안 쓰지 않으면 닫혀요. 서버를 다시 시작해도 닫혀요.</p>
   </section>
 
   <section id="tab-records" class="home-body" hidden>
@@ -167,7 +167,7 @@ for i in range(3):
   </div>
 </div>
 
-<!-- 수업 게임 진행 -->
+<!-- 수업방 진행 -->
 <main id="screen-class" class="screen page tclass" hidden>
   <header class="top">
     <button type="button" class="linklike back" id="btn-back">◀ 목록</button>
@@ -194,17 +194,17 @@ for i in range(3):
         <div class="tag-list" id="c-tags"></div>
         <span class="tag-info" id="c-taginfo"></span>
       </div>
-      <div class="field"><h3>조 수</h3>
-        <div class="stepper"><button type="button" class="step-btn" id="c-teams-down" aria-label="조 줄이기">−</button><b id="c-teams">4</b><button type="button" class="step-btn" id="c-teams-up" aria-label="조 늘리기">+</button><span class="muted">2 ~ 8조</span></div></div>
+      <div class="field"><h3>팀 수</h3>
+        <div class="stepper"><button type="button" class="step-btn" id="c-teams-down" aria-label="팀 줄이기">−</button><b id="c-teams">4</b><button type="button" class="step-btn" id="c-teams-up" aria-label="팀 늘리기">+</button><span class="muted">2 ~ 8팀</span></div></div>
       <div class="field"><h3>제한 시간</h3>
         <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="제한 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="제한 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="제한 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>블록 수 (조마다 같음)</h3>
+      <div class="field"><h3>블록 수 (팀마다 같음)</h3>
         <div class="stepper"><button type="button" class="seg-btn" id="c-auto" aria-pressed="true">자동</button><button type="button" class="step-btn" id="c-blk-down" aria-label="블록 줄이기">−</button><b id="c-blk">자동</b><button type="button" class="step-btn" id="c-blk-up" aria-label="블록 늘리기">+</button></div>
         <span class="muted small" id="c-blkhelp"></span></div>
       <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="c-occ"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div><span class="muted small">게임 시작부터 이 간격마다 모든 조에 같은 보스</span></div>
+      <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div><span class="muted small">게임 시작부터 이 간격마다 모든 팀에 같은 보스</span></div>
       <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div><span class="muted small">아무도 잡지 않으면 달아나기까지</span></div>
       <div class="field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
@@ -217,13 +217,13 @@ for i in range(3):
 
     <section class="t-teams-col">
       <div class="field-head">
-        <h2>조 현황</h2>
+        <h2>팀 현황</h2>
         <span class="muted" id="c-teams-note"></span>
         <span class="grow"></span>
-        <button type="button" class="btn small ghost-btn" id="btn-teamlock" aria-pressed="false" title="잠그면 학생이 조를 고르거나 바꿀 수 없어요 (선생님은 옮길 수 있음)">🔓 조 선택 열림</button>
-        <button type="button" class="btn small ghost-btn" id="btn-shuffle" title="조 미선택 학생까지 모두 무작위로 섞어 고르게 나눠요 (봇은 그대로)">🔀 무작위로 섞기</button>
-        <button type="button" class="btn small ghost-btn" id="btn-autoassign">조 미선택 학생 자동 배정</button>
-        <button type="button" class="btn small ghost-btn" id="btn-botfill" title="모든 조를 가장 큰 조 인원까지 봇으로 채워요 (아무도 없는 조는 빼고)">봇으로 인원 맞추기</button>
+        <button type="button" class="btn small ghost-btn" id="btn-teamlock" aria-pressed="false" title="잠그면 학생이 팀을 고르거나 바꿀 수 없어요 (선생님은 옮길 수 있음)">🔓 팀 선택 열림</button>
+        <button type="button" class="btn small ghost-btn" id="btn-shuffle" title="팀 미선택 학생까지 모두 무작위로 섞어 고르게 나눠요 (봇은 그대로)">🔀 무작위로 섞기</button>
+        <button type="button" class="btn small ghost-btn" id="btn-autoassign">팀 미선택 학생 자동 배정</button>
+        <button type="button" class="btn small ghost-btn" id="btn-botfill" title="모든 팀을 가장 큰 팀 인원까지 봇으로 채워요 (아무도 없는 팀은 빼고)">봇으로 인원 맞추기</button>
         <button type="button" class="btn small ghost-btn" id="btn-botclear" hidden>봇 모두 빼기</button>
       </div>
       <div class="t-teams" id="c-teams-grid"></div>

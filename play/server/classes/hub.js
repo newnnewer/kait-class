@@ -1,8 +1,8 @@
 'use strict';
-// 수업 게임 모음 — 방 코드(숫자 4자리) → 수업 게임
+// 수업방 모음 — 방 코드(숫자 4자리) → 수업방
 //   · 방 코드를 연속으로 틀리면 잠시 막는다 (코드 찍어 보기 방지)
 //   · '학생 방 만들기 허용' 스위치 (서버 전체, DB에 저장)
-//   · 3시간 동안 아무 일이 없는 수업 게임은 자동으로 닫는다
+//   · 3시간 동안 아무 일이 없는 수업방은 자동으로 닫는다
 
 const { ClassGame } = require('./classgame');
 
@@ -47,7 +47,7 @@ class ClassHub {
   get(code) { return this.classes.get(String(code)) || null; }
 
   create(settings) {
-    if (this.classes.size >= MAX_CLASSES) return { ok: false, error: '열려 있는 수업 게임이 너무 많아요. 안 쓰는 수업을 끝내 주세요' };
+    if (this.classes.size >= MAX_CLASSES) return { ok: false, error: '열려 있는 수업방이 너무 많아요. 안 쓰는 수업을 끝내 주세요' };
     let code;
     do { code = String(1000 + Math.floor(Math.random() * 9000)); } while (this.classes.has(code));
     const c = new ClassGame({ hub: this, code, settings });
@@ -68,7 +68,7 @@ class ClassHub {
       t = t || { n: 0, at: now };
       t.n += 1; t.at = now;
       this.tries.set(p.token, t);
-      return { ok: false, error: '그런 수업 게임 코드가 없어요' };
+      return { ok: false, error: '그런 수업방 코드가 없어요' };
     }
     this.tries.delete(p.token);
     return c.join(p, socket);

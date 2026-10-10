@@ -51,7 +51,7 @@
   var on = false, fast = false, tune = 'game';
   btn('board', '배경음 켜기 / 끄기', '게임 중 반복', function () { S.unlock(); if (on && tune === 'game') { on = false; S.bgm(false); } else { on = true; tune = 'game'; S.bgm(true, fast, 'game'); } });
   btn('board', '배경음 빠르게 / 보통', '마지막 30초', function () { fast = !fast; if (on) S.bgm(true, fast, tune); });
-  btn('board', '대기실 배경음 켜기 / 끄기', '대기실 · 조 선택 화면', function () { S.unlock(); if (on && tune === 'lobby') { on = false; S.bgm(false); } else { on = true; tune = 'lobby'; S.bgm(true, false, 'lobby'); } });
+  btn('board', '대기실 배경음 켜기 / 끄기', '대기실 · 팀 선택 화면', function () { S.unlock(); if (on && tune === 'lobby') { on = false; S.bgm(false); } else { on = true; tune = 'lobby'; S.bgm(true, false, 'lobby'); } });
 })();
 </script>
 </body>

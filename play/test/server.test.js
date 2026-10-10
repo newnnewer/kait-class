@@ -89,6 +89,9 @@ test('들어가기 · 방장만 시작 · 시작하면 판이 온다 · 진행 �
   const notHost = await call(b.s, 'room:start', {});
   assert.strictEqual(notHost.ok, false);
   const sa = once(a.s, 'state'), sb = once(b.s, 'state');
+  const early = await call(a.s, 'room:start', {});
+  assert.strictEqual(early.ok, false, 'b 가 준비하지 않았으면 시작할 수 없다 (v0.13.0)');
+  assert.strictEqual((await call(b.s, 'room:ready', {})).ready, true);
   const st = await call(a.s, 'room:start', {});
   assert.strictEqual(st.ok, true);
   const [ga, gb] = await Promise.all([sa, sb]);
@@ -104,6 +107,7 @@ test('게임 안에서 점유 → 정답 · 남이 점유한 칸은 못 잡는�
   const a = await enter(), b = await enter();
   const made = await call(a.s, 'room:create', { settings: SETTINGS });
   await call(b.s, 'room:join', { id: made.room.id });
+  await call(b.s, 'room:ready', {});
   const sa = once(a.s, 'state'), sb = once(b.s, 'state');
   await call(a.s, 'room:start', {});
   const [ga, gb] = await Promise.all([sa, sb]);
@@ -131,6 +135,7 @@ test('학생 방 봇: 방장만 넣고 빼기 · 인원에 들어감 · 게임�
   const made = await call(a.s, 'room:create', { settings: { ...SETTINGS, max: 3, botSpeed: 'fast' } });
   assert.strictEqual(made.room.settings.botSpeed, 'fast');
   await call(b.s, 'room:join', { id: made.room.id });
+  await call(b.s, 'room:ready', {});
   const notHost = await call(b.s, 'room:bot', { op: 'add' });
   assert.strictEqual(notHost.ok, false);
   const added = await call(a.s, 'room:bot', { op: 'add' });
@@ -179,6 +184,7 @@ test('대기실 채팅: 정해 둔 문구만 · 2초에 한 번 · 학생 방 �
   const j = await call(c.s, 'room:join', { id: made.room.id });
   assert.deepStrictEqual(j.room.chat.map(x => x.id), ['ok', 'bot']);
   // 게임 중에는 채팅 없음
+  await call(b.s, 'room:ready', {}); await call(c.s, 'room:ready', {});
   await call(a.s, 'room:start', {});
   await new Promise(r => setTimeout(r, 2100));
   assert.strictEqual((await call(a.s, 'chat', { id: 'ok' })).why, 'playing');
@@ -249,6 +255,7 @@ test('게임 중 연결이 끊긴 채로 두면 방에서 빠진다', async () =
   const a = await enter(), b = await enter();
   const made = await call(a.s, 'room:create', { settings: SETTINGS });
   await call(b.s, 'room:join', { id: made.room.id });
+  await call(b.s, 'room:ready', {});
   const sa = once(a.s, 'state');
   await call(a.s, 'room:start', {});
   await sa;
@@ -256,4 +263,24 @@ test('게임 중 연결이 끊긴 채로 두면 방에서 빠진다', async () =
   b.s.close();
   await left; // GRACE_MS=300
   a.s.close();
+});
+
+test('대전방(v0.13.0): 팀 고르기 · 준비 · 시작하면 팀마다 판 · 학생 방 고정 설정', async () => {
+  const a = await enter(), b = await enter(), c = await enter();
+  const made = await call(a.s, 'room:create', { settings: { ...SETTINGS, mode: 'battle', teams: 2, teamSize: 2, occSec: 10, bossEverySec: 60, penalty: false } });
+  assert.strictEqual(made.room.mode, 'battle');
+  const st0 = made.room.settings;
+  assert.deepStrictEqual([st0.occSec, st0.bossEverySec, st0.bossWaitSec, st0.bossLimitSec, st0.penalty], [20, 15, 8, 30, true], '학생 방은 점유 · 보스 · 페널티 고정');
+  const jb = await call(b.s, 'room:join', { id: made.room.id });
+  assert.deepStrictEqual(jb.room.teams.map(t => t.members.length), [1, 1], '사람 적은 팀에 앉음');
+  await call(c.s, 'room:join', { id: made.room.id });
+  assert.strictEqual((await call(c.s, 'room:team', { no: 2 })).ok, true);
+  assert.strictEqual((await call(b.s, 'room:team', { no: 2 })).ok, true, '이미 2팀');
+  for (const x of [b, c]) await call(x.s, 'room:ready', {});
+  const sa = once(a.s, 'state'), sb = once(b.s, 'state'), sc = once(c.s, 'state');
+  assert.strictEqual((await call(a.s, 'room:start', {})).ok, true);
+  const [ga, gb, gc] = await Promise.all([sa, sb, sc]);
+  assert.deepStrictEqual([ga.room.mode, ga.room.name, gb.room.name, gc.room.name], ['battle', '1팀', '2팀', '2팀']);
+  assert.strictEqual(gb.players.length, 2);
+  a.s.close(); b.s.close(); c.s.close();
 });

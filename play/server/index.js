@@ -126,6 +126,8 @@ const lobby = new Lobby({
 const hub = new ClassHub({ io, bank: store, db, lobby, idleMs: config.classIdleMs });
 lobby.allowRooms = () => hub.allowRooms;
 lobby.countdownMs = config.countdownMs;
+lobby.autoStartMs = config.autoStartMs;
+lobby.hostOffMs = config.hostOffMs;
 hub.countdownMs = config.countdownMs;
 hub.nicks = () => players.nicks();
 const auth = new Auth(config.adminPassword, db);
@@ -240,11 +242,18 @@ io.on('connection', (socket) => {
     if (!allow() || !me) return;
     ok(cb, lobby.roomBot(me, msg));
   });
-  // 대기실 · 조 선택 화면 채팅 (v0.7.3) — 정해 둔 문구 id 만
+  // 대기실 · 팀 선택 화면 채팅 (v0.7.3) — 정해 둔 문구 id 만
   socket.on('chat', (msg, cb) => {
     if (!allow() || !me || !me.room || typeof me.room.say !== 'function') return;
     ok(cb, me.room.say(me, msg && msg.id));
   });
+  // v0.13.0: 준비 · 팀 고르기 · (방장) 학생 옮기기 · 내보내기
+  for (const op of ['ready', 'team', 'move', 'kick']) {
+    socket.on('room:' + op, (msg, cb) => {
+      if (!allow() || !me) return;
+      ok(cb, lobby.roomAct(me, op, msg));
+    });
+  }
   socket.on('room:leave', (msg, cb) => {
     if (!allow() || !me) return;
     ok(cb, lobby.leaveRoom(me, socket));
@@ -254,7 +263,7 @@ io.on('connection', (socket) => {
     ok(cb, me.room.start(me));
   });
 
-  // 4-1) 수업 게임: 방 코드로 들어가기 · 조 고르기
+  // 4-1) 수업방: 방 코드로 들어가기 · 팀 고르기
   socket.on('class:join', (msg, cb) => {
     if (!allow() || !me) return;
     ok(cb, hub.join(me, socket, msg && msg.code));
@@ -267,7 +276,7 @@ io.on('connection', (socket) => {
   // 8) 관리자(교사)
   let adminKey = null;
   const admin = () => (adminKey && auth.check(adminKey) ? true : (adminKey = null, false));
-  let watching = null; // 교사 화면이 보고 있는 수업 게임
+  let watching = null; // 교사 화면이 보고 있는 수업방
   const cls = () => (watching ? hub.get(watching) : null);
   const adminBase = () => ({ ok: true, classes: hub.list(), allowRooms: hub.allowRooms, options: OPTIONS, bankTags: bankTags(), version: VERSION, pwSource: auth.source(), demo: config.demo });
   function watch(code) {
@@ -319,10 +328,10 @@ io.on('connection', (socket) => {
   });
   adminOn('class:watch', m => {
     const c = watch(m.code);
-    return c ? { ok: true, cls: c.teacherDetail() } : { ok: false, error: '없는 수업 게임이에요' };
+    return c ? { ok: true, cls: c.teacherDetail() } : { ok: false, error: '없는 수업방이에요' };
   });
   function withClass(fn) {
-    return m => { const c = cls(); return c ? fn(c, m) : { ok: false, error: '수업 게임을 먼저 고르세요' }; };
+    return m => { const c = cls(); return c ? fn(c, m) : { ok: false, error: '수업방을 먼저 고르세요' }; };
   }
   adminOn('class:settings', withClass((c, m) => {
     const s = cleanClass(m.settings);
@@ -353,13 +362,13 @@ io.on('connection', (socket) => {
   });
   adminOn('class:attacks', withClass((c, m) => c.setAttacks(!!m.on)));
   adminOn('class:sound', withClass((c, m) => c.setSound(m)));
-  // 전광판: 수업 게임 하나를 지켜본다 (교사 화면과 따로 연결)
+  // 전광판: 수업방 하나를 지켜본다 (교사 화면과 따로 연결)
   let boardOf = null;
   adminOn('board:watch', m => {
     const c = hub.get(m.code);
     if (boardOf) socket.leave('board:' + boardOf);
     boardOf = null;
-    if (!c) return { ok: false, error: '없는 수업 게임이에요' };
+    if (!c) return { ok: false, error: '없는 수업방이에요' };
     boardOf = c.code;
     socket.join('board:' + c.code);
     return { ok: true, board: c.boardState(), address: null };
@@ -423,7 +432,7 @@ io.on('connection', (socket) => {
     const m = match();
     if (!allow() || !m) return;
     const slot = msg && Number.isInteger(msg.slot) ? msg.slot : 0;
-    const to = msg && Number.isInteger(msg.to) ? msg.to : 0; // v0.12.0: 방해 아이템 대상 조 (0 = 바로 위 순위 조)
+    const to = msg && Number.isInteger(msg.to) ? msg.to : 0; // v0.12.0: 방해 아이템 대상 팀 (0 = 바로 위 순위 팀)
     ok(cb, m.useItem(me, slot, to));
   });
   socket.on('defend', (msg, cb) => {
