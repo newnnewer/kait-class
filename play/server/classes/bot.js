@@ -1,8 +1,8 @@
 'use strict';
-// 수업방의 봇 — 팀 인원을 맞추려고 교사가 넣는다. 서버 안에서 움직인다 (연결 없음).
+// 공식전의 비트 — 팀 인원을 맞추려고 교사가 넣는다. 서버 안에서 움직인다 (연결 없음).
 //   · 일반 블록만: 가까운 빈 블록으로 걸어가 점유 → 잠시 '타이핑' → 제출 (가끔 틀림)
 //   · 보스는 잡지 않는다 (보스·아이템은 학생 몫)
-//   · 속도는 수업방 설정의 '봇 속도' — 한 블록에 걸리는 시간이 대략
+//   · 속도는 공식전 설정의 '비트 속도' — 한 블록에 걸리는 시간이 대략
 //       느림 20초 · 보통 12초 · 빠름 7초 (걷는 시간 포함)
 //   · 사람과 똑같은 규칙(Match 의 move/occupy/submit)을 쓰므로 얼음·혼란·일시정지도 똑같이 받는다
 
@@ -25,7 +25,7 @@ function makeBot(nick) {
   };
 }
 
-/** 한 번 움직여 본다 (수업방이 0.2초마다 부름). taken: 이 판에서 다른 봇이 노리는 칸 */
+/** 한 번 움직여 본다 (공식전이 0.2초마다 부름). taken: 이 판에서 다른 비트가 노리는 칸 */
 function stepBot(bot, m, speed, taken) {
   const b = bot.brain;
   const now = Date.now();
@@ -54,7 +54,7 @@ function stepBot(bot, m, speed, taken) {
   const here = pos.r * cols + pos.c;
   const free = i => i >= 0 && cells[i] && !cells[i].solved && !m.occ.has(i) && !(m.boss && m.boss.i === i);
 
-  // 노릴 칸 고르기: 가까운 빈 블록 중 하나 (다른 봇과 겹치지 않게)
+  // 노릴 칸 고르기: 가까운 빈 블록 중 하나 (다른 비트와 겹치지 않게)
   if (!free(b.target)) {
     const list = [];
     cells.forEach((c, i) => {

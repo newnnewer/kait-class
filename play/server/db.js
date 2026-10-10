@@ -1,7 +1,7 @@
 'use strict';
 // 저장소 — Node.js 내장 SQLite(node:sqlite) 한 파일 (data/game.db)
-//   · settings : 서버 설정 몇 가지 (학생 방 만들기 허용 등)
-//   · games    : 수업방 기록 (날짜 · 방 코드 · 설정 · 팀별 순위)
+//   · settings : 서버 설정 몇 가지 (자유 플레이 허용 등)
+//   · games    : 공식전 기록 (날짜 · 공식전 코드 · 설정 · 팀별 순위)
 //   · problems : 문제 은행 (6단계 — problems/store.js 가 만든다)
 // 파일을 열 수 없으면(권한 등) 메모리에만 두고 계속 돌아간다 — 게임은 멈추지 않게.
 

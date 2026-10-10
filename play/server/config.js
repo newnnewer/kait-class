@@ -18,7 +18,7 @@ module.exports = {
   bankFile: process.env.BANK_FILE || require('path').join(__dirname, '..', 'problems', 'bank.txt'),
   // 연결이 끊긴 사람을 판에 남겨 두는 시간 (새로고침·잠깐 끊김 대비)
   graceMs: parseInt(process.env.GRACE_MS || '60000', 10),
-  // 학생 방: 서버 전체 최대 방 수 / 같은 브라우저가 방을 다시 만들 수 있기까지
+  // 자유 플레이: 서버 전체 최대 방 수 / 같은 브라우저가 방을 다시 만들 수 있기까지
   maxRooms: parseInt(process.env.MAX_ROOMS || '60', 10),
   createGapMs: parseInt(process.env.CREATE_GAP_MS || '60000', 10),
   // 시작하지 않은 방이 닫히기까지 / 게임 중 아무도 입력하지 않으면 경고까지 · 경고 뒤 종료까지
@@ -31,12 +31,12 @@ module.exports = {
   adminPassword: process.env.ADMIN_PASSWORD || '',
   // 저장소 파일 (게임 기록 · 설정)
   dbFile: process.env.DB_FILE || require('path').join(__dirname, '..', 'data', 'game.db'),
-  // 게임 시작 카운트다운 (학생 방 · 수업방 모두, v0.7.6). 0 이면 바로 시작 (자동 시험용)
+  // 게임 시작 카운트다운 (자유 플레이 · 공식전 모두, v0.7.6). 0 이면 바로 시작 (자동 시험용)
   countdownMs: parseInt(process.env.COUNTDOWN_MS || '5000', 10),
   autoStartMs: parseInt(process.env.AUTO_START_MS || '15000', 10), // v0.13.0: 모두 준비되면 자동 시작까지
   hostOffMs: parseInt(process.env.HOST_OFF_MS || '10000', 10),     // v0.13.0: 방장 연결이 끊기면 넘기기까지
   // 체험(데모) 서버 (.env 의 DEMO=1): 교사 비밀번호 바꾸기를 막고 화면에 '체험 서버' 표시 (v0.10.0)
   demo: /^(1|true|yes|on)$/i.test(String(process.env.DEMO || '').trim()),
-  // 수업방: 이만큼 아무 일이 없으면 자동으로 닫힘 (3시간)
+  // 공식전: 이만큼 아무 일이 없으면 자동으로 닫힘 (3시간)
   classIdleMs: parseInt(process.env.CLASS_IDLE_MS || String(3 * 3600 * 1000), 10),
 };

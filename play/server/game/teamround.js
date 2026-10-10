@@ -1,12 +1,12 @@
 'use strict';
-// 팀 대전 한 판 (v0.13.0) — 수업방과 학생 대전방이 함께 쓴다.
+// 팀 대전 한 판 (v0.13.0) — 공식전과 학생 팀 배틀이 함께 쓴다.
 //   · 팀마다 판(Match) 하나. 모든 팀이 같은 씨앗 → 같은 배치 · 같은 문제 순서
 //   · 보스: "게임 시작부터 N초마다" 모든 팀에 같은 문제. 그 차례에 보스가 남아 있는 팀은 한 번 건너뜀
 //   · 순위: 판을 완성한 순서 → 시간이 끝나면(또는 끝내면) 남은 팀은 해결률 순 → 기권한 팀은 맨 아래
 //   · 방해 아이템: 다른 팀을 고른다 (0 = 바로 위 순위 팀)
-//   · 일시정지(수업방만): 모든 팀의 입력과 모든 시계가 멈춘다
+//   · 일시정지(공식전만): 모든 팀의 입력과 모든 시계가 멈춘다
 //
-// owner(수업방 ClassGame · 학생 대전방 Room)가 갖춰 줄 것:
+// owner(공식전 ClassGame · 학생 팀 배틀 Room)가 갖춰 줄 것:
 //   io, channel, settings, mode('class' | 'battle'), label(코드 · 방 id)
 //   teamChannel(no), teamMembers(no), bots(), matchOf(p), socketOf(p), teamCount(), attacksOn()
 //   standingsTo(): standings 를 보낼 채널 목록 · changed()
@@ -128,7 +128,7 @@ class TeamRound {
   tick() {
     if (this.pausedAt || this.finished) return;
     const o = this.owner;
-    // 봇 움직이기 (판마다 다른 봇이 노리는 칸은 피한다)
+    // 비트 움직이기 (판마다 다른 비트가 노리는 칸은 피한다)
     const taken = new Map();
     for (const bot of o.bots()) {
       const m = o.matchOf(bot);
@@ -268,7 +268,7 @@ class TeamRound {
     if ([...this.matches.keys()].every(k => this.results.has(k))) setImmediate(() => this.finish());
   }
 
-  /** 팀 하나를 기권으로 끝낸다 (학생 대전방: 팀원이 모두 나감) */
+  /** 팀 하나를 기권으로 끝낸다 (학생 팀 배틀: 팀원이 모두 나감) */
   forfeit(no) {
     const m = this.matches.get(no);
     if (m && !m.ended) m.finish('forfeit');

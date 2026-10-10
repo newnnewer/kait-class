@@ -1,13 +1,13 @@
 'use strict';
-// 학생 방 하나 — 대기실(모집 중) ↔ 경기(진행 중)
-//   협동방(coop): 모두가 판 하나를 함께 채운다 (예전 학생 방)
-//   대전방(battle, v0.13.0): 2~4팀 × 팀마다 1~8명. 팀마다 같은 판으로 겨룬다 (수업방과 같은 TeamRound)
+// 자유 플레이 하나 — 대기실(모집 중) ↔ 경기(진행 중)
+//   레이드(coop): 모두가 판 하나를 함께 채운다 (예전 자유 플레이)
+//   팀 배틀(battle, v0.13.0): 2~4팀 × 팀마다 1~8명. 팀마다 같은 판으로 겨룬다 (공식전과 같은 TeamRound)
 //
 //   · 방장만 시작 · 방장이 나가거나 10초 넘게 연결이 끊기면 다음 사람이 방장 · 사람이 모두 나가면 방이 없어진다
-//   · 준비(v0.13.0): 방장 말고 모두 '준비'해야 시작 가능 (봇은 늘 준비). 모두 준비되면 15초 뒤 자동 시작
-//   · 방장: 봇 넣고 빼기 · (대전방) 학생을 다른 팀으로 옮기기 · 내보내기(같은 방에 다시 못 들어옴)
+//   · 준비(v0.13.0): 방장 말고 모두 '준비'해야 시작 가능 (비트는 늘 준비). 모두 준비되면 15초 뒤 자동 시작
+//   · 방장: 비트 넣고 빼기 · (팀 배틀) 학생을 다른 팀으로 옮기기 · 내보내기(같은 방에 다시 못 들어옴)
 //   · 10분 동안 시작하지 않으면 닫힌다 · 경기가 끝나면 결과를 보여 주고 대기실로 돌아온다 (준비는 모두 풀림)
-//   · 대전방: 팀원(사람)이 모두 나간 팀은 기권 → 맨 아래 순위
+//   · 팀 배틀: 팀원(사람)이 모두 나간 팀은 기권 → 맨 아래 순위
 
 const { Match } = require('../game/match');
 const { TeamRound } = require('../game/teamround');
@@ -32,12 +32,12 @@ class Room {
     this.settings = settings;
     this.channel = 'room:' + id;
     this.members = new Map(); // id → player (들어온 순서대로)
-    this.teamOf = new Map();  // 대전방: id → 팀 번호
+    this.teamOf = new Map();  // 팀 배틀: id → 팀 번호
     this.ready = new Set();   // 준비한 사람 id
     this.kicked = new Set();  // 내보낸 브라우저 열쇠
     this.phase = 'waiting';
-    this.match = null;        // 협동방 경기
-    this.round = null;        // 대전방 경기 (TeamRound)
+    this.match = null;        // 레이드 경기
+    this.round = null;        // 팀 배틀 경기 (TeamRound)
     this.lastResult = null;
     this.closeAt = Date.now() + (lobby.waitCloseMs || WAIT_CLOSE_MS);
     this.autoAt = 0;          // 자동 시작 시각 (0 = 없음)
@@ -55,7 +55,7 @@ class Room {
   socketOf(p) { return this.lobby.socketOf(p); }
   isReady(p) { return p.bot || p.id === this.hostId || this.ready.has(p.id); }
 
-  // ── 팀 (대전방) ──
+  // ── 팀 (팀 배틀) ──
   teamCount() { return this.battle ? this.settings.teams : 0; }
   teamMembers(no) { return [...this.members.values()].filter(p => this.teamOf.get(p.id) === no); }
   teamChannel(no) { return this.channel + ':t' + no; }
@@ -101,7 +101,7 @@ class Room {
     return out;
   }
 
-  /** 진행률 — 대전방은 가장 앞선 팀 */
+  /** 진행률 — 팀 배틀은 가장 앞선 팀 */
   progress() {
     if (this.match) return this.match.progress();
     if (this.round) return Math.max(0, ...[...this.round.matches.values()].map(m => m.progress()));
@@ -218,10 +218,10 @@ class Room {
     this.ready.delete(p.id);
     p.room = null;
     if (socket) { socket.leave(this.channel); if (no) socket.leave(this.teamChannel(no)); }
-    if (m) m.leave(p); // 경기 중이면 판에서도 뺀다 (협동방: 모두 나가면 경기가 끝난다)
+    if (m) m.leave(p); // 경기 중이면 판에서도 뺀다 (레이드: 모두 나가면 경기가 끝난다)
     if (this.closed) return;
-    if (!this.humans().length) { this.close('empty'); return; } // 봇만 남으면 닫는다
-    // 대전방: 그 팀에 사람이 아무도 없으면 기권
+    if (!this.humans().length) { this.close('empty'); return; } // 비트만 남으면 닫는다
+    // 팀 배틀: 그 팀에 사람이 아무도 없으면 기권
     if (this.round && no && !this.teamMembers(no).some(x => !x.bot)) this.round.forfeit(no);
     if (this.hostId === p.id) this.passHost();
     this.recheckAuto();
@@ -252,7 +252,7 @@ class Room {
 
   /** 팀 옮기기 — 학생 스스로(pickTeam) 또는 방장이(moveTo). 준비 상태는 그대로 */
   setTeam(p, no) {
-    if (!this.battle) return { ok: false, error: '대전방에서만 팀을 고를 수 있어요' };
+    if (!this.battle) return { ok: false, error: '팀 배틀에서만 팀을 고를 수 있어요' };
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 팀을 바꿀 수 없어요' };
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
@@ -310,12 +310,12 @@ class Room {
     return { ok: true };
   }
 
-  // ── 봇 (방장만, 대기실에서만) ──
+  // ── 비트 (방장만, 대기실에서만) ──
 
   addBot(p, no) {
     const why = this.hostOnly(p);
-    if (why) return { ok: false, error: why === '방장만 할 수 있어요' ? '방장만 봇을 넣을 수 있어요' : '게임 중에는 봇을 넣을 수 없어요' };
-    if (this.members.size >= this.settings.max) return { ok: false, error: '방이 꽉 찼어요 (봇도 인원에 들어가요)' };
+    if (why) return { ok: false, error: why === '방장만 할 수 있어요' ? '방장만 비트를 부를 수 있어요' : '게임 중에는 비트를 부를 수 없어요' };
+    if (this.members.size >= this.settings.max) return { ok: false, error: '방이 꽉 찼어요 (비트도 인원에 들어가요)' };
     let team = 0;
     if (this.battle) {
       team = Math.round(Number(no)) || this.emptiestTeam();
@@ -333,19 +333,19 @@ class Room {
   }
 
   removeBot(p, id) {
-    if (p.id !== this.hostId) return { ok: false, error: '방장만 봇을 뺄 수 있어요' };
-    if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 봇을 뺄 수 없어요' };
+    if (p.id !== this.hostId) return { ok: false, error: '방장만 비트를 뺄 수 있어요' };
+    if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 비트를 뺄 수 없어요' };
     const bot = this.members.get(id);
-    if (!bot || !bot.bot) return { ok: false, error: '없는 봇이에요' };
+    if (!bot || !bot.bot) return { ok: false, error: '없는 비트예요' };
     this.leave(bot, null);
     return { ok: true };
   }
 
-  /** 대전방: 모든 팀을 가장 큰 팀 인원까지 봇으로 채운다 (한 팀만 있으면 상대 팀도 같은 인원으로) */
+  /** 팀 배틀: 모든 팀을 가장 큰 팀 인원까지 비트로 채운다 (한 팀만 있으면 상대 팀도 같은 인원으로) */
   fillBots(p) {
     const why = this.hostOnly(p);
     if (why) return { ok: false, error: why };
-    if (!this.battle) return { ok: false, error: '대전방에서만 쓸 수 있어요' };
+    if (!this.battle) return { ok: false, error: '팀 배틀에서만 쓸 수 있어요' };
     const target = Math.max(1, this.biggestTeam());
     let added = 0;
     for (let no = 1; no <= this.settings.teams; no++) {
@@ -358,7 +358,7 @@ class Room {
     return added ? { ok: true, added } : { ok: false, error: '이미 인원이 맞춰져 있어요' };
   }
 
-  /** 협동방: 0.2초마다 봇을 한 걸음씩 (대전방은 TeamRound 가 움직인다) */
+  /** 레이드: 0.2초마다 비트를 한 걸음씩 (팀 배틀은 TeamRound 가 움직인다) */
   stepBots() {
     const m = this.match;
     if (!m || m.ended) return;
@@ -389,7 +389,7 @@ class Room {
   begin() {
     const s = this.settings;
     const chk = this.startCheck();
-    if (chk.why === 'rival') return { ok: false, error: '상대 팀이 없어요 — 다른 팀에도 사람이나 봇이 있어야 해요' };
+    if (chk.why === 'rival') return { ok: false, error: '상대 팀이 없어요 — 다른 팀에도 사람이나 비트가 있어야 해요' };
     if (chk.why === 'ready') return { ok: false, error: `${chk.notReady}명이 아직 준비하지 않았어요` };
     const { codes, bosses } = this.lobby.problemsFor(s.tags);
     if (!codes.length) return { ok: false, error: '고른 태그에 문제가 없어요' };
@@ -435,7 +435,7 @@ class Room {
     return { ok: true };
   }
 
-  /** 경기 끝 — 협동방: Match 결과 · 대전방: TeamRound 결과(팀 순위) */
+  /** 경기 끝 — 레이드: Match 결과 · 팀 배틀: TeamRound 결과(팀 순위) */
   onEnd(result) {
     this.stopBots();
     this.match = null;

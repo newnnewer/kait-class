@@ -11,14 +11,14 @@
 //
 // 서버 안에서 (100명 정도까지, 연습 서버: cd /opt/kait-play):
 //   docker exec kait-play node scripts/loadtest.js --rooms 10 --per 7 --minutes 5
-//       → 학생 방 10개 × 7명 (70명)을 스스로 만들어 판이 끝나면 다시 시작
+//       → 자유 플레이 10개 × 7명 (70명)을 스스로 만들어 판이 끝나면 다시 시작
 //   docker exec kait-play node scripts/loadtest.js --class 4827 --students 30 --minutes 5
 //       → 교사 화면에서 만든 수업 게임(코드 4827)에 30명이 들어가 조를 차례로 고름 → 교사가 '게임 시작'
 //   교사 역할까지 자동: --teacher 비밀번호 --students 30 --teams 6   (수업 게임을 만들고, 모두 들어오면 시작, 끝나면 닫음)
 //   둘을 함께: --teacher 비밀번호 --students 30 --rooms 10 --per 7   (모두 100명)
 //   수업 게임 여러 개 (v0.8.1): --teacher 비밀번호 --classes 8 --students 240 --teams 6 --rooms 40 --per 7 --minutes 10
 //       → 수업 게임 8개에 240명을 나눠(30명씩) 넣고, 판이 끝나면 5초 뒤 다음 판을 자동으로 시작 (한 판 --round 분, 기본 3)
-//       → 학생 방 40개 × 7명 = 280명, 모두 520명
+//       → 자유 플레이 40개 × 7명 = 280명, 모두 520명
 //   접속은 한꺼번에 몰리지 않게 가상 학생마다 --ramp 밀리초(기본 20) 간격으로
 //   다른 주소: --url http://서버주소/play
 //
@@ -68,7 +68,7 @@ function warnOnce(msg) {
   console.log(msg);
   if (/사람이 너무 많아요/.test(msg)) console.log('  → 서버의 최대 접속 인원(MAX_PLAYERS, 기본 300)에 걸렸어요. 서버 .env 에 MAX_PLAYERS=600 처럼 늘리고 docker compose up -d 로 다시 켠 뒤 시험하세요.'
     + ' (방금 끝난 시험의 가상 학생은 1분 동안 자리를 차지하니 1분 뒤에)');
-  if (/방이 너무 많아요/.test(msg)) console.log('  → 서버의 학생 방 한도(MAX_ROOMS, 기본 60)에 걸렸어요.');
+  if (/방이 너무 많아요/.test(msg)) console.log('  → 서버의 자유 플레이 한도(MAX_ROOMS, 기본 60)에 걸렸어요.');
 }
 function pct(a, p) { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(s.length * p))]; }
 
@@ -182,7 +182,7 @@ function student(no, plan) {
     return move({ dir: tc > me.c ? 'R' : 'L', ctrl: false });
   }
 
-  // 학생 방: 방장은 방을 만들고 사람이 차면 시작 · 끝나면 다시 시작
+  // 자유 플레이: 방장은 방을 만들고 사람이 차면 시작 · 끝나면 다시 시작
   s.on('room', r => {
     roomId = r.id;
     if (plan.host && r.phase === 'waiting' && r.members.length >= PER && r.hostId === st.id) {
@@ -295,11 +295,11 @@ async function main() {
     const c = classes[k % classes.length];
     plans.push({ cls: true, code: c.code, t: c.expect++ });
   }
-  // 섞어서 차례로 접속 (학생 방 · 수업 게임이 함께 늘어나게, 방장은 먼저)
+  // 섞어서 차례로 접속 (자유 플레이 · 수업 게임이 함께 늘어나게, 방장은 먼저)
   plans.sort((x, y) => (y.host ? 1 : 0) - (x.host ? 1 : 0) || Math.random() - 0.5);
   plans.forEach((pl, i) => setTimeout(() => sockets.push(student(++n, pl)), i * RAMP));
   const total = plans.length;
-  console.log(`가상 학생 ${total}명 — 학생 방 ${ROOMS}개 × ${PER}명 = ${ROOMS * PER}명`
+  console.log(`가상 학생 ${total}명 — 자유 플레이 ${ROOMS}개 × ${PER}명 = ${ROOMS * PER}명`
     + (classes.length ? ` · 수업 게임 ${classes.length}개에 ${STUDENTS}명` + (TEACHER ? '' : " (교사 화면에서 '게임 시작'을 눌러 주세요)") : '')
     + ` · ${MINUTES}분 동안 · 접속에 약 ${Math.ceil(total * RAMP / 1000)}초`);
   classes.forEach(c => { if (c.teacher) runClass(c); });
@@ -349,7 +349,7 @@ function finish() {
   console.log(`응답 시간(움직임): 보통 ${pct(latAll, 0.5)}ms · 느린 5% ${pct(latAll, 0.95)}ms · 느린 1% ${pct(latAll, 0.99)}ms · 가장 느림 ${latAll.length ? Math.max(...latAll) : 0}ms · ${latAll.length}번 (보낸 ${sent} · 받은 ${got})`);
   console.log(`응답 시간(점유 · 제출 · 아이템 답): 보통 ${pct(acks, 0.5)}ms · 느린 5% ${pct(acks, 0.95)}ms`);
   console.log(`서버 메모리: 가장 클 때 ${mem.length ? Math.max(...mem) : '?'}MB · 밀린 시간 가장 클 때 ${lagM.length ? Math.max(...lagM) : '?'}ms`);
-  console.log(`한 일: 푼 블록 ${solved} · 보스 시도 ${bossTried} · 아이템 사용 ${itemsUsed} · 방패로 막기 ${defended} · 집결 이동 ${gathers} · 학생 방 판 시작 ${games} · 수업 게임 판 시작 ${rounds}`);
+  console.log(`한 일: 푼 블록 ${solved} · 보스 시도 ${bossTried} · 아이템 사용 ${itemsUsed} · 방패로 막기 ${defended} · 집결 이동 ${gathers} · 자유 플레이 판 시작 ${games} · 수업 게임 판 시작 ${rounds}`);
   const tc = toolCpu.length ? Math.max(...toolCpu) : 0, tl = toolLags.length ? Math.max(...toolLags) : 0;
   console.log(`시험 도구: CPU 가장 클 때 ${tc}% · 밀린 시간 가장 클 때 ${tl}ms`
     + (tc >= 85 || tl >= 100 ? '  ⚠ 도구 자신이 바빴어요 — 응답 시간이 실제보다 크게 나왔을 수 있어요 (도구를 둘로 나눠 돌리거나 다른 컴퓨터에서 --url 로)' : '  (도구는 여유 있었음 — 응답 시간을 믿어도 돼요)'));

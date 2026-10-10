@@ -806,7 +806,7 @@ button.me-chip:hover { border-color: #4B58A8; }
 .lc-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px 4px; }
 .lc-head h2 { margin: 0; font-family: var(--display); font-size: 26px; font-weight: 800; color: #fff; }
 #lob-battle .lc-head h2::before { content: '⚔️ '; }
-#lob-coop .lc-head h2::before { content: '🤝 '; }
+#lob-coop .lc-head h2::before { content: '🐉 '; }
 .lc-desc { margin: 0; padding: 0 18px 10px; }
 .lc-filter { margin: 0 14px 10px; align-self: flex-start; width: max-content; }
 .lc-filter button { height: 32px; font-size: 13px; }

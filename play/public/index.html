@@ -33,7 +33,7 @@
     <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill blue">블록 점령전</span>
     <span class="grow"></span>
-    <span class="pill ghost">수업방 · 대전방 · 협동방</span>
+    <span class="pill ghost">공식전 · 팀 배틀 · 레이드</span>
   </header>
 
   <div class="enter-body">
@@ -77,7 +77,7 @@
   </footer>
 </main>
 
-<!-- 로비 (v0.13.0): 큰 메뉴 넷(캐릭터 바꾸기 · 수업방 · 대전방 · 협동방)을 Tab 으로, 메뉴 안은 방향키로 -->
+<!-- 로비 (v0.13.0): 큰 메뉴 넷(캐릭터 바꾸기 · 공식전 · 팀 배틀 · 레이드)을 Tab 으로, 메뉴 안은 방향키로 -->
 <main id="screen-lobby" class="screen page" hidden>
   <header class="top">
     <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
@@ -90,28 +90,28 @@
   </header>
   <form class="card class-join" id="class-join" autocomplete="off">
     <div class="cj-text">
-      <h2>수업방</h2>
-      <span class="muted">선생님이 알려 준 숫자 4자리 코드를 넣고 <b>Enter</b></span>
+      <h2>공식전</h2>
+      <span class="muted">선생님이 알려 준 <b>공식전 코드</b>(숫자 4자리)를 넣고 Enter</span>
     </div>
-    <label class="sr" for="class-code">수업방 코드</label>
+    <label class="sr" for="class-code">공식전 코드</label>
     <input id="class-code" class="code-input" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="0000" autocomplete="off">
     <button type="submit" class="btn yellow big-btn" id="btn-class-join">입장하기</button>
     <p class="error" id="class-error" role="alert"></p>
   </form>
-  <p class="rooms-off" id="rooms-off" hidden>지금은 선생님이 학생 방을 꺼 두었어요 · 수업방에만 들어갈 수 있어요</p>
+  <p class="rooms-off" id="rooms-off" hidden>지금은 선생님이 자유 플레이를 꺼 두었어요 · 공식전에만 들어갈 수 있어요</p>
   <div class="lobby-cols">
-    <section class="card lcol" id="lob-battle" aria-label="대전방">
-      <div class="lc-head"><h2>대전방</h2><span class="muted lc-count"></span><span class="grow"></span>
+    <section class="card lcol" id="lob-battle" aria-label="팀 배틀">
+      <div class="lc-head"><h2>팀 배틀</h2><span class="muted lc-count"></span><span class="grow"></span>
         <button type="button" class="btn yellow small lc-create" data-mode="battle">＋ 방 만들기</button></div>
-      <p class="muted small lc-desc">팀을 나눠 누가 먼저 판을 깨는지 겨뤄요 · 방해 아이템으로 다른 팀을 공격!</p>
-      <div class="seg lc-filter" role="group" aria-label="대전방 거르기"></div>
+      <p class="muted small lc-desc">팀을 나눠 누가 먼저 맵을 클리어하는지 겨뤄요 · 방해 아이템으로 다른 팀을 공격!</p>
+      <div class="seg lc-filter" role="group" aria-label="팀 배틀 거르기"></div>
       <ul class="lc-rooms"></ul>
     </section>
-    <section class="card lcol" id="lob-coop" aria-label="협동방">
-      <div class="lc-head"><h2>협동방</h2><span class="muted lc-count"></span><span class="grow"></span>
+    <section class="card lcol" id="lob-coop" aria-label="레이드">
+      <div class="lc-head"><h2>레이드</h2><span class="muted lc-count"></span><span class="grow"></span>
         <button type="button" class="btn yellow small lc-create" data-mode="coop">＋ 방 만들기</button></div>
-      <p class="muted small lc-desc">모두가 한 판을 같이 깨요 · 혼자 · 친구와 연습하기 좋아요</p>
-      <div class="seg lc-filter" role="group" aria-label="협동방 거르기"></div>
+      <p class="muted small lc-desc">혼자서도, 친구와 함께도 · 모두가 맵 하나를 같이 깨요</p>
+      <div class="seg lc-filter" role="group" aria-label="레이드 거르기"></div>
       <ul class="lc-rooms"></ul>
     </section>
   </div>
@@ -136,7 +136,7 @@
         <div class="tag-list" id="cr-tags"></div>
         <span class="tag-info" id="cr-taginfo"></span>
       </div>
-      <!-- 설정 (v0.13.0): 인원(협동) 또는 팀 수 × 팀 인원(대전) · 제한 시간 / 블록 수 / 봇 속도. 점유 20초 · 보스 15 · 8 · 30초 · 페널티 있음은 고정 -->
+      <!-- 설정 (v0.13.0): 인원(협동) 또는 팀 수 × 팀 인원(대전) · 제한 시간 / 블록 수 / 비트 속도. 점유 20초 · 보스 15 · 8 · 30초 · 페널티 있음은 고정 -->
       <div class="field-grid">
         <div class="field" id="cr-ppl-field"><h3>최대 인원</h3>
           <div class="stepper"><button type="button" class="step-btn" id="cr-ppl-down" aria-label="인원 줄이기">−</button><b id="cr-ppl">4</b><button type="button" class="step-btn" id="cr-ppl-up" aria-label="인원 늘리기">+</button><span class="muted">2 ~ 16명</span></div></div>
@@ -154,7 +154,7 @@
           <span class="muted small" id="cr-blkhelp"></span></div>
       </div>
       <div class="field-grid sep">
-        <div class="field"><h3>봇 속도</h3><div class="seg-row" id="cr-botspeed"></div><span class="muted small">대기실에서 방장이 봇을 넣을 수 있어요 (봇도 인원에 들어가요 · 보스는 안 잡음)</span></div>
+        <div class="field"><h3>비트 속도</h3><div class="seg-row" id="cr-botspeed"></div><span class="muted small">대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)</span></div>
       </div>
     </section>
     <aside class="create-side">
@@ -176,7 +176,7 @@
   <header class="top">
     <button type="button" class="linklike exit" id="btn-wait-leave" title="Alt + Q 두 번">방 나가기 · Alt+Q</button>
     <h1 class="page-title white" id="w-name"></h1>
-    <span class="pill green" id="w-mode">협동방</span>
+    <span class="pill green" id="w-mode">레이드</span>
     <b class="pixel" id="w-count"></b>
     <span class="grow"></span>
     <span class="muted">시작하지 않으면 <b class="pixel orange" id="w-close">10:00</b> 뒤에 방이 닫혀요</span>
@@ -195,12 +195,12 @@
       <div class="card">
         <h2>기다리는 동안 손풀기</h2>
         <div class="key-grid">
-          <span><kbd>← ↑ → ↓</kbd>한 칸 이동</span>
+          <span><kbd>← ↑ → ↓</kbd>한 블록 이동</span>
           <span><kbd>Home / End</kbd>줄 맨 앞 · 맨 끝</span>
           <span><kbd>Ctrl + 방향키</kbd>덩어리 끝까지 점프</span>
           <span><kbd>Enter</kbd>블록 점유 · 제출</span>
-          <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 칸 (→ · ← 와 같음)</span>
-          <span><kbd>Ctrl + Home / End</kbd>판 맨 처음 · 맨 끝</span>
+          <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 블록 (→ · ← 와 같음)</span>
+          <span><kbd>Ctrl + Home / End</kbd>맵 맨 처음 · 맨 끝</span>
           <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
           <span><kbd>Ctrl + S</kbd>배경음 · 효과음 켜기 · 끄기</span>
           <span><kbd>Ctrl + K</kbd>타자음 · 오류음 켜기 · 끄기 (게임 중)</span>
@@ -210,7 +210,7 @@
     <aside class="wait-side">
       <p class="auto-box" id="w-auto" hidden></p>
       <p class="check-box" id="w-check" hidden></p>
-      <button type="button" class="btn blue wide" id="btn-fill" hidden>🤖 봇으로 인원 맞추기</button>
+      <button type="button" class="btn blue wide" id="btn-fill" hidden>🤖 비트로 인원 맞추기</button>
       <div id="w-host">
         <p class="muted center-text" id="w-startinfo"></p>
         <button type="button" class="btn yellow go wide tall" id="btn-start" title="Ctrl + Enter">게임 시작
@@ -227,12 +227,12 @@
   </div>
 </main>
 
-<!-- 수업방: 팀 선택 -->
+<!-- 공식전: 팀 선택 -->
 <main id="screen-team" class="screen page" hidden>
   <header class="top">
-    <button type="button" class="linklike exit" id="btn-team-leave" title="Alt + Q 두 번">수업 나가기 · Alt+Q</button>
+    <button type="button" class="linklike exit" id="btn-team-leave" title="Alt + Q 두 번">공식전 나가기 · Alt+Q</button>
     <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
-    <span class="pill blue">수업방</span>
+    <span class="pill blue">공식전</span>
     <span class="grow"></span>
     <button type="button" class="snd-btn snd-big" id="t-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">배경음 켬 · Ctrl+S</button>
     <span class="muted">코드</span>
@@ -260,12 +260,12 @@
       <div class="card">
         <h2>기다리는 동안 손풀기</h2>
         <div class="key-grid">
-          <span><kbd>← ↑ → ↓</kbd>한 칸 이동</span>
+          <span><kbd>← ↑ → ↓</kbd>한 블록 이동</span>
           <span><kbd>Home / End</kbd>줄 맨 앞 · 맨 끝</span>
           <span><kbd>Ctrl + 방향키</kbd>덩어리 끝까지 점프</span>
           <span><kbd>Enter</kbd>블록 점유 · 제출</span>
-          <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 칸 (→ · ← 와 같음)</span>
-          <span><kbd>Ctrl + Home / End</kbd>판 맨 처음 · 맨 끝</span>
+          <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 블록 (→ · ← 와 같음)</span>
+          <span><kbd>Ctrl + Home / End</kbd>맵 맨 처음 · 맨 끝</span>
           <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
           <span><kbd>Ctrl + S</kbd>배경음 · 효과음 켜기 · 끄기</span>
           <span><kbd>Ctrl + K</kbd>타자음 · 오류음 켜기 · 끄기 (게임 중)</span>
@@ -279,14 +279,14 @@
 <main id="screen-game" class="screen game" hidden>
   <aside class="side">
     <section class="card stand-card" id="g-stand-card" hidden>
-      <div class="stand-head"><h2>팀별 상황판</h2><span class="muted small">해결률</span></div>
+      <div class="stand-head"><h2>팀별 상황판</h2><span class="muted small">진행률</span></div>
       <ol class="stand" id="g-stand"></ol>
     </section>
     <section class="card" id="g-progress-card">
-      <span class="label" id="g-room">협동방</span>
+      <span class="label" id="g-room">레이드</span>
       <div class="progress-num"><b id="g-pct">0%</b><span id="g-left">남은 블록 0</span></div>
       <div class="bar"><div id="g-bar"></div></div>
-      <span class="hint">블록 위에서 Enter 로 점유하고 코드를 똑같이 입력! 보라색 보스가 나오면 옆 칸에서 Delete · Backspace 로 잡아 아이템을 얻으세요.</span>
+      <span class="hint">블록 위에서 Enter 로 점유하고 코드를 똑같이 입력! 보라색 보스가 나오면 옆 자리에서 Delete · Backspace 로 잡아 아이템을 얻으세요.</span>
     </section>
     <section class="card">
       <h2><span id="g-team-title">우리 팀</span> <span class="count" id="g-count">0</span></h2>
@@ -301,7 +301,7 @@
   <div class="main-col">
     <header class="card top-bar">
       <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
-      <span class="pill green" id="g-mode">협동방</span>
+      <span class="pill green" id="g-mode">레이드</span>
       <span class="tags" id="g-tags"></span>
       <span class="grow"></span>
       <b class="timer" id="g-timer">10:00</b>
@@ -326,7 +326,7 @@
         <div class="cover-box"><b>일시정지</b><span>선생님이 게임을 잠시 멈췄어요. 모든 시간이 멈춰 있어요.</span></div>
       </div>
       <div class="board-cover done" id="done" hidden>
-        <div class="cover-box"><span class="cover-kind">판 완성!</span><b id="done-rank">1위</b><span id="done-sub">다른 팀이 끝나기를 기다리는 중</span></div>
+        <div class="cover-box"><span class="cover-kind">클리어!</span><b id="done-rank">1위</b><span id="done-sub">다른 팀이 끝나기를 기다리는 중</span></div>
       </div>
       <div class="idle" id="idle" hidden>
         <div class="idle-box">
@@ -339,7 +339,7 @@
       </div>
     </div>
 
-    <div class="deck" id="deck" aria-label="내 아이템 덱"></div>
+    <div class="deck" id="deck" aria-label="내 아이템"></div>
     <footer class="card keys" id="keys"></footer>
   </div>
 </main>

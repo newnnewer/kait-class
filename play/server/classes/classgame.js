@@ -1,6 +1,6 @@
 'use strict';
-// 수업방 하나 — 교사가 만들고, 학생은 방 코드(숫자 4자리)로 들어와 팀을 고른다.
-//   · 방 코드와 팀 편성은 교사가 '수업 끝내기'를 누를 때까지 유지 → 여러 판을 이어서 할 수 있다
+// 공식전 하나 — 교사가 만들고, 학생은 공식전 코드(숫자 4자리)로 들어와 팀을 고른다.
+//   · 공식전 코드와 팀 편성은 교사가 '공식전 끝내기'를 누를 때까지 유지 → 여러 판을 이어서 할 수 있다
 //   · 한 판(round): 팀마다 판(Match) 하나. 모든 팀이 같은 씨앗 → 같은 배치 · 같은 문제 순서
 //   · 보스: "게임 시작부터 N초마다" 모든 팀에 같은 문제. 그 차례에 보스가 남아 있는 팀은 한 번 건너뜀
 //   · 순위: 판을 완성한 순서 → 시간이 끝나면(또는 교사가 끝내면) 남은 팀은 해결률 순
@@ -14,7 +14,7 @@ const { rollNick } = require('../nick');
 const { makeBot } = require('./bot');
 const CHAT = require('../../public/js/shared/chat');
 
-const MAX_BOTS = 40; // 수업방 하나에 넣을 수 있는 봇 수
+const MAX_BOTS = 40; // 공식전 하나에 넣을 수 있는 비트 수
 
 class ClassGame {
   constructor({ hub, code, settings }) {
@@ -161,8 +161,8 @@ class ClassGame {
   // ── 학생: 들어오기 · 팀 고르기 · 나가기 ──
 
   join(p, socket) {
-    if (this.closed) return { ok: false, error: '끝난 수업방이에요' };
-    if (this.kicked.has(p.token)) return { ok: false, error: '이 수업방에는 다시 들어갈 수 없어요' };
+    if (this.closed) return { ok: false, error: '끝난 공식전이에요' };
+    if (this.kicked.has(p.token)) return { ok: false, error: '이 공식전에는 다시 들어갈 수 없어요' };
     this.members.set(p.id, p);
     if (!this.teamOf.has(p.id)) this.teamOf.set(p.id, 0);
     p.room = this;
@@ -254,7 +254,7 @@ class ClassGame {
   }
 
   /** 학생은 시작할 수 없다 (교사 화면에서만) */
-  start() { return { ok: false, error: '수업방은 선생님이 시작해요' }; }
+  start() { return { ok: false, error: '공식전은 선생님이 시작해요' }; }
 
   // ── 교사 ──
 
@@ -294,7 +294,7 @@ class ClassGame {
     return { ok: true, on: this.teamLock };
   }
 
-  /** v0.12.0: 학생(팀 미선택 포함)을 무작위로 섞어 고르게 나눈다. 봇은 제자리 — 봇까지 센 인원이 고르게 */
+  /** v0.12.0: 학생(팀 미선택 포함)을 무작위로 섞어 고르게 나눈다. 비트는 제자리 — 비트까지 센 인원이 고르게 */
   shuffleTeams() {
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 섞을 수 없어요' };
     const n = this.settings.teams;
@@ -341,13 +341,13 @@ class ClassGame {
     return { ok: true };
   }
 
-  // ── 봇 (팀 인원 맞추기) ──
+  // ── 비트 (팀 인원 맞추기) ──
 
-  /** no 팀에 봇 한 명 */
+  /** no 팀에 비트 한 명 */
   addBot(no) {
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
-    if (this.bots().length >= MAX_BOTS) return { ok: false, error: `봇은 ${MAX_BOTS}명까지 넣을 수 있어요` };
+    if (this.bots().length >= MAX_BOTS) return { ok: false, error: `비트는 ${MAX_BOTS}명까지 넣을 수 있어요` };
     const used = new Set([...this.hub.nicks(), ...[...this.members.values()].map(p => p.nick)]);
     const bot = makeBot(rollNick(used));
     bot.room = this;
@@ -359,13 +359,13 @@ class ClassGame {
 
   removeBot(id) {
     const p = this.members.get(String(id));
-    if (!p || !p.bot) return { ok: false, error: '없는 봇이에요' };
+    if (!p || !p.bot) return { ok: false, error: '없는 비트예요' };
     this.leave(p, null);
     this.touch();
     return { ok: true };
   }
 
-  /** 모든 팀을 가장 큰 팀 인원까지 봇으로 채운다 */
+  /** 모든 팀을 가장 큰 팀 인원까지 비트로 채운다 */
   fillBots() {
     const n = this.settings.teams;
     const size = no => this.teamMembers(no).length;
@@ -384,7 +384,7 @@ class ClassGame {
     return { ok: true, added };
   }
 
-  /** 수업방에서 봇을 모두 뺀다 */
+  /** 공식전에서 비트를 모두 뺀다 */
   clearBots() {
     for (const b of this.bots()) this.leave(b, null);
     this.touch();
@@ -424,7 +424,7 @@ class ClassGame {
   onRoundEvent(type, d) {
     const board = this.io.to(this.boardChannel);
     if (type === 'attack') { board.emit('board:attack', d); return; }
-    if (type === 'clear') { board.emit('board:feed', { text: `${d.no}팀 CLEAR! ${d.rank}위`, kind: 'clear' }); return; }
+    if (type === 'clear') { board.emit('board:feed', { text: `${d.no}팀 클리어! ${d.rank}위`, kind: 'clear' }); return; }
     if (type !== 'match') return;
     const no = d.no, e = d.e;
     let text = null, kind = 'info';
@@ -536,7 +536,7 @@ class ClassGame {
     this.changed();
   }
 
-  /** 수업 끝내기 (교사) / 오래 쓰지 않아 자동으로 닫힘 */
+  /** 공식전 끝내기 (교사) / 오래 쓰지 않아 자동으로 닫힘 */
   close(reason) {
     if (this.closed) return;
     const r = this.round;

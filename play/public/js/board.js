@@ -62,14 +62,14 @@
     socket.emit('admin:hello', { key: key }, function (res) {
       if (!res || !res.ok) { msg('로그인이 풀렸어요', '교사 화면에서 다시 로그인한 뒤 "전광판 열기"를 눌러 주세요.'); return; }
       socket.emit('board:watch', { code: CODE }, function (r) {
-        if (!r || !r.ok) { msg('수업방이 없어요', (r && r.error) || '코드를 확인해 주세요'); return; }
+        if (!r || !r.ok) { msg('공식전이 없어요', (r && r.error) || '코드를 확인해 주세요'); return; }
         update(r.board);
       });
     });
   });
   socket.on('disconnect', function () { setTimeout(function () { if (!socket.connected) msg('서버와 연결이 끊겼어요', '다시 연결하는 중…'); }, 2000); });
   socket.on('board', update);
-  socket.on('teach:closed', function () { msg('수업이 끝났어요', '선생님이 수업방을 끝냈어요. 이 창을 닫아도 돼요.'); });
+  socket.on('teach:closed', function () { msg('수업이 끝났어요', '선생님이 공식전을 끝냈어요. 이 창을 닫아도 돼요.'); });
 
   // ── 소식 줄 · 공격 띠 ──
   var feed = [];
@@ -117,7 +117,7 @@
     $('sb-join').innerHTML = '';
     $('sb-join').appendChild(document.createTextNode('접속 '));
     $('sb-join').appendChild(el('b', null, ADDR.replace(/^https?:\/\//, '')));
-    $('sb-join').appendChild(document.createTextNode(' · 수업방 코드 '));
+    $('sb-join').appendChild(document.createTextNode(' · 공식전 코드 '));
     $('sb-join').appendChild(el('b', 'code', b.code));
     var at = $('sb-attacks');
     at.textContent = '방해 아이템 ' + (b.attacks ? 'ON' : 'OFF');
@@ -141,7 +141,7 @@
       var h = el('div', 'sb-tl-head');
       h.appendChild(el('b', null, t.no + '팀'));
       var nb = t.members.filter(function (p) { return p.bot; }).length;
-      h.appendChild(el('span', null, t.members.length + '명' + (nb ? ' (봇 ' + nb + ')' : '')));
+      h.appendChild(el('span', null, t.members.length + '명' + (nb ? ' (비트 ' + nb + ')' : '')));
       c.appendChild(h);
       var a = el('div', 'sb-avs');
       t.members.forEach(function (p) { a.appendChild(av(p)); });
@@ -163,7 +163,7 @@
         var li = el('li', t.rank === 1 ? 'first' : '');
         li.appendChild(el('span', 'rk', t.rank + '위'));
         li.appendChild(el('b', null, t.no + '팀'));
-        li.appendChild(el('span', null, t.clear ? '완성 ' + mmss(t.ms) : '해결률 ' + t.pct + '%'));
+        li.appendChild(el('span', null, t.clear ? '클리어 ' + mmss(t.ms) : '진행률 ' + t.pct + '%'));
         if (withChart) { var sw = el('i', 'sb-sw'); sw.style.background = teamColor(t.no); li.insertBefore(sw, li.children[1]); }
         ol.appendChild(li);
       });
@@ -181,7 +181,7 @@
   function setView(v) {
     view = v;
     try { localStorage.setItem('kp.boardView', v); } catch (e) { /* 저장 못 해도 됨 */ }
-    $('sb-view').textContent = v === 'rank' ? '🧩 판으로 보기' : '📈 순위 그래프로 보기';
+    $('sb-view').textContent = v === 'rank' ? '🧩 맵으로 보기' : '📈 순위 그래프로 보기';
     if (B && B.phase === 'playing') renderPlay(B);
   }
   $('sb-view').onclick = function () { setView(view === 'rank' ? 'grid' : 'rank'); this.blur(); };
@@ -216,7 +216,7 @@
       r.querySelector('.sb-sw').style.background = teamColor(t.no);
       r.querySelector('.sb-bname span').textContent = t.no + '팀';
       r.querySelector('.sb-bfill').style.width = t.pct + '%';
-      r.querySelector('.sb-bval').textContent = t.rank ? 'CLEAR' : t.pct + '%';
+      r.querySelector('.sb-bval').textContent = t.rank ? '클리어' : t.pct + '%';
       var fx = t.fx || {}, chips = [];
       if (t.cells && t.cells.indexOf('B') >= 0) chips.push(['c-boss', '보스']);
       if (fx.freeze > 0) chips.push(['c-ice', '얼음']);
@@ -356,8 +356,8 @@
     // 가림막: 완성 > 얼음 > 먹구름 > (시간이 끝나 멈춘 팀)
     var fx = t.fx || {};
     var over = null;
-    if (t.rank) over = ['clear', 'CLEAR!', '기록 ' + mmss(t.ms)];
-    else if (t.done) over = ['over', '끝', '해결률 ' + t.pct + '%'];
+    if (t.rank) over = ['clear', '클리어!', '기록 ' + mmss(t.ms)];
+    else if (t.done) over = ['over', '끝', '진행률 ' + t.pct + '%'];
     else if (fx.freeze > 0) over = ['ice', '얼음!', Math.ceil(fx.freeze / 1000) + '초'];
     else if (fx.cloud > 0) over = ['cloud', '먹구름', Math.ceil(fx.cloud / 1000) + '초'];
     c.over.hidden = !over;

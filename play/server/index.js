@@ -263,7 +263,7 @@ io.on('connection', (socket) => {
     ok(cb, me.room.start(me));
   });
 
-  // 4-1) 수업방: 방 코드로 들어가기 · 팀 고르기
+  // 4-1) 공식전: 공식전 코드로 들어가기 · 팀 고르기
   socket.on('class:join', (msg, cb) => {
     if (!allow() || !me) return;
     ok(cb, hub.join(me, socket, msg && msg.code));
@@ -276,7 +276,7 @@ io.on('connection', (socket) => {
   // 8) 관리자(교사)
   let adminKey = null;
   const admin = () => (adminKey && auth.check(adminKey) ? true : (adminKey = null, false));
-  let watching = null; // 교사 화면이 보고 있는 수업방
+  let watching = null; // 교사 화면이 보고 있는 공식전
   const cls = () => (watching ? hub.get(watching) : null);
   const adminBase = () => ({ ok: true, classes: hub.list(), allowRooms: hub.allowRooms, options: OPTIONS, bankTags: bankTags(), version: VERSION, pwSource: auth.source(), demo: config.demo });
   function watch(code) {
@@ -328,10 +328,10 @@ io.on('connection', (socket) => {
   });
   adminOn('class:watch', m => {
     const c = watch(m.code);
-    return c ? { ok: true, cls: c.teacherDetail() } : { ok: false, error: '없는 수업방이에요' };
+    return c ? { ok: true, cls: c.teacherDetail() } : { ok: false, error: '없는 공식전이에요' };
   });
   function withClass(fn) {
-    return m => { const c = cls(); return c ? fn(c, m) : { ok: false, error: '수업방을 먼저 고르세요' }; };
+    return m => { const c = cls(); return c ? fn(c, m) : { ok: false, error: '공식전을 먼저 고르세요' }; };
   }
   adminOn('class:settings', withClass((c, m) => {
     const s = cleanClass(m.settings);
@@ -362,13 +362,13 @@ io.on('connection', (socket) => {
   });
   adminOn('class:attacks', withClass((c, m) => c.setAttacks(!!m.on)));
   adminOn('class:sound', withClass((c, m) => c.setSound(m)));
-  // 전광판: 수업방 하나를 지켜본다 (교사 화면과 따로 연결)
+  // 전광판: 공식전 하나를 지켜본다 (교사 화면과 따로 연결)
   let boardOf = null;
   adminOn('board:watch', m => {
     const c = hub.get(m.code);
     if (boardOf) socket.leave('board:' + boardOf);
     boardOf = null;
-    if (!c) return { ok: false, error: '없는 수업방이에요' };
+    if (!c) return { ok: false, error: '없는 공식전이에요' };
     boardOf = c.code;
     socket.join('board:' + c.code);
     return { ok: true, board: c.boardState(), address: null };

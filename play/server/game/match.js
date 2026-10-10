@@ -26,7 +26,7 @@ class Match {
    * info: { id, name, tags } — 화면에 보여 줄 방 정보
    * codes: 출제할 일반 문제 코드, bosses: 보스 문제
    * s: { blocks, occMs, bossEveryMs, bossWaitMs, bossLimitMs, penalty, limitMs, idleMs?, idleWarnMs? }
-   *    수업방: external(보스를 수업방이 정한 일정에 내보냄) · noIdle(방치 종료 없음) · keepEmpty(모두 나가도 계속)
+   *    공식전: external(보스를 공식전이 정한 일정에 내보냄) · noIdle(방치 종료 없음) · keepEmpty(모두 나가도 계속)
    */
   constructor({ io, channel, info, codes, bosses, s, onEnd, seed }) {
     this.io = io;
@@ -49,8 +49,8 @@ class Match {
     this.noIdle = !!s.noIdle;
     this.keepEmpty = !!s.keepEmpty;
     this.pausedAt = 0;         // 일시정지한 시각 (0 = 진행 중)
-    // 방해 아이템 (수업방, 5-2): attacks = 켜짐 여부(교사 스위치, 게임 중에 바뀔 수 있음)
-    //   onAttack(item, p) → 수업방이 대상 팀을 골라 공격하고 { to, blocked } 를 돌려준다 (대상이 없으면 null)
+    // 방해 아이템 (공식전, 5-2): attacks = 켜짐 여부(교사 스위치, 게임 중에 바뀔 수 있음)
+    //   onAttack(item, p) → 공식전이 대상 팀을 골라 공격하고 { to, blocked } 를 돌려준다 (대상이 없으면 null)
     //   onEvent(e) → 전광판에 보낼 소식 (아이템 · 보스 격파)
     this.attacks = !!s.attacks;
     this.onAttack = s.onAttack || null;
@@ -60,7 +60,7 @@ class Match {
     this.shieldOf = new Map(); // player id → 방패 수 (최대 2)
     this.incoming = [];        // 들어오는 중인 공격 [{ id, item, fromNo, fromNick, until, done }]
     this.incomingSeq = 0;
-    this.bossTurn = 0;         // 학생 방: 보스 차례 번호 (4번에 1번 집결 보스)
+    this.bossTurn = 0;         // 자유 플레이: 보스 차례 번호 (4번에 1번 집결 보스)
     this.itemSeq = 0;
     this.onEnd = onEnd || (() => {});
 
@@ -156,7 +156,7 @@ class Match {
     if (!this.stats.has(p.id)) this.stats.set(p.id, { solved: 0, bosses: 0 });
   }
 
-  /** 게임 중에 들어온 사람 (수업방의 지각생 · 팀 옮기기) — 보스 칸이 아닌 곳에 세운다 */
+  /** 게임 중에 들어온 사람 (공식전의 지각생 · 팀 옮기기) — 보스 칸이 아닌 곳에 세운다 */
   join(p) {
     if (this.members.has(p.id)) { this.sendState(p); return; }
     let pos = this.randomPos();
@@ -188,14 +188,14 @@ class Match {
     this.emitAll('player:online', { id: p.id, online: p.online });
   }
 
-  /** 누군가 키를 눌렀다 — 방치 경고를 풀어 준다 (봇은 치지 않는다: 사람이 모두 자리를 비우면 방치로 본다) */
+  /** 누군가 키를 눌렀다 — 방치 경고를 풀어 준다 (비트는 치지 않는다: 사람이 모두 자리를 비우면 방치로 본다) */
   touch(p) {
     if (p && p.bot) return;
     this.lastInput = Date.now();
     if (this.idleWarn) { this.idleWarn = false; this.emitAll('idle', { warn: false }); }
   }
 
-  // ── 일시정지 (수업방) — 모든 시계를 멈췄다가 멈춘 만큼 뒤로 민다 ──
+  // ── 일시정지 (공식전) — 모든 시계를 멈췄다가 멈춘 만큼 뒤로 민다 ──
   pause() {
     if (this.ended || this.pausedAt) return;
     this.pausedAt = Date.now();
@@ -297,8 +297,8 @@ class Match {
   }
 
   /**
-   * 다른 팀의 방해가 온다 (수업방). 바로 맞지 않고 2초 기다린다.
-   * done(blocked): 막았거나 맞았을 때 수업방에 알려 준다
+   * 다른 팀의 방해가 온다 (공식전). 바로 맞지 않고 2초 기다린다.
+   * done(blocked): 막았거나 맞았을 때 공식전에 알려 준다
    */
   receiveAttack(item, fromNo, fromNick, done) {
     const x = { id: ++this.incomingSeq, item, fromNo, fromNick, until: Date.now() + DEFEND_MS, done: false, cb: done || (() => {}) };
@@ -466,7 +466,7 @@ class Match {
 
   // ── 집결 보스 (v0.7.0) ──
 
-  /** 접속 중인 사람 (봇 · 연결 끊김 제외) */
+  /** 접속 중인 사람 (비트 · 연결 끊김 제외) */
   onlineHumans() { return [...this.members.values()].filter(q => !q.bot && q.online !== false); }
 
   /** 집결 보스 자리: (n, 1) 또는 (n, 열-2) 중 아무도 서 있지 않은 칸. pref: { r, side } 먼저 시도 */
@@ -548,7 +548,7 @@ class Match {
     for (const q of this.onlineHumans()) {
       const item = rollHelp({ shield });
       const kept = this.giveItem(q, item);
-      this.emitTo(q, 'item', { id: item.id, name: item.name, desc: kept ? '모두 잡았다! 내 덱에 들어갔어요' : '모두 잡았다! …하지만 덱이 가득 차서 사라졌어요', kind: 'gather', by: q.nick, lost: !kept });
+      this.emitTo(q, 'item', { id: item.id, name: item.name, desc: kept ? '모두 잡았다! 내 아이템에 들어갔어요' : '모두 잡았다! …하지만 내 아이템이 가득 차서 사라졌어요', kind: 'gather', by: q.nick, lost: !kept });
     }
     const cell = this.board.cells[i];
     if (cell && !cell.solved) {
@@ -557,11 +557,11 @@ class Match {
     }
   }
 
-  /** q: 수업방은 모든 팀에 같은 문제를 넘겨준다 (없으면 이 판의 순서대로)
-   *  gather: 수업방이 정한 집결 보스 차례 ({ r, side }) — 조건이 안 되면 보통 보스 */
+  /** q: 공식전은 모든 팀에 같은 문제를 넘겨준다 (없으면 이 판의 순서대로)
+   *  gather: 공식전이 정한 집결 보스 차례 ({ r, side }) — 조건이 안 되면 보통 보스 */
   spawnBoss(q, gather) {
     if (this.boss || this.ended) return false;
-    // 학생 방: 보스 차례 4번에 1번은 집결 보스 (레이더로 자리를 미리 보여 준 차례는 보통 보스)
+    // 자유 플레이: 보스 차례 4번에 1번은 집결 보스 (레이더로 자리를 미리 보여 준 차례는 보통 보스)
     if (!this.external) {
       this.bossTurn += 1;
       if (this.bossTurn % GATHER_EVERY === 0 && this.pendingBoss < 0 && this.spawnGather()) return true;
@@ -633,8 +633,8 @@ class Match {
     }
     // 도움 · 공격 · 방패 → 잡은 사람의 덱으로 (가득 차면 사라짐)
     const kept = this.giveItem(p, item);
-    this.emitAll('item', { id: item.id, name: item.name, desc: kept ? `${p.nick} 님 덱에 들어갔어요` : `${p.nick} 님 덱이 가득 차서 사라졌어요`, kind: 'get', by: p.nick, lost: !kept });
-    this.feed(`${p.nick} ${item.name} ${kept ? '획득' : '(덱이 가득 참)'}`, kept ? 'good' : 'muted');
+    this.emitAll('item', { id: item.id, name: item.name, desc: kept ? `${p.nick} 님 아이템에 들어갔어요` : `${p.nick} 님 아이템이 가득 차서 사라졌어요`, kind: 'get', by: p.nick, lost: !kept });
+    this.feed(`${p.nick} ${item.name} ${kept ? '획득' : '(아이템이 가득 참)'}`, kept ? 'good' : 'muted');
     this.solveCells([i], p, { boss: true, count: true });
     return { ok: true, correct: true, item: { id: item.id, name: item.name, kind: item.kind, kept } };
   }

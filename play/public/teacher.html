@@ -44,20 +44,20 @@
   </footer>
 </main>
 
-<!-- 수업방 목록 · 지난 기록 -->
+<!-- 공식전 목록 · 지난 기록 -->
 <main id="screen-home" class="screen page" hidden>
   <header class="top">
     <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill ghost">교사</span>
     <div class="seg" role="group" aria-label="보기" id="home-tabs">
-      <button type="button" data-tab="classes" aria-pressed="true">수업방</button>
+      <button type="button" data-tab="classes" aria-pressed="true">공식전</button>
       <button type="button" data-tab="records" aria-pressed="false">지난 기록</button>
       <button type="button" data-tab="bank" aria-pressed="false">문제 은행</button>
     </div>
     <span class="grow"></span>
     <div class="switch-row">
-      <span><b>학생 방 만들기 허용</b><small class="muted">끄면 학생이 대전방 · 협동방을 새로 만들 수 없어요</small></span>
-      <button type="button" class="toggle" id="home-rooms" aria-pressed="true" aria-label="학생 방 만들기 허용"><span></span></button>
+      <span><b>자유 플레이 허용</b><small class="muted">끄면 학생이 팀 배틀 · 레이드 방을 새로 만들 수 없어요</small></span>
+      <button type="button" class="toggle" id="home-rooms" aria-pressed="true" aria-label="자유 플레이 허용"><span></span></button>
     </div>
     <a class="btn small ghost-btn" href="sounds.html" target="_blank" rel="noopener" style="text-decoration:none">소리 미리듣기</a>
     <button type="button" class="btn small ghost-btn" id="btn-pw">비밀번호 바꾸기</button>
@@ -67,14 +67,14 @@
   <p class="pw-warn" id="pw-warn" hidden>지금은 설치할 때 정한 <b>처음 비밀번호</b>(.env)를 쓰고 있어요. <button type="button" class="linklike" id="btn-pw2">비밀번호 바꾸기</button>로 나만 아는 비밀번호로 바꿔 주세요.</p>
   <section id="tab-classes" class="home-body">
     <div class="home-head">
-      <h1>열려 있는 수업방</h1>
+      <h1>열려 있는 공식전</h1>
       <span class="grow"></span>
       <button type="button" class="btn yellow big-btn" id="btn-new-class">
         <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg>
-        새 수업방</button>
+        새 공식전</button>
     </div>
     <div class="class-list" id="class-list"></div>
-    <p class="muted">수업방은 '수업 끝내기'를 누르거나 3시간 동안 쓰지 않으면 닫혀요. 서버를 다시 시작해도 닫혀요.</p>
+    <p class="muted">공식전은 '공식전 끝내기'를 누르거나 3시간 동안 쓰지 않으면 닫혀요. 서버를 다시 시작해도 닫혀요.</p>
   </section>
 
   <section id="tab-records" class="home-body" hidden>
@@ -167,13 +167,13 @@ for i in range(3):
   </div>
 </div>
 
-<!-- 수업방 진행 -->
+<!-- 공식전 진행 -->
 <main id="screen-class" class="screen page tclass" hidden>
   <header class="top">
     <button type="button" class="linklike back" id="btn-back">◀ 목록</button>
     <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill ghost">교사 · 게임 진행</span>
-    <span class="head-info">방 코드 <b class="code-chip" id="c-code">0000</b></span>
+    <span class="head-info">공식전 코드 <b class="code-chip" id="c-code">0000</b></span>
     <span class="head-info" id="c-counts"></span>
     <span class="grow"></span>
     <button type="button" class="btn ghost-btn mid" id="btn-board" title="프로젝터로 띄울 전광판을 새 창으로 열어요">전광판 열기</button>
@@ -208,7 +208,7 @@ for i in range(3):
       <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div><span class="muted small">아무도 잡지 않으면 달아나기까지</span></div>
       <div class="field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>봇 속도</h3><div class="seg-row" id="c-botspeed"></div><span class="muted small">봇이 블록 하나를 푸는 데 걸리는 시간 (걷는 시간 포함, 가끔 틀림 · 보스는 안 잡음)</span></div>
+      <div class="field"><h3>비트 속도</h3><div class="seg-row" id="c-botspeed"></div><span class="muted small">비트가 블록 하나를 푸는 데 걸리는 시간 (걷는 시간 포함, 가끔 틀림 · 보스는 안 잡음)</span></div>
       <div class="field-sep" aria-hidden="true"></div>
       <div class="field"><h3>페널티 아이템</h3>
         <div class="row"><button type="button" class="toggle" id="c-pen" aria-pressed="true" aria-label="페널티 아이템"><span></span></button><span class="muted" id="c-pentext"></span></div></div>
@@ -221,10 +221,10 @@ for i in range(3):
         <span class="muted" id="c-teams-note"></span>
         <span class="grow"></span>
         <button type="button" class="btn small ghost-btn" id="btn-teamlock" aria-pressed="false" title="잠그면 학생이 팀을 고르거나 바꿀 수 없어요 (선생님은 옮길 수 있음)">🔓 팀 선택 열림</button>
-        <button type="button" class="btn small ghost-btn" id="btn-shuffle" title="팀 미선택 학생까지 모두 무작위로 섞어 고르게 나눠요 (봇은 그대로)">🔀 무작위로 섞기</button>
+        <button type="button" class="btn small ghost-btn" id="btn-shuffle" title="팀 미선택 학생까지 모두 무작위로 섞어 고르게 나눠요 (비트는 그대로)">🔀 무작위로 섞기</button>
         <button type="button" class="btn small ghost-btn" id="btn-autoassign">팀 미선택 학생 자동 배정</button>
-        <button type="button" class="btn small ghost-btn" id="btn-botfill" title="모든 팀을 가장 큰 팀 인원까지 봇으로 채워요 (아무도 없는 팀은 빼고)">봇으로 인원 맞추기</button>
-        <button type="button" class="btn small ghost-btn" id="btn-botclear" hidden>봇 모두 빼기</button>
+        <button type="button" class="btn small ghost-btn" id="btn-botfill" title="모든 팀을 가장 큰 팀 인원까지 비트로 채워요 (아무도 없는 팀은 빼고)">비트로 인원 맞추기</button>
+        <button type="button" class="btn small ghost-btn" id="btn-botclear" hidden>비트 모두 빼기</button>
       </div>
       <div class="t-teams" id="c-teams-grid"></div>
       <div class="t-foot">
@@ -241,11 +241,11 @@ for i in range(3):
           <button type="button" class="toggle" id="c-bgm" aria-pressed="true" aria-label="전광판 배경음"><span></span></button>
         </div>
         <div class="switch-row">
-          <span><b>학생 방 만들기 허용</b><small class="muted">수업 중에는 꺼 두면 좋아요</small></span>
-          <button type="button" class="toggle" id="c-rooms" aria-pressed="true" aria-label="학생 방 만들기 허용"><span></span></button>
+          <span><b>자유 플레이 허용</b><small class="muted">수업 중에는 꺼 두면 좋아요</small></span>
+          <button type="button" class="toggle" id="c-rooms" aria-pressed="true" aria-label="자유 플레이 허용"><span></span></button>
         </div>
         <span class="grow"></span>
-        <button type="button" class="btn small ghost-btn danger" id="btn-close">수업 끝내기</button>
+        <button type="button" class="btn small ghost-btn danger" id="btn-close">공식전 끝내기</button>
       </div>
       <p class="error" id="c-error" role="alert"></p>
     </section>

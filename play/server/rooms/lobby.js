@@ -1,5 +1,5 @@
 'use strict';
-// 로비 — 방 목록과 방 만들기 (협동방 · 대전방)
+// 로비 — 방 목록과 방 만들기 (레이드 · 팀 배틀)
 //   같은 브라우저(기기 열쇠)는 1분에 방 1개까지 · 서버 전체 방은 최대 60개
 
 const crypto = require('crypto');
@@ -19,7 +19,7 @@ class Lobby {
     this.lastCreate = new Map(); // 기기 열쇠 → 마지막으로 방을 만든 시각
     this.dirty = false;
     this.lastProgress = '';
-    this.allowRooms = () => true; // '학생 방 만들기 허용' (수업방 모음이 정해 준다)
+    this.allowRooms = () => true; // '자유 플레이 허용' (공식전 모음이 정해 준다)
     this.timer = setInterval(() => { try { this.tick(); } catch (e) { console.error('[오류] lobby:', e); } }, 1000);
     this.timer.unref();
   }
@@ -77,13 +77,13 @@ class Lobby {
     return room.join(p, socket);
   }
 
-  /** 내가 있는 학생 방 (수업방이면 null) */
+  /** 내가 있는 자유 플레이 (공식전이면 null) */
   myRoom(p) {
     const r = p.room;
     return r && this.rooms.get(r.id) === r ? r : null;
   }
 
-  /** 대기실에서 방장이 봇 넣기 · 빼기 · 채우기. msg: { op: 'add', no? } · { op: 'remove', id } · { op: 'fill' } */
+  /** 대기실에서 방장이 비트 부르기 · 빼기 · 채우기. msg: { op: 'add', no? } · { op: 'remove', id } · { op: 'fill' } */
   roomBot(p, msg) {
     const r = this.myRoom(p);
     if (!r) return { ok: false, error: '방에 있지 않아요' };

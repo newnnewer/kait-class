@@ -1,4 +1,4 @@
-/* KAIT-PLAY — 교사 화면 (로그인 · 수업방 만들기 · 팀 현황 · 시작/일시정지/종료 · 지난 기록) */
+/* KAIT-PLAY — 교사 화면 (로그인 · 공식전 만들기 · 팀 현황 · 시작/일시정지/종료 · 지난 기록) */
 (function () {
   'use strict';
 
@@ -15,7 +15,7 @@
   var OPTIONS = null, BANK_TAGS = { normal: [], boss: [] };
   var allowRooms = true;
   var classes = [];
-  var cur = null;       // 보고 있는 수업방 (서버가 보낸 교사용 정보)
+  var cur = null;       // 보고 있는 공식전 (서버가 보낸 교사용 정보)
   var standings = [];
   var clockBase = 0;    // 남은 시간을 받은 시각
   var current = 'loading';
@@ -86,7 +86,7 @@
     $('btn-pw').hidden = DEMO;                  // 체험 서버: 비밀번호 바꾸기 없음
     allowRooms = res.allowRooms !== false;
     classes = res.classes || [];
-    // 새로고침 전에 보던 수업방으로 돌아간다
+    // 새로고침 전에 보던 공식전으로 돌아간다
     var last = store.get('class');
     if (last && classes.some(function (c) { return c.code === last; })) { openClass(last); return; }
     showHome();
@@ -123,8 +123,8 @@
     box.innerHTML = '';
     if (!classes.length) {
       var e = el('div', 'empty');
-      e.appendChild(el('b', null, '열려 있는 수업방이 없어요'));
-      e.appendChild(el('span', null, '새 수업방을 누르면 방 코드가 만들어져요'));
+      e.appendChild(el('b', null, '열려 있는 공식전이 없어요'));
+      e.appendChild(el('span', null, '새 공식전을 누르면 공식전 코드가 만들어져요'));
       box.appendChild(e);
       return;
     }
@@ -150,14 +150,14 @@
         allowRooms = res.allowRooms;
         renderHome();
         if (cur) { cur.allowRooms = allowRooms; renderClass(); }
-        toast(allowRooms ? '학생 방 만들기를 켰어요' : '학생 방 만들기를 껐어요');
+        toast(allowRooms ? '자유 플레이를 켰어요' : '자유 플레이를 껐어요');
       });
     };
   }
   roomsSwitch($('home-rooms'));
   roomsSwitch($('c-rooms'));
 
-  var REASON = { clear: '모든 팀 완성', time: '시간 종료', stop: '교사가 종료' };
+  var REASON = { clear: '모든 팀 클리어', time: '시간 종료', stop: '교사가 종료' };
   // 방해 기록: 공격 · 맞음 · 막음 (없으면 빈칸)
   function atkText(a) {
     if (!a || !(a.sent || a.got || a.blocked)) return '';
@@ -169,10 +169,10 @@
     call('admin:records', { n: 30 }, function (res) {
       box.innerHTML = '';
       if (!res.ok) { box.appendChild(el('p', 'error', res.error || '불러오지 못했어요')); return; }
-      if (!res.games.length) { var e = el('div', 'empty'); e.appendChild(el('b', null, '아직 기록이 없어요')); e.appendChild(el('span', null, '수업방을 한 판 끝내면 여기에 남아요')); box.appendChild(e); return; }
+      if (!res.games.length) { var e = el('div', 'empty'); e.appendChild(el('b', null, '아직 기록이 없어요')); e.appendChild(el('span', null, '공식전을 한 판 끝내면 여기에 남아요')); box.appendChild(e); return; }
       var table = el('table', 'rec-table');
       var head = el('tr');
-      ['날짜', '코드', '태그', '팀별 순위 (해결률 · 완성 시간)', '끝난 방식'].forEach(function (h) { head.appendChild(el('th', null, h)); });
+      ['날짜', '공식전 코드', '태그', '팀별 순위 (진행률 · 클리어 시간)', '끝난 방식'].forEach(function (h) { head.appendChild(el('th', null, h)); });
       var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
       var tb = el('tbody');
       res.games.forEach(function (g) {
@@ -185,7 +185,7 @@
         (g.result.teams || []).forEach(function (t) {
           var chip = el('span', 'rec-chip' + (t.rank === 1 ? ' first' : ''));
           chip.appendChild(el('b', null, t.rank + '위 ' + t.no + '팀'));
-          chip.appendChild(document.createTextNode(' ' + t.pct + '%' + (t.clear ? ' · ' + mmss(t.ms) : '') + ' · ' + t.members.length + '명' + (t.bots ? '(봇 ' + t.bots + ')' : '') + atkText(t.atk)));
+          chip.appendChild(document.createTextNode(' ' + t.pct + '%' + (t.clear ? ' · ' + mmss(t.ms) : '') + ' · ' + t.members.length + '명' + (t.bots ? '(비트 ' + t.bots + ')' : '') + atkText(t.atk)));
           td.appendChild(chip);
         });
         tr.appendChild(td);
@@ -419,7 +419,7 @@
     }).catch(function (e) { if (e.message !== 'login') toast('내려받지 못했어요', 'warn'); });
   };
 
-  // ── 수업방 만들기 · 열기 ──
+  // ── 공식전 만들기 · 열기 ──
   function defaults() {
     function d(k, v) { return OPTIONS && OPTIONS[k] && OPTIONS[k].def != null ? OPTIONS[k].def : v; }
     return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 5), occSec: d('occSec', 20), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), penalty: true, blocks: 0 };
@@ -462,7 +462,7 @@
   });
   socket.on('standings', function (st) { standings = st || []; if (cur) renderTeams(); });
   socket.on('teach:closed', function (m) {
-    if (cur && m.code === cur.code) { toast(m.reason === 'idle' ? '오래 쓰지 않아 수업방이 닫혔어요' : '수업방을 끝냈어요'); showHome(); }
+    if (cur && m.code === cur.code) { toast(m.reason === 'idle' ? '오래 쓰지 않아 공식전이 닫혔어요' : '공식전을 끝냈어요'); showHome(); }
   });
 
   // ── 설정 ──
@@ -558,8 +558,8 @@
     $('c-blk').textContent = auto ? '자동' : String(s.blocks);
     $('c-blk-down').disabled = lock || auto || s.blocks <= 24;
     $('c-blk-up').disabled = lock || auto || s.blocks >= 144;
-    $('c-blkhelp').textContent = cur.phase === 'playing' && cur.blocks ? '이번 판: 팀마다 ' + cur.blocks + '칸'
-      : auto ? '가장 큰 팀 인원 × 24칸 (최대 96) · 지금 시작하면 ' + cur.blocksNow + '칸' : '24 ~ 144칸, 12칸씩 (' + (s.blocks / 12) + '줄)';
+    $('c-blkhelp').textContent = cur.phase === 'playing' && cur.blocks ? '이번 판: 팀마다 ' + cur.blocks + '블록'
+      : auto ? '가장 큰 팀 인원 × 24블록 (최대 96) · 지금 시작하면 ' + cur.blocksNow + '블록' : '24 ~ 144블록, 12블록씩 (' + (s.blocks / 12) + '줄)';
   }
   $('c-teams-down').onclick = function () { changeSettings(function (s) { s.teams = Math.max(2, s.teams - 1); }); };
   // 제한 시간: − / + 또는 숫자 직접 입력 (1 ~ 30분)
@@ -588,7 +588,7 @@
   $('c-blk-up').onclick = function () { changeSettings(function (s) { s.blocks = Math.min(144, s.blocks + 12); }); };
 
   // ── 팀 현황 ──
-  var STATE = { on: ['접속', 'ok'], off: ['연결 끊김', 'off'], wait: ['참여 대기', 'muted'], play: ['이동 중', 'ok'], typing: ['입력 중', 'hot'], boss: ['보스 공략', 'boss'], bot: ['봇 · 대기', 'muted'] };
+  var STATE = { on: ['접속', 'ok'], off: ['연결 끊김', 'off'], wait: ['참여 대기', 'muted'], play: ['이동 중', 'ok'], typing: ['입력 중', 'hot'], boss: ['보스 공략', 'boss'], bot: ['비트 · 대기', 'muted'] };
   var kickArm = {};
 
   function personRow(p, no) {
@@ -597,7 +597,7 @@
     var who = el('span', 'pwho');
     var nm = el('b', 'pname', p.nick);
     nm.title = p.nick;
-    if (p.bot) { row.classList.add('is-bot'); nm.insertBefore(el('span', 'bot-badge', '봇'), nm.firstChild); }
+    if (p.bot) { row.classList.add('is-bot'); nm.insertBefore(el('span', 'bot-badge', '비트'), nm.firstChild); }
     who.appendChild(nm);
     var st = STATE[p.state] || ['', ''];
     who.appendChild(el('span', 'pstate ' + st[1], st[0]));
@@ -614,7 +614,7 @@
     if (p.bot) {
       var rb = el('button', 'kick-btn', '빼기');
       rb.type = 'button';
-      rb.setAttribute('aria-label', p.nick + ' 봇 빼기');
+      rb.setAttribute('aria-label', p.nick + ' 비트 빼기');
       rb.onclick = function () { call('class:bot:remove', { id: p.id }, function (res) { if (!res.ok) toast(res.error || '빼지 못했어요', 'warn'); }); };
       row.appendChild(rb);
       return row;
@@ -642,11 +642,11 @@
       var head = el('div', 'tt-head');
       head.appendChild(el('b', 'tt-name', t.no + '팀'));
       var nb = t.members.filter(function (p) { return p.bot; }).length;
-      head.appendChild(el('span', 'muted', t.members.length + '명' + (nb ? ' (봇 ' + nb + ')' : '')));
+      head.appendChild(el('span', 'muted', t.members.length + '명' + (nb ? ' (비트 ' + nb + ')' : '')));
       var x = byNo[t.no];
       if (playing && x) {
         head.appendChild(el('span', 'grow'));
-        head.appendChild(el('span', 'tt-pct' + (x.rank ? ' done' : ''), x.rank ? x.rank + '위 완성' : x.pct + '%'));
+        head.appendChild(el('span', 'tt-pct' + (x.rank ? ' done' : ''), x.rank ? x.rank + '위 클리어' : x.pct + '%'));
       }
       card.appendChild(head);
       if (playing && x) {
@@ -654,9 +654,9 @@
       }
       if (!t.members.length) card.appendChild(el('span', 'muted small', '아직 아무도 없어요'));
       t.members.forEach(function (p) { card.appendChild(personRow(p, t.no)); });
-      var ab = el('button', 'add-bot', '+ 봇 넣기');
+      var ab = el('button', 'add-bot', '+ 비트 부르기');
       ab.type = 'button';
-      ab.setAttribute('aria-label', t.no + '팀에 봇 넣기');
+      ab.setAttribute('aria-label', t.no + '팀에 비트 부르기');
       ab.onclick = function () { call('class:bot:add', { no: t.no }, function (res) { if (!res.ok) toast(res.error || '넣지 못했어요', 'warn'); }); };
       card.appendChild(ab);
       grid.appendChild(card);
@@ -693,8 +693,8 @@
     $('c-help').appendChild(document.createTextNode('학생 안내: '));
     $('c-help').appendChild(el('b', 'mono', location.origin + BASE + '/'));
     $('c-help').appendChild(document.createTextNode(' 에 들어가 캐릭터를 고른 뒤, 로비의 '));
-    $('c-help').appendChild(el('b', null, '수업방 코드'));
-    $('c-help').appendChild(document.createTextNode(' 칸에 '));
+    $('c-help').appendChild(el('b', null, '공식전 코드'));
+    $('c-help').appendChild(document.createTextNode(' 입력란에 '));
     $('c-help').appendChild(el('b', 'pixel', cur.code));
     $('c-help').appendChild(document.createTextNode(' 입력 → 팀 선택'));
     $('btn-start').hidden = playing;
@@ -716,7 +716,7 @@
     $('c-summary').hidden = !playing;
     var s = cur.settings;
     var BS = { slow: '느림', normal: '보통', fast: '빠름' };
-    $('c-summary').textContent = '이번 판: ' + s.tags.join(' · ') + ' · 제한 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '칸 · 점유 ' + s.occSec + '초 · 보스 ' + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · 풀이 ' + s.bossLimitSec + '초) · 봇 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
+    $('c-summary').textContent = '이번 판: ' + s.tags.join(' · ') + ' · 제한 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 ' + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · 풀이 ' + s.bossLimitSec + '초) · 비트 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
     $('c-teams-grid').classList.toggle('wide', playing);
     renderSettings();
     renderTeams();
@@ -773,8 +773,8 @@
   armed($('btn-stop'), '게임 종료', function () {
     call('class:stop', {}, function (res) { if (!res.ok) toast(res.error || '안 됐어요', 'warn'); });
   });
-  armed($('btn-close'), '수업 끝내기', function () {
-    call('class:close', {}, function (res) { if (res.ok) { toast('수업방을 끝냈어요'); showHome(); } });
+  armed($('btn-close'), '공식전 끝내기', function () {
+    call('class:close', {}, function (res) { if (res.ok) { toast('공식전을 끝냈어요'); showHome(); } });
   });
   $('btn-autoassign').onclick = function () { call('class:autoassign', {}, function () {}); };
   $('c-attacks').onclick = function () {
@@ -806,10 +806,10 @@
   $('btn-botfill').onclick = function () {
     call('class:bot:fill', {}, function (res) {
       if (!res.ok) return toast(res.error || '채우지 못했어요', 'warn');
-      toast(res.added ? '봇 ' + res.added + '명을 넣었어요' : '이미 인원이 같아요');
+      toast(res.added ? '비트 ' + res.added + '명을 넣었어요' : '이미 인원이 같아요');
     });
   };
-  armed($('btn-botclear'), '봇 모두 빼기', function () { call('class:bot:clear', {}, function () {}); });
+  armed($('btn-botclear'), '비트 모두 빼기', function () { call('class:bot:clear', {}, function () {}); });
   $('btn-teamlock').onclick = function () {
     var on = !(cur && cur.teamLock);
     call('class:teamlock', { on: on }, function (res) {
@@ -855,7 +855,7 @@
   socket.on('class:result', function (r) {
     if (!cur || r.code !== cur.code) return;
     lastShown = r.endedAt;
-    $('tr-kind').textContent = (REASON[r.reason] || '게임 끝') + ' · ' + mmss(r.ms) + ' · 팀마다 ' + r.blocks + '칸';
+    $('tr-kind').textContent = (REASON[r.reason] || '게임 끝') + ' · ' + mmss(r.ms) + ' · 팀마다 ' + r.blocks + '블록';
     $('tr-title').textContent = r.teams.length ? r.teams.filter(function (t) { return t.rank === 1; }).map(function (t) { return t.no + '팀'; }).join(' · ') + ' 1위!' : '게임 끝';
     var ol = $('tr-teams');
     ol.innerHTML = '';
@@ -863,7 +863,7 @@
       var li = el('li');
       li.appendChild(el('span', 'rt-rank', t.rank + '위'));
       li.appendChild(el('b', null, t.no + '팀'));
-      li.appendChild(el('em', null, (t.clear ? '완성 ' + mmss(t.ms) : '해결률 ' + t.pct + '%') + ' · 블록 ' + t.solved + '/' + t.total + ' · 보스 ' + t.bosses + ' · ' + t.members.length + '명' + (t.bots ? '(봇 ' + t.bots + ')' : '') + atkText(t.atk)));
+      li.appendChild(el('em', null, (t.clear ? '클리어 ' + mmss(t.ms) : '진행률 ' + t.pct + '%') + ' · 블록 ' + t.solved + '/' + t.total + ' · 보스 ' + t.bosses + ' · ' + t.members.length + '명' + (t.bots ? '(비트 ' + t.bots + ')' : '') + atkText(t.atk)));
       ol.appendChild(li);
     });
     $('t-result').hidden = false;
