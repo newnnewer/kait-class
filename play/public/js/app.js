@@ -179,10 +179,9 @@
   };
 
   // ── 로비 (v0.13.0): 위 공식전 코드 · 아래 두 칸(팀 배틀 | 레이드) ──
-  var lobby = { rooms: [], allowRooms: true, filter: { 2: 'all', 3: 'all' } };
+  var lobby = { rooms: [], allowRooms: true, openOnly: { 2: false, 3: false } }; // 칸마다 '모집중인 방만 보기'
   var TAG_ORDER = ['출력', '입력', '변수', '연산자', '조건문', '반복문', '리스트', '함수'];
   var LCOL = { 2: { id: 'lob-battle', mode: 'battle', name: '팀 배틀' }, 3: { id: 'lob-coop', mode: 'coop', name: '레이드' } };
-  var FILTERS = [['all', '전체'], ['open', '모집중'], ['playing', '진행중']];
 
   function avatarSpan(kind, color, cls) {
     var s = document.createElement('span');
@@ -210,10 +209,10 @@
   });
 
   function roomsOf(z) {
-    var mode = LCOL[z].mode, f = lobby.filter[z];
+    var mode = LCOL[z].mode;
     var list = lobby.rooms.filter(function (r) {
       if ((r.mode || 'coop') !== mode) return false;
-      return f === 'all' || (f === 'open' ? r.phase === 'waiting' : r.phase !== 'waiting');
+      return !lobby.openOnly[z] || r.phase === 'waiting';
     });
     list.sort(function (a, b) { return (a.phase === 'waiting' ? 0 : 1) - (b.phase === 'waiting' ? 0 : 1); }); // 모집 중인 방을 앞에
     return list;
@@ -271,21 +270,15 @@
       var cb = col.querySelector('.lc-create');
       cb.disabled = !lobby.allowRooms;
       cb.onclick = function () { openCreate(mode); };
-      var fl = col.querySelector('.lc-filter');
-      fl.innerHTML = '';
-      FILTERS.forEach(function (x) {
-        var b = el('button', null, x[1]);
-        b.type = 'button';
-        b.setAttribute('aria-pressed', String(lobby.filter[z] === x[0]));
-        b.onclick = function (e) { lobby.filter[z] = x[0]; renderLobby(); };
-        fl.appendChild(b);
-      });
+      var cbx = col.querySelector('.lc-open-cb');
+      cbx.checked = lobby.openOnly[z];
+      cbx.onchange = function () { lobby.openOnly[z] = cbx.checked; renderLobby(); };
       var ul = col.querySelector('.lc-rooms');
       ul.innerHTML = '';
       var list = roomsOf(z);
       if (!list.length) {
         var e = el('li', 'lempty');
-        e.appendChild(el('b', null, all.length ? '이 조건에 맞는 방이 없어요' : '아직 열린 ' + LCOL[z].name + '이 없어요'));
+        e.appendChild(el('b', null, all.length ? '지금 모집중인 방이 없어요' : '아직 열린 ' + LCOL[z].name + '이 없어요'));
         e.appendChild(el('span', null, lobby.allowRooms ? '＋ 방 만들기로 첫 방을 열어 보세요' : '선생님이 자유 플레이를 꺼 두었어요'));
         ul.appendChild(e);
       }
