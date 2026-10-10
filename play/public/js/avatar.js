@@ -29,7 +29,7 @@
     },
     robot: function (c) {
       return '<line x1="16" y1="3.8" x2="16" y2="8" stroke="' + INK + '" stroke-width="1.6"/>' +
-        '<circle cx="16" cy="3.6" r="1.9" fill="#FF5C8A" stroke="' + INK + '" stroke-width="1.2"/>' +
+        '<circle cx="16" cy="3.6" r="1.9" fill="' + c + '" stroke="' + INK + '" stroke-width="1.2"/>' + // 안테나 끝도 고른 색 (v0.13.0)
         '<rect x="6" y="8" width="20" height="15" rx="3.5" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
         '<rect x="9" y="12" width="14" height="6.5" rx="2" fill="' + INK + '"/>' +
         '<rect x="11" y="14.2" width="3.2" height="2.2" fill="#7CF5FF"/><rect x="17.8" y="14.2" width="3.2" height="2.2" fill="#7CF5FF"/>' +
@@ -66,8 +66,8 @@
     },
     // v0.13.0: 외계인 · 개구리
   alien: function (c) {
-    return '<line x1="11" y1="9" x2="8.5" y2="3.8" stroke="' + INK + '" stroke-width="1.4"/><circle cx="8.2" cy="3.4" r="1.8" fill="#7CF5FF" stroke="' + INK + '" stroke-width="1.1"/>' +
-      '<line x1="21" y1="9" x2="23.5" y2="3.8" stroke="' + INK + '" stroke-width="1.4"/><circle cx="23.8" cy="3.4" r="1.8" fill="#7CF5FF" stroke="' + INK + '" stroke-width="1.1"/>' +
+    return '<line x1="11" y1="9" x2="8.5" y2="3.8" stroke="' + INK + '" stroke-width="1.4"/><circle cx="8.2" cy="3.4" r="1.8" fill="' + c + '" stroke="' + INK + '" stroke-width="1.1"/>' +
+      '<line x1="21" y1="9" x2="23.5" y2="3.8" stroke="' + INK + '" stroke-width="1.4"/><circle cx="23.8" cy="3.4" r="1.8" fill="' + c + '" stroke="' + INK + '" stroke-width="1.1"/>' +
       '<path d="M16 7.5 C24 7.5 27.5 12.5 27 18 C26.4 24.5 21 28.6 16 28.6 C11 28.6 5.6 24.5 5 18 C4.5 12.5 8 7.5 16 7.5 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
       '<path d="M8.6 16.2 C9.2 13.6 12.6 13.4 13.8 15.6 C14.6 17.4 13 19.6 11 19.4 C9.2 19.2 8.2 17.8 8.6 16.2 Z" fill="' + INK + '"/>' +
       '<path d="M23.4 16.2 C22.8 13.6 19.4 13.4 18.2 15.6 C17.4 17.4 19 19.6 21 19.4 C22.8 19.2 23.8 17.8 23.4 16.2 Z" fill="' + INK + '"/>' +
