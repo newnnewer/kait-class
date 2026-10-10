@@ -888,3 +888,7 @@ button.me-chip:hover { border-color: #4B58A8; }
   #screen-wait .wait-side { order: -1; } /* 좁은 화면: 준비 · 시작 단추를 위로 */
   #screen-wait .wait-side > .card { display: none; } /* 방 설정 표는 넓은 화면에서만 */
 }
+/* v0.13.0: 게임 화면 팀원 목록 — 카드가 눌려 스크롤바가 생기지 않게 (넘칠 때도 스크롤바는 숨기고 휠로만) */
+.side > .card:not(.feed-card) { flex-shrink: 0; }
+.members { scrollbar-width: none; padding-bottom: 6px; } /* 캐릭터 그림자가 아래로 4px 삐져나와 늘 스크롤이 생겼음 */
+.members::-webkit-scrollbar { display: none; }
