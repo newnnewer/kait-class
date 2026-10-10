@@ -141,10 +141,12 @@
 @keyframes kpi-flash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
 @keyframes kpi-flash2 { 0% { opacity: 0; } 20% { opacity: .35; } 100% { opacity: 0; } }
 
-/* 움직임 줄이기: 로고 · 캐릭터 · 안내만 바로 */
-.kpi.reduce *, .kpi.reduce::before { animation: none !important; }
-.kpi.reduce .kpi-floor { animation: none !important; }
-.kpi.reduce .kpi-grid, .kpi.reduce .kpi-shards, .kpi.reduce .kpi-ring, .kpi.reduce .kpi-flash, .kpi.reduce .kpi-team::after { display: none; }
+/* 움직임 줄이기를 켠 컴퓨터: 전체를 보여 주되 화면 흔들림은 빼고 번쩍임은 약하게 */
+.kpi.calm .kpi-stage { animation: none; }
+.kpi.calm .kpi-flash { background: #C9C8FF; }
+.kpi.calm .kpi-flash.f1 { animation-name: kpi-flash-calm; }
+.kpi.calm .kpi-flash.f2 { display: none; }
+@keyframes kpi-flash-calm { 0% { opacity: 0; } 20% { opacity: .3; } 100% { opacity: 0; } }
 
 @media (max-height: 520px) { .kpi-tag { display: none; } }
 /* 교사 화면(밝은 바탕)의 로고 색을 따르지 않게 */

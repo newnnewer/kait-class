@@ -871,8 +871,8 @@
   });
   $('btn-tr-ok').onclick = function () { $('t-result').hidden = true; };
 
-  // ── 인트로 (v0.13.0): 이 탭에서 처음 열 때만 (새로고침 때는 안 나옴). 교사 화면은 배경음 없이 키를 누를 때 효과음만 ──
-  if (window.CGIntro && window.CGIntro.shouldPlay()) {
+  // ── 인트로 (v0.13.0): 페이지를 열 때마다 (새로고침 포함). 교사 화면은 배경음 없이 키를 누를 때 효과음만 ──
+  if (window.CGIntro) {
     window.CGIntro.play({
       onPress: function () {
         var S = window.CGSound;

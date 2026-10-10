@@ -1,23 +1,20 @@
 /* KAIT-PLAY — 인트로 (v0.13.0). 영상 파일 없이 화면 애니메이션으로 (약 4.5초 뒤 'PRESS ANY KEY').
  *   블록이 떨어짐 → 블록이 깨지며 KAIT-PLAY 로고 → 두 팀 캐릭터가 달려와 VS → PRESS ANY KEY
  *   CGIntro.play({ onPress: fn, onDone: fn })   아무 키 · 클릭이면 언제든 끝남 (애니메이션 중이어도 건너뜀)
- *   CGIntro.shouldPlay()   이 탭에서 처음일 때만 true — 새로고침 · 재접속 때는 안 나온다 (sessionStorage)
+ *   언제 띄울지는 부르는 쪽이 정한다 — 학생 화면: 페이지를 열 때마다(새로고침 포함, 방 · 게임으로 돌아갈 때만 빼고),
+ *   교사 화면: 페이지를 열 때마다.
  *   CGIntro.active()   인트로가 떠 있는 동안 true
  * 브라우저는 키를 한 번 누르기 전에는 소리를 막으므로 애니메이션은 소리 없이 돌고,
  * onPress(키를 누른 순간 — 사용자 입력 안)에서 효과음 · 배경음을 시작한다.
- * 움직임 줄이기를 켠 컴퓨터는 로고 · 캐릭터 · PRESS ANY KEY 만 바로 보여 준다. */
+ * 움직임 줄이기를 켠 컴퓨터도 전체를 보여 주되(학교 컴퓨터는 이 설정이 켜진 곳이 많음) 화면 흔들림은 빼고 번쩍임은 약하게. */
 (function () {
   'use strict';
   var AV = window.CGAvatar;
-  var KEY = 'kp.intro';
   var root = null, done = null, pressCb = null, swallow = null;
 
   var TOKENS = ['print', 'for i', 'if', 'a = 1', 'def', 'x += 1', 'while', 'BOSS', 'input()', 'len', 'else:', 'range', 'True', 'int', '[ ]'];
   var LEFT = [['slime', '#FFD23F'], ['robot', '#45B1F5'], ['cat', '#FF8FB1'], ['ghost', '#F2F4FA']];
   var RIGHT = [['owl', '#FFB347'], ['dino', '#FF6B6B'], ['alien', '#C9A2FF'], ['frog', '#7EE0B5']];
-
-  function seen() { try { return sessionStorage.getItem(KEY) === '1'; } catch (e) { return false; } }
-  function mark() { try { sessionStorage.setItem(KEY, '1'); } catch (e) { /* 저장 못 해도 된다 */ } }
 
   function h(tag, cls, html) {
     var e = document.createElement(tag);
@@ -30,7 +27,7 @@
     var o = h('div', 'kpi');
     o.setAttribute('role', 'dialog');
     o.setAttribute('aria-label', 'KAIT-PLAY 시작 화면 — 아무 키나 누르세요');
-    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) o.classList.add('reduce');
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) o.classList.add('calm');
 
     o.appendChild(h('div', 'kpi-floor'));
     var stage = h('div', 'kpi-stage');
@@ -129,11 +126,9 @@
   }, true);
 
   window.CGIntro = {
-    shouldPlay: function () { return !seen(); },
     active: function () { return !!root && !root.classList.contains('out'); },
     play: function (opt) {
       opt = opt || {};
-      mark();
       if (root) return;
       pressCb = opt.onPress || null;
       done = opt.onDone || null;

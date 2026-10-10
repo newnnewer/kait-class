@@ -88,6 +88,8 @@
       if (res.options) OPTIONS = res.options;
       if (res.bankTags) BANK_TAGS = res.bankTags;
       if ($('demo-pill')) $('demo-pill').hidden = !res.demo;   // 체험 서버 표시 (v0.10.0)
+      // 인트로 (v0.13.0): 페이지를 열 때마다(새로고침 포함). 방 · 게임으로 돌아가는 사람만 빼고 (게임 중에 끼면 팀이 손해)
+      if (!introChecked) { introChecked = true; if (!(res.me && res.where === 'room')) playIntro(); }
       if (res.me) { ME = res.me; enter.nick = res.me.nick; return; } // 서버가 로비·대기실·게임을 보내 준다
       enter.nick = res.nick;
       showEnter();
@@ -150,14 +152,14 @@
     $('btn-join').disabled = false;
     renderEnter();
     show('enter');
-    playIntro();
   }
 
-  // ── 인트로 (v0.13.0): 이 탭에서 처음 입장 화면을 열 때만. 새로고침 · 재접속(서버가 나를 기억) 때는 안 나온다 ──
-  //   아무 키를 누른 순간(사용자 입력 안)이라야 브라우저가 소리를 허락한다 → 그때 효과음 + 입장 화면 배경음
+  // ── 인트로 (v0.13.0): 페이지를 열고 서버와 처음 인사할 때 한 번 (연결이 잠깐 끊겼다 다시 붙을 때는 안 나옴) ──
+  //   아무 키를 누른 순간(사용자 입력 안)이라야 브라우저가 소리를 허락한다 → 그때 효과음 + 배경음
+  var introChecked = false;
   function playIntro() {
     var I = window.CGIntro;
-    if (!I || !I.shouldPlay()) return;
+    if (!I) return;
     I.play({
       onPress: function () {
         SND.unlock();
