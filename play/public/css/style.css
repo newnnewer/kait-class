@@ -108,7 +108,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .row { display: flex; align-items: center; gap: 14px; }
 .nick-box { flex-grow: 1; height: 52px; background: #0A1228; border: 2px solid var(--line); border-radius: 12px; padding: 0 18px; display: flex; align-items: center; font-family: var(--display); font-size: 24px; color: #fff; font-weight: 800 }
 
-.chars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.chars { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; } /* v0.13.0: 8종 */
 .char-btn {
   height: 96px; border-radius: 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   background: var(--panel-deep); border: 3px solid var(--panel-line); color: var(--text); font-size: 14px; font-weight: 700;
@@ -487,7 +487,7 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
   .enter { padding: 20px 16px; }
   .enter-body { flex-direction: column; }
   .me-card { width: auto; }
-  .chars { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .chars { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .enter-go { flex-direction: column; align-items: stretch; }
 }
 

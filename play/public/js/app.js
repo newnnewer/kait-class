@@ -60,8 +60,8 @@
 
   // ── 연결 ──
   var socket = io({ path: BASE + '/socket.io', transports: ['polling', 'websocket'] });
-  var CHARS = ['slime', 'robot', 'cat', 'ghost', 'owl', 'dino'];
-  var COLORS = ['#FFD23F', '#45B1F5', '#FF8FB1', '#7EE0B5', '#FFB347', '#C9A2FF'];
+  var CHARS = ['slime', 'robot', 'cat', 'ghost', 'owl', 'dino', 'alien', 'frog'];
+  var COLORS = ['#FFD23F', '#45B1F5', '#FF8FB1', '#7EE0B5', '#FFB347', '#C9A2FF', '#F2F4FA', '#FF6B6B'];
   var offlineTimer = null;
   var OPTIONS = null, BANK_TAGS = { normal: [], boss: [] };
   var ME = null; // { id, nick, kind, color }

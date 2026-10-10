@@ -11,8 +11,8 @@ const crypto = require('crypto');
 const SPEED_MS = { slow: 20000, normal: 12000, fast: 7000 };
 const STEP_MS = 280;       // 한 칸 걷는 간격
 const WRONG_RATE = 0.1;    // 틀리는 비율
-const KINDS = ['slime', 'robot', 'cat', 'ghost', 'owl', 'dino'];
-const COLORS = ['#FFD23F', '#45B1F5', '#FF8FB1', '#7EE0B5', '#FFB347', '#C9A2FF'];
+const KINDS = ['slime', 'robot', 'cat', 'ghost', 'owl', 'dino', 'alien', 'frog'];
+const COLORS = ['#FFD23F', '#45B1F5', '#FF8FB1', '#7EE0B5', '#FFB347', '#C9A2FF', '#F2F4FA', '#FF6B6B'];
 
 function makeBot(nick) {
   const id = 'b' + crypto.randomBytes(4).toString('hex');

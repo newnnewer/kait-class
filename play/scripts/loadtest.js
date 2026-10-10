@@ -50,8 +50,8 @@ const target = new URL(opt('url', `http://127.0.0.1:${process.env.PORT || 3000}$
 const base = target.pathname.replace(/\/+$/, '');
 const TAGS = ['출력', '입력', '변수', '연산자'];
 
-const KINDS = ['slime', 'robot', 'cat', 'ghost', 'owl', 'dino'];
-const COLORS = ['#FFD23F', '#45B1F5', '#FF8FB1', '#7EE0B5', '#FFB347', '#C9A2FF'];
+const KINDS = ['slime', 'robot', 'cat', 'ghost', 'owl', 'dino', 'alien', 'frog'];
+const COLORS = ['#FFD23F', '#45B1F5', '#FF8FB1', '#7EE0B5', '#FFB347', '#C9A2FF', '#F2F4FA', '#FF6B6B'];
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = (a, b) => a + Math.random() * (b - a);
 
