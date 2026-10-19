@@ -216,6 +216,12 @@ function page_head(array $o): void {
     <?php endif; ?>
   </div>
 </header>
+<?php /* 교사용 AI 도우미 (1.8.0) — 교사 계정에만, 켜 두었고 키가 있을 때만. 체험 서버에서는 언제나 끈다.
+         ai_lib.php 를 매 화면 불러오지 않으려고 같은 조건을 여기서 바로 본다 (ai_enabled() 와 같게 유지). */ ?>
+<?php if ($isAdmin && !DEMO_MODE && setting('ai_on') === '1' && trim(setting('ai_key')) !== ''): ?>
+<script>window.KAIT_AI = <?= json_encode(['url' => $root . 'ai.php', 'root' => $root], JSON_UNESCAPED_SLASHES) ?>;</script>
+<script src="<?= asset('ai.js', $root) ?>" defer></script>
+<?php endif; ?>
 <?php
 }
 

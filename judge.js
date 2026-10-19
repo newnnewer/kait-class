@@ -381,71 +381,76 @@ async function apiThenReload(action, data, confirmMsg){
 
   /* ═══ 직접 실행 ═══════════════════════════════════
      학생이 자기 입력으로 코드를 돌려 본다. 채점이 아니므로 판정을 말하지 않고,
-     테스트케이스도 건드리지 않는다. */
+     테스트케이스도 건드리지 않는다.
+     [실행하기]로 열면 첫 번째 입력 예시를 채우고 곧바로 실행한다. 다시 누르면 닫힌다 (1.8.0).
+     출력 상자는 늘 보이고, 상태·시간·메모리는 '출력' 옆 한 줄에, 오류는 출력 상자 아래 따로 보인다. */
   (function () {
     var toggle = document.getElementById('runToggle');
     var rbox   = document.getElementById('runBox');
     var rin    = document.getElementById('runInput');
     var rbtn   = document.getElementById('runBtn');
-    var rout   = document.getElementById('runResult');
+    var rstat  = document.getElementById('runStatus');
+    var rmeta  = document.getElementById('runMeta');
+    var rout   = document.getElementById('runOut');
+    var rerr   = document.getElementById('runErr');
     if (!toggle || !rbox) return;
+    var rerrPre = rerr.querySelector('pre');
+    var seq = 0;   /* 앞선 실행의 늦은 응답이 새 결과를 덮지 않게 */
 
-    toggle.addEventListener('click', function () {
-      rbox.hidden = !rbox.hidden;
-      toggle.classList.toggle('on', !rbox.hidden);
-      if (!rbox.hidden) rin.focus();
-    });
-
-    function rshow(html) { rout.innerHTML = html; rout.hidden = false; }
-
-    function render(j) {
-      var cls = j.ok_run ? 'ok' : 'bad';
-      var h = '<div class="rbox ' + cls + '">';
-      h += '<div class="rhead"><b>' + esc(j.label || '실행 결과') + '</b>';
-      var meta = [];
-      if (j.time !== null)  meta.push(j.time.toFixed(3) + ' 초');
-      if (j.memory)         meta.push(j.memory.toLocaleString() + ' KB');
-      if (meta.length) h += '<span class="small muted">' + esc(meta.join('  ·  ')) + '</span>';
-      h += '</div>';
-
-      if (j.stdout !== null && j.stdout !== '') {
-        h += '<div class="rlab">출력</div><pre class="rmsg">' + esc(j.stdout) + '</pre>';
-      } else if (j.ok_run) {
-        h += '<div class="rlab">출력</div><pre class="rmsg empty">(출력이 없습니다)</pre>';
-      }
-      if (j.stderr && j.stderr.trim() !== '') {
-        h += '<div class="rlab">오류 출력</div><pre class="rmsg">' + esc(j.stderr) + '</pre>';
-      }
-      if (j.message && j.message.trim() !== '') {
-        h += '<div class="rlab">메시지</div><pre class="rmsg">' + esc(j.message.trim()) + '</pre>';
-      }
-      h += '</div>';
-      rshow(h);
+    function status(text, cls) {
+      rstat.textContent = text || '';
+      rstat.className = 'runstat' + (cls ? ' ' + cls : '');
+    }
+    function clearOut() {
+      rmeta.textContent = '';
+      rout.textContent = ''; rout.classList.remove('empty');
+      rerrPre.textContent = ''; rerr.hidden = true;
+    }
+    function fail(msg) {
+      status(msg, 'bad'); rbtn.disabled = false;
     }
 
-    function poll(id, tries) {
+    function render(j) {
+      status(j.label || '실행 결과', j.ok_run ? 'ok' : 'bad');
+      var meta = [];
+      if (j.time !== null && j.time !== undefined) meta.push(j.time.toFixed(3) + '초');
+      if (j.memory) meta.push(j.memory.toLocaleString() + 'KB');
+      rmeta.textContent = meta.join('   ');
+
+      if (j.stdout !== null && j.stdout !== undefined && j.stdout !== '') {
+        rout.textContent = j.stdout;
+      } else if (j.ok_run) {
+        rout.textContent = '(출력이 없습니다)'; rout.classList.add('empty');
+      }
+      var errs = [];
+      if (j.stderr && j.stderr.trim() !== '')   errs.push(j.stderr.replace(/\s+$/, ''));
+      if (j.message && j.message.trim() !== '') errs.push(j.message.trim());
+      if (errs.length) { rerrPre.textContent = errs.join('\n\n'); rerr.hidden = false; }
+    }
+
+    function poll(id, tries, my) {
       fetch(apiUrl + '?action=run_poll&id=' + id)
         .then(function (r) { return r.json(); })
         .then(function (j) {
-          if (!j.ok) { rshow('<div class="note err">' + esc(j.error) + '</div>'); rbtn.disabled = false; return; }
+          if (my !== seq) return;
+          if (!j.ok) { fail(j.error); return; }
           if (!j.done) {
-            if (tries > 120) {
-              rshow('<div class="note err">실행이 너무 오래 걸립니다.</div>');
-              rbtn.disabled = false; return;
-            }
-            setTimeout(function () { poll(id, tries + 1); }, 700);
+            if (tries > 120) { fail('실행이 너무 오래 걸립니다.'); return; }
+            setTimeout(function () { poll(id, tries + 1, my); }, 700);
             return;
           }
           render(j);
           rbtn.disabled = false;
         })
-        .catch(function () { setTimeout(function () { poll(id, tries + 1); }, 1500); });
+        .catch(function () { if (my === seq) setTimeout(function () { poll(id, tries + 1, my); }, 1500); });
     }
 
-    rbtn.addEventListener('click', function () {
-      if (getCode().trim() === '') { rshow('<div class="note err">코드를 입력하세요.</div>'); return; }
+    function run() {
+      var my = ++seq;
+      clearOut();
+      if (getCode().trim() === '') { fail('코드를 입력하세요.'); return; }
       rbtn.disabled = true;
-      rshow('<div class="rbox wait"><div class="rhead"><b>실행 중…</b></div></div>');
+      status('실행 중…', 'wait');
 
       fetch(apiUrl + '?action=run', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -456,14 +461,25 @@ async function apiThenReload(action, data, confirmMsg){
       })
         .then(function (r) { return r.json(); })
         .then(function (j) {
-          if (!j.ok) { rshow('<div class="note err">' + esc(j.error) + '</div>'); rbtn.disabled = false; return; }
-          poll(j.id, 0);
+          if (my !== seq) return;
+          if (!j.ok) { fail(j.error); return; }
+          poll(j.id, 0, my);
         })
-        .catch(function () {
-          rshow('<div class="note err">실행을 시작하지 못했습니다.</div>');
-          rbtn.disabled = false;
-        });
+        .catch(function () { if (my === seq) fail('실행을 시작하지 못했습니다.'); });
+    }
+
+    toggle.addEventListener('click', function () {
+      rbox.hidden = !rbox.hidden;
+      toggle.classList.toggle('on', !rbox.hidden);
+      toggle.setAttribute('aria-expanded', rbox.hidden ? 'false' : 'true');
+      if (rbox.hidden) return;
+      /* 열 때마다 첫 번째 입력 예시로 채우고 바로 실행 (예시가 없으면 빈 입력) */
+      rin.value = rbox.getAttribute('data-sample') || '';
+      if (rbtn.disabled) return;   /* 앞 실행이 아직 끝나지 않았으면 기다린다 */
+      run();
     });
+
+    rbtn.addEventListener('click', run);
   })();
 
 })();

@@ -74,6 +74,15 @@
     ]});
   }
 
+  /* 창 높이를 가장 긴 스니펫에 맞춰 고정한다 (1.8.0).
+     전에는 코드가 쳐지는 대로 창이 늘었다 줄었다 해서 아래 글자들이 들썩였다.
+     줄 수는 CSS 의 --cp-lines 로 넘기고, 높이 계산은 style.css 의 .cpcode 가 한다. */
+  var maxLines = SNIPPETS.reduce(function (m, s) {
+    var n = s.code.map(function (t) { return t[1]; }).join('').split('\n').length;
+    return Math.max(m, n);
+  }, 1);
+  wrap.style.setProperty('--cp-lines', maxLines);
+
   /* 타이핑할 글자 목록으로 펼친다 */
   function flatten(tokens) {
     var out = [];

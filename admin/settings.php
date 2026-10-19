@@ -8,6 +8,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../guard.php';
 require_once __DIR__ . '/../layout.php';
+require_once __DIR__ . '/../ai_lib.php';
 $me = need_admin('../');
 
 /* 사이트 이름 길이는 글자 수가 아니라 표시 폭으로 잰다.
@@ -94,6 +95,15 @@ if (DEMO_MODE && $_SERVER['REQUEST_METHOD'] === 'POST') {
     setting_set('signup_on',    empty($_POST['signup_on']) ? '0' : '1');
     setting_set('footer_extra', nl_clean((string)($_POST['footer_extra'] ?? '')));
     setting_set('play_menu',    empty($_POST['play_menu']) ? '0' : '1');
+    /* AI 도우미. 키 입력란이 비어 있으면 저장된 키를 그대로 둔다
+       (저장된 키를 화면에 다시 채워 보내지 않으려고) */
+    setting_set('ai_on',    empty($_POST['ai_on']) ? '0' : '1');
+    $aiModel = (string)($_POST['ai_model'] ?? '');
+    setting_set('ai_model', isset(AI_MODELS[$aiModel]) ? $aiModel : AI_DEFAULT_MODEL);
+    setting_set('ai_limit', (string)max(0, (int)preg_replace('/[^0-9]/', '', (string)($_POST['ai_limit'] ?? '0'))));
+    $aiKey = trim((string)($_POST['ai_key'] ?? ''));
+    if (!empty($_POST['ai_key_drop'])) setting_set('ai_key', '');
+    elseif ($aiKey !== '') setting_set('ai_key', $aiKey);
     if ($logoName !== null) setting_set('logo',    $logoName);
     if ($favName  !== null) setting_set('favicon', $favName);
     header('Location: settings.php?saved=1'); exit;
@@ -198,6 +208,51 @@ page_head(['title' => '설정', 'root' => '../', 'user' => $me, 'nav' => 'ops'])
       <?php endif; ?>
     </div>
 
+    <div class="field" id="ai">
+      <label>AI 도우미 (교사용)</label>
+      <?php $aiU = ai_usage(); $aiMasked = ai_key_masked(); ?>
+      <div class="chips">
+        <label class="chip">
+          <input type="checkbox" name="ai_on" value="1" <?= $v('ai_on') === '1' ? 'checked' : '' ?>>
+          <span>교사 화면 오른쪽 아래에 AI 도우미 단추 보이기</span>
+        </label>
+      </div>
+      <div class="aiset">
+        <label for="ai_model" class="small">모델</label>
+        <select id="ai_model" name="ai_model">
+          <?php foreach (AI_MODELS as $mk => $mv): ?>
+            <option value="<?= h($mk) ?>" <?= ai_model() === $mk ? 'selected' : '' ?>><?= h($mv['label']) ?></option>
+          <?php endforeach; ?>
+        </select>
+
+        <label for="ai_key" class="small">API 키</label>
+        <div class="aiset-row">
+          <input type="password" id="ai_key" name="ai_key" autocomplete="off"
+                 placeholder="<?= $aiMasked !== '' ? h($aiMasked) . ' (바꿀 때만 입력)' : 'sk-ant-…' ?>">
+          <button class="btn" type="button" id="ai_test">연결 테스트</button>
+        </div>
+        <?php if ($aiMasked !== ''): ?>
+          <label class="chip small"><input type="checkbox" name="ai_key_drop" value="1"><span>저장된 키 지우기</span></label>
+        <?php endif; ?>
+        <div class="small" id="ai_test_out" aria-live="polite"></div>
+
+        <label for="ai_limit" class="small">월 한도</label>
+        <div class="aiset-row">
+          <input type="text" id="ai_limit" name="ai_limit" inputmode="numeric" style="max-width:120px"
+                 value="<?= h($v('ai_limit')) ?>"> <span class="small">원 · 0 이면 한도 없음</span>
+        </div>
+        <div class="small muted">이번 달(<?= h($aiU['m']) ?>) 약 <b><?= number_format(ai_krw($aiU['usd'])) ?>원</b> · 질문 <?= number_format($aiU['n']) ?>회</div>
+      </div>
+      <div class="small muted">
+        키는 <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener">Anthropic 콘솔</a>에서 만들고,
+        요금은 그 계정에 청구됩니다. 키는 이 서버에만 저장되고 화면에는 앞뒤 몇 글자만 보입니다.
+        한도·사용량은 1달러 = <?= number_format(AI_KRW_PER_USD) ?>원으로 어림한 값입니다.<br>
+        AI 에는 질문과 조회 결과(제출 코드 포함)가 보내집니다. <b>학생 이름과 아이디는 보내지 않습니다</b> —
+        화면에 보일 때만 이름으로 바뀝니다. 대화는 서버에 남지 않고 브라우저 탭을 닫으면 사라집니다.
+        모든 교사 계정이 도우미를 쓸 수 있습니다.
+      </div>
+    </div>
+
     <div class="field">
       <label for="footer_extra">꼬리말 추가</label>
       <textarea id="footer_extra" name="footer_extra" rows="4"
@@ -211,4 +266,22 @@ page_head(['title' => '설정', 'root' => '../', 'user' => $me, 'nav' => 'ops'])
     </div>
   </form>
 </div>
+<script>
+/* 연결 테스트 — 입력란에 새 키가 있으면 그것으로, 없으면 저장된 키로 */
+document.getElementById('ai_test').addEventListener('click', async (ev) => {
+  const btn = ev.currentTarget, out = document.getElementById('ai_test_out');
+  btn.disabled = true; out.className = 'small muted'; out.textContent = '확인하는 중…';
+  try {
+    const r = await fetch('../ai.php?action=test', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key: document.getElementById('ai_key').value, model: document.getElementById('ai_model').value})
+    });
+    const j = await r.json();
+    out.className = 'small ' + (j.ok ? 'ok-text' : 'bad-text');
+    out.textContent = j.ok ? j.msg + ' 키를 새로 썼다면 저장을 눌러야 반영됩니다.' : j.error;
+  } catch (e) {
+    out.className = 'small bad-text'; out.textContent = '서버가 응답하지 않습니다.';
+  } finally { btn.disabled = false; }
+});
+</script>
 <?php page_foot(); ?>

@@ -56,7 +56,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.7.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '1.8.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
@@ -189,6 +189,12 @@ const SETTING_DEFAULTS = [
   'signup_on'    => '0',      // 회원가입 허용
   'footer_extra' => '',       // 관리자가 넣는 추가 안내 (마크다운)
   'play_menu'    => '1',      // KAIT-PLAY 가 설치되어 있으면 위쪽 메뉴에 링크 보이기
+  /* 교사용 AI 도우미 (1.8.0) — ai_lib.php */
+  'ai_on'        => '0',      // 켜고 키가 있어야 교사 화면에 도우미 단추가 보인다
+  'ai_model'     => 'claude-haiku-5-5',
+  'ai_key'       => '',       // Anthropic API 키. 화면에는 앞뒤 몇 글자만 보인다
+  'ai_limit'     => '20000',  // 월 사용 한도(원, 어림값). 0 이면 한도 없음
+  'ai_usage'     => '',       // 이번 달 사용량 {"m":"2026-10","usd":…,"n":…}
 ];
 
 function settings_all(): array {
