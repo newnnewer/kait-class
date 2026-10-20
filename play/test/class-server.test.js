@@ -1,4 +1,5 @@
 'use strict';
+const TEAMS_LIST = require('../public/js/shared/teams').LIST.map(x => x.name);
 // 서버를 실제로 띄워 교사 로그인 → 수업 게임 → 학생 입장 → 경기 → 결과 · 기록을 시험한다
 const test = require('node:test');
 const assert = require('node:assert');
@@ -91,7 +92,7 @@ test('수업 게임: 코드로 입장 → 조 선택 → 시작 → 같은 판 �
   assert.strictEqual(st.ok, true);
   const [ga, gb] = await Promise.all([sa, sb]);
   assert.strictEqual(ga.room.mode, 'class');
-  assert.match(ga.room.name, /^\S+ 팀$/, '0.14.0: 팀 이름 (컴퓨터과학자)');
+  assert.ok(TEAMS_LIST.includes(ga.room.name), '0.14.0: 팀 이름 (컴퓨터과학자, \'팀\' 없이)');
   assert.deepStrictEqual(ga.board.cells.map(c => c.code), gb.board.cells.map(c => c.code));
 
   // 일시정지 중에는 점유할 수 없다
@@ -131,7 +132,7 @@ test('게임 중에 들어온 학생도 조를 고르면 바로 판을 받는다
   const st = once(late.s, 'state');
   await call(late.s, 'class:team', { no: 2 });
   const g = await st;
-  assert.match(g.room.name, /^\S+ 팀$/);
+  assert.ok(TEAMS_LIST.includes(g.room.name));
   assert.ok(g.endMs > 0 && g.endMs <= 600000);
   await call(t, 'class:close', {});
   a.s.close(); late.s.close(); t.close();

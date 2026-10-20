@@ -136,7 +136,7 @@
   function renderWait(b) {
     $('sb-addr').textContent = ADDR.replace(/^https?:\/\//, '');
     $('sb-code').textContent = b.code;
-    $('sb-time-label').textContent = '제한 시간';
+    $('sb-time-label').textContent = '게임 시간';
     var list = $('sb-teamlist');
     list.innerHTML = '';
     b.teams.forEach(function (t) {

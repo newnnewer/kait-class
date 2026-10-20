@@ -506,7 +506,7 @@
   function renderSettings() {
     var s = sets(), o = OPTIONS || {}, lock = cur.phase !== 'waiting';
     $('c-settings').classList.toggle('locked', lock);
-    $('c-set-note').textContent = lock ? '게임 중에는 바꿀 수 없어요' : '판과 판 사이에만 바꿀 수 있어요';
+    $('c-set-note').textContent = lock ? '게임 중에는 바꿀 수 없어요' : '';
     var tl = $('c-tags');
     tl.innerHTML = '';
     TAG_ORDER.forEach(function (t) {
@@ -561,7 +561,7 @@
     $('c-blk-down').disabled = lock || auto || s.blocks <= 24;
     $('c-blk-up').disabled = lock || auto || s.blocks >= 144;
     $('c-blkhelp').textContent = cur.phase === 'playing' && cur.blocks ? '이번 판: 팀마다 ' + cur.blocks + '블록'
-      : auto ? '가장 큰 팀 인원 × 24블록 (최대 96) · 지금 시작하면 ' + cur.blocksNow + '블록' : '24 ~ 144블록, 12블록씩 (' + (s.blocks / 12) + '줄)';
+      : auto ? '' : '24 ~ 144블록, 12블록씩 (' + (s.blocks / 12) + '줄)';
   }
   $('c-teams-down').onclick = function () { changeSettings(function (s) { s.teams = Math.max(2, s.teams - 1); }); };
   // 제한 시간: − / + 또는 숫자 직접 입력 (1 ~ 30분)

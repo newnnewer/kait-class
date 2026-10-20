@@ -2,6 +2,7 @@
  * 팀 이름 (0.14.0) — 서버와 브라우저가 같은 파일을 쓴다.
  *   '1팀 · 2팀 …' 대신 컴퓨터과학자 8명의 이름. 공식전 · 팀 배틀 방을 만들 때 무작위로 한 번 뽑고
  *   닫을 때까지 그대로 (공식전은 교사가 게임 전에 다시 뽑을 수 있다). 한 판 안에서는 겹치지 않는다.
+ *   화면에는 '팀' 없이 이름만 (예: 튜링). 조사는 josa() 로 받침에 맞춘다.
  *   팀 번호(1~8)는 그대로 — 팀 색 · 방해 아이템 대상 고르기(숫자 키)는 번호를 쓴다.
  *   names: 번호 순서의 이름 배열 (names[0] = 1번 팀). 없으면 예전처럼 'N팀'.
  */
@@ -39,15 +40,23 @@
     var n = names && names[no - 1];
     return n || no + '팀';
   }
-  /** 'OO 팀' (예: '튜링 팀'). 이름이 없으면 'N팀' */
+  /** 화면에 쓰는 팀 이름 — 이름만 (예: '튜링', 2026-10-20 사용자 결정: '팀'을 붙이지 않음). 이름이 없으면 'N팀' */
   function label(names, no) {
     var n = names && names[no - 1];
-    return n ? n + ' 팀' : no + '팀';
+    return n || no + '팀';
   }
-  /** 번호 붙인 것 (예: '① 튜링 팀') — 숫자 키로 고를 때 */
+  /** 받침에 맞는 조사: josa('튜링', '은/는') → '튜링은', josa('호퍼', '으로/로') → '호퍼로' */
+  function josa(word, pair) {
+    var w = String(word), c = w.charCodeAt(w.length - 1), ab = pair.split('/');
+    if (c < 0xAC00 || c > 0xD7A3) return w + ab[1];
+    var jong = (c - 0xAC00) % 28;
+    if (ab[0] === '으로') return w + (jong && jong !== 8 ? '으로' : '로'); // ㄹ 받침은 '로'
+    return w + (jong ? ab[0] : ab[1]);
+  }
+  /** 번호 붙인 것 (예: '① 튜링') — 숫자 키로 고를 때 */
   function numbered(names, no) {
     var n = names && names[no - 1];
-    return n ? (CIRCLED[no - 1] || no) + ' ' + n + ' 팀' : no + '팀';
+    return n ? (CIRCLED[no - 1] || no) + ' ' + n : no + '팀';
   }
   /** 한 줄 소개 */
   function desc(names, no) {
@@ -56,5 +65,5 @@
     return '';
   }
 
-  return { LIST: LIST, roll: roll, name: name, label: label, numbered: numbered, desc: desc };
+  return { LIST: LIST, roll: roll, name: name, label: label, numbered: numbered, desc: desc, josa: josa };
 });

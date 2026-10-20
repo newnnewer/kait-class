@@ -266,7 +266,7 @@ class Room {
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
     if (this.teamOf.get(p.id) === no) return { ok: true };
-    if (this.teamMembers(no).length >= this.settings.teamSize) return { ok: false, error: `${TEAMS.label(this.names, no)}은 꽉 찼어요` };
+    if (this.teamMembers(no).length >= this.settings.teamSize) return { ok: false, error: `${TEAMS.josa(TEAMS.label(this.names, no), '은/는')} 꽉 찼어요` };
     this.teamOf.set(p.id, no);
     this.changed();
     return { ok: true, moved: true };
@@ -336,7 +336,7 @@ class Room {
     if (this.battle) {
       team = Math.round(Number(no)) || this.emptiestTeam();
       if (!(team >= 1 && team <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
-      if (this.teamMembers(team).length >= this.settings.teamSize) return { ok: false, error: `${TEAMS.label(this.names, team)}은 꽉 찼어요` };
+      if (this.teamMembers(team).length >= this.settings.teamSize) return { ok: false, error: `${TEAMS.josa(TEAMS.label(this.names, team), '은/는')} 꽉 찼어요` };
     }
     const used = new Set([...this.members.values()].map(x => x.nick));
     const bot = makeBot(rollNick(used));

@@ -612,7 +612,10 @@ test('0.14.0: 팀 이름 — 8명이 겹치지 않게 뽑히고, 교사는 게�
   const r = c.rerollNames();
   assert.strictEqual(r.ok, true);
   assert.notStrictEqual(c.names.slice(0, c.settings.teams).join(), before, '쓰는 팀들의 이름이 바뀜');
-  assert.strictEqual(TEAMS.label(c.names, 1), c.names[0] + ' 팀');
+  assert.strictEqual(TEAMS.label(c.names, 1), c.names[0], "'팀' 없이 이름만");
   assert.strictEqual(TEAMS.label(null, 3), '3팀', '이름이 없는 옛 기록은 N팀');
-  assert.strictEqual(TEAMS.numbered(c.names, 2), '② ' + c.names[1] + ' 팀');
+  assert.strictEqual(TEAMS.numbered(c.names, 2), '② ' + c.names[1]);
+  // 조사: 받침에 맞게
+  assert.deepStrictEqual(['튜링', '호퍼', '섀넌', '반로섬'].map(w => TEAMS.josa(w, '은/는')), ['튜링은', '호퍼는', '섀넌은', '반로섬은']);
+  assert.deepStrictEqual(['튜링', '호퍼', '알콰리즈미'].map(w => TEAMS.josa(w, '으로/로')), ['튜링으로', '호퍼로', '알콰리즈미로']);
 });

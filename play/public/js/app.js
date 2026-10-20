@@ -620,7 +620,7 @@
     if (ME) { $('cr-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('cr-name').textContent = ME.nick + '의 방'; }
     var sum = [
       ['방식', battle ? '팀 배틀' : '레이드'], ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
-      battle ? ['팀', cr.teams + '팀 × ' + cr.teamSize + '명 (최대 ' + (cr.teams * cr.teamSize) + '명)'] : ['최대 인원', cr.max + '명'], ['제한 시간', cr.limitMin + '분'],
+      battle ? ['팀', cr.teams + '팀 × ' + cr.teamSize + '명 (최대 ' + (cr.teams * cr.teamSize) + '명)'] : ['최대 인원', cr.max + '명'], ['게임 시간', cr.limitMin + '분'],
       ['블록 수', cr.auto ? '자동' : cr.blocks + '블록'], ['비트 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
     ];
     fillSummary($('cr-summary'), sum);
@@ -768,7 +768,7 @@
     if (team && team !== mine && locked) e.appendChild(el('span', null, '준비를 풀면 옮길 수 있어요'));
     else if (can) {
       e.type = 'button';
-      e.appendChild(el('span', null, tl(team) + '으로 옮기기'));
+      e.appendChild(el('span', null, TEAMS.josa(tl(team), '으로/로') + ' 옮기기'));
       e.onclick = function (ev) { pickRoomTeam(team); };
     } else e.appendChild(el('span', null, '친구를 기다리는 중'));
     return e;
@@ -839,7 +839,7 @@
     }
     var sum = [['방식', battle ? '팀 배틀' : '레이드'], ['태그', s.tags.join(' · ')]];
     sum.push(battle ? ['팀', s.teams + '팀 × ' + s.teamSize + '명'] : ['최대 인원', s.max + '명']);
-    sum.push(['제한 시간', s.limitMin + '분'],
+    sum.push(['게임 시간', s.limitMin + '분'],
       ['블록 수', s.blocks ? s.blocks + '블록' : (battle ? '자동 (가장 큰 팀 × 24)' : '자동 (인원 × 24)')],
       ['비트 속도', BOT_SPEED_SHORT[s.botSpeed] || '보통']);
     if (battle) sum.push(['방해 아이템', '늘 나옴']);
@@ -1560,7 +1560,7 @@
       e.preventDefault();
       if (e.repeat) return true;
       var to = Number(m[2]);
-      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 팀은 공격할 수 없어요' : tl(to) + '은 공격할 수 없어요', 'warn', 1400); return true; }
+      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 팀은 공격할 수 없어요' : TEAMS.josa(tl(to), '은/는') + ' 공격할 수 없어요', 'warn', 1400); return true; }
       fireSlot(game.aim.slot, to);
       return true;
     }

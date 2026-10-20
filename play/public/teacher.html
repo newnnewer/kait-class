@@ -190,7 +190,7 @@ for i in range(3):
 
   <div class="tclass-body">
     <section class="card t-settings" id="c-settings">
-      <div class="field-head"><h2>게임 설정</h2><span class="muted small" id="c-set-note">판과 판 사이에만 바꿀 수 있어요</span></div>
+      <div class="field-head"><h2>게임 설정</h2><span class="muted small" id="c-set-note"></span></div>
       <div class="field">
         <h3>출제 태그 <small class="muted">숫자는 일반·보스 문제 수</small></h3>
         <div class="tag-list" id="c-tags"></div>
@@ -198,19 +198,19 @@ for i in range(3):
       </div>
       <div class="field"><h3>팀 수</h3>
         <div class="stepper"><button type="button" class="step-btn" id="c-teams-down" aria-label="팀 줄이기">−</button><b id="c-teams">4</b><button type="button" class="step-btn" id="c-teams-up" aria-label="팀 늘리기">+</button><span class="muted">2 ~ 8팀</span></div></div>
-      <div class="field"><h3>제한 시간</h3>
-        <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="제한 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="제한 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="제한 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
+      <div class="field"><h3>게임 시간</h3>
+        <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
       <div class="field-sep" aria-hidden="true"></div>
       <div class="field"><h3>블록 수 (팀마다 같음)</h3>
         <div class="stepper"><button type="button" class="seg-btn" id="c-auto" aria-pressed="true">자동</button><button type="button" class="step-btn" id="c-blk-down" aria-label="블록 줄이기">−</button><b id="c-blk">자동</b><button type="button" class="step-btn" id="c-blk-up" aria-label="블록 늘리기">+</button></div>
         <span class="muted small" id="c-blkhelp"></span></div>
       <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="c-occ"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div><span class="muted small">게임 시작부터 이 간격마다 모든 팀에 같은 보스</span></div>
-      <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div><span class="muted small">아무도 잡지 않으면 달아나기까지</span></div>
+      <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div></div>
+      <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div></div>
       <div class="field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>비트 속도</h3><div class="seg-row" id="c-botspeed"></div><span class="muted small">비트가 블록 하나를 푸는 데 걸리는 시간 (걷는 시간 포함, 가끔 틀림 · 보스는 안 잡음)</span></div>
+      <div class="field"><h3>비트 속도</h3><div class="seg-row" id="c-botspeed"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
       <div class="field"><h3>페널티 아이템</h3>
         <div class="row"><button type="button" class="toggle" id="c-pen" aria-pressed="true" aria-label="페널티 아이템"><span></span></button><span class="muted" id="c-pentext"></span></div></div>
