@@ -360,8 +360,6 @@ io.on('connection', (socket) => {
     }
     return { ok: true, correct: isCorrect(text, String(m.code || '')) };
   });
-  adminOn('class:attacks', withClass((c, m) => c.setAttacks(!!m.on)));
-  adminOn('class:sound', withClass((c, m) => c.setSound(m)));
   // 전광판: 공식전 하나를 지켜본다 (교사 화면과 따로 연결)
   let boardOf = null;
   adminOn('board:watch', m => {

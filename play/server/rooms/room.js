@@ -34,6 +34,7 @@ class Room {
     this.members = new Map(); // id → player (들어온 순서대로)
     this.teamOf = new Map();  // 팀 배틀: id → 팀 번호
     this.ready = new Set();   // 준비한 사람 id
+    this.waitSince = new Map(); // 0.14.0 준비 재촉: id → 준비 안 한 채 기다리기 시작한 시각
     this.kicked = new Set();  // 내보낸 브라우저 열쇠
     this.phase = 'waiting';
     this.match = null;        // 레이드 경기
@@ -125,7 +126,9 @@ class Room {
   /** 대기실 화면에 보내는 정보 */
   detail() {
     const s = this.settings;
-    const person = p => ({ ...this.pubOf(p), ready: this.isReady(p) });
+    const now = Date.now();
+    // 0.14.0: waitMs = 준비 안 한 채 기다린 시간 (화면이 이어서 세어 20초가 넘으면 재촉)
+    const person = p => ({ ...this.pubOf(p), ready: this.isReady(p), waitMs: this.isReady(p) ? 0 : Math.max(0, now - (this.waitSince.get(p.id) || now)) });
     const d = {
       id: this.id, name: this.name, phase: this.phase, hostId: this.hostId, mode: s.mode,
       members: [...this.members.values()].map(person),
@@ -171,6 +174,7 @@ class Room {
     if (why) return { ok: false, error: why };
     this.members.set(p.id, p);
     if (this.battle) this.teamOf.set(p.id, this.emptiestTeam());
+    this.waitSince.set(p.id, Date.now());
     p.room = this;
     socket.leave('lobby');
     socket.join(this.channel);
@@ -216,6 +220,7 @@ class Room {
     this.members.delete(p.id);
     this.teamOf.delete(p.id);
     this.ready.delete(p.id);
+    this.waitSince.delete(p.id);
     p.room = null;
     if (socket) { socket.leave(this.channel); if (no) socket.leave(this.teamChannel(no)); }
     if (m) m.leave(p); // 경기 중이면 판에서도 뺀다 (레이드: 모두 나가면 경기가 끝난다)
@@ -244,13 +249,13 @@ class Room {
   toggleReady(p) {
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중이에요' };
     if (p.id === this.hostId) return { ok: false, error: '방장은 준비 대신 시작을 눌러요' };
-    if (this.ready.has(p.id)) this.ready.delete(p.id); else this.ready.add(p.id);
+    if (this.ready.has(p.id)) { this.ready.delete(p.id); this.waitSince.set(p.id, Date.now()); } else this.ready.add(p.id);
     this.recheckAuto();
     this.changed();
     return { ok: true, ready: this.ready.has(p.id) };
   }
 
-  /** 팀 옮기기 — 학생 스스로(pickTeam) 또는 방장이(moveTo). 준비 상태는 그대로 */
+  /** 팀 옮기기 — 학생 스스로(pickTeam) 또는 방장이(moveTo). { ok, moved } */
   setTeam(p, no) {
     if (!this.battle) return { ok: false, error: '팀 배틀에서만 팀을 고를 수 있어요' };
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 팀을 바꿀 수 없어요' };
@@ -260,9 +265,13 @@ class Room {
     if (this.teamMembers(no).length >= this.settings.teamSize) return { ok: false, error: `${no}팀은 꽉 찼어요` };
     this.teamOf.set(p.id, no);
     this.changed();
-    return { ok: true };
+    return { ok: true, moved: true };
   }
-  pickTeam(p, no) { return this.setTeam(p, no); }
+  /** 0.14.0: 준비한 학생은 스스로 팀을 못 옮긴다 (준비를 풀어야) */
+  pickTeam(p, no) {
+    if (this.ready.has(p.id) && this.teamOf.get(p.id) !== Math.round(Number(no))) return { ok: false, error: '준비를 풀어야 팀을 옮길 수 있어요' };
+    return this.setTeam(p, no);
+  }
 
   hostOnly(p) {
     if (p.id !== this.hostId) return '방장만 할 수 있어요';
@@ -275,7 +284,10 @@ class Room {
     if (why) return { ok: false, error: why };
     const x = this.members.get(String(pid));
     if (!x) return { ok: false, error: '없는 사람이에요' };
-    return this.setTeam(x, no);
+    const r = this.setTeam(x, no);
+    // 0.14.0: 방장이 옮기면 그 학생의 준비가 풀린다 (새 팀에서 다시 준비)
+    if (r.moved && this.ready.delete(x.id)) { this.waitSince.set(x.id, Date.now()); this.recheckAuto(); this.changed(); }
+    return r;
   }
 
   kick(p, pid) {
@@ -443,6 +455,7 @@ class Room {
     this.phase = 'waiting';
     this.lastResult = result;
     this.ready.clear();
+    for (const id of this.members.keys()) this.waitSince.set(id, Date.now()); // 재촉 시간도 처음부터
     this.autoAt = 0;
     this.closeAt = Date.now() + (this.lobby.waitCloseMs || WAIT_CLOSE_MS);
     if (this.closed) return;

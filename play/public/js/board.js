@@ -249,7 +249,7 @@
     if (!pts.length || nowT > pts[pts.length - 1].t) pts.push({ t: nowT, order: cur });
     else pts[pts.length - 1] = { t: pts[pts.length - 1].t, order: cur };
     var n = Math.max(2, teams.length);
-    var L = 70, R = 96, T = 34, Bm = 46;
+    var L = 70, R = 96, T = 64, Bm = 46; // T: 1위 클리어 이름표 자리 (0.14.0)
     var span = b.fit ? Math.max(nowT, 10000) : Math.max(b.limitMs || 0, nowT, 60000);
     var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
     var y = function (rank) { return T + (H - T - Bm) * (rank - 1) / (n - 1); };
@@ -266,29 +266,25 @@
     }
     if (b.fit) svg.appendChild(svgEl('text', { x: x(span), y: H - 12, class: 'xlab', 'text-anchor': 'middle' }, '끝 ' + mmss(span)));
     // 선: 팀마다. 칸 사이는 부드러운 S자 (가운데에서 꺾임)
-    var lines = svgEl('g', {}), heads = svgEl('g', {});
+    // 0.14.0: 클리어한 팀은 그 순간의 자리에 등수 · 시간(1~3위 트로피)을 붙이고, 그 뒤 선은 회색
+    var lines = svgEl('g', {}), heads = svgEl('g', {}), marks = svgEl('g', {});
     teams.forEach(function (t) {
-      var d = '', prev = null, last = null;
-      pts.forEach(function (p) {
-        var k = p.order.indexOf(t.no);
-        if (k < 0) { prev = null; return; }
-        var px = x(p.t), py = y(k + 1);
-        if (!prev) d += 'M' + px.toFixed(1) + ' ' + py.toFixed(1);
-        else {
-          var mx = (prev[0] + px) / 2;
-          d += 'C' + mx.toFixed(1) + ' ' + prev[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + py.toFixed(1) + ' ' + px.toFixed(1) + ' ' + py.toFixed(1);
-        }
-        prev = [px, py]; last = prev;
-      });
-      if (!last) return;
+      var done = t.clear != null ? t.clear : !!t.rank;
+      var clear = done && t.rank && t.ms != null ? { rank: t.rank, ms: t.ms } : null;
+      var ln = window.CGRankChart.lines(pts, t.no, clear, x, y);
+      if (!ln) return;
       var c = teamColor(t.no);
-      lines.appendChild(svgEl('path', { d: d, class: 'ln-gap' }));
-      lines.appendChild(svgEl('path', { d: d, class: 'ln', stroke: c }));
-      heads.appendChild(svgEl('circle', { cx: last[0], cy: last[1], r: 9, fill: c, class: 'dot' }));
-      heads.appendChild(svgEl('text', { x: last[0] + 18, y: last[1] + 8, class: 'tlab' }, t.no + '팀'));
+      lines.appendChild(svgEl('path', { d: ln.on, class: 'ln-gap' }));
+      if (ln.off) lines.appendChild(svgEl('path', { d: ln.off, class: 'ln-gap' }));
+      lines.appendChild(svgEl('path', { d: ln.on, class: 'ln', stroke: c }));
+      if (ln.off) lines.appendChild(svgEl('path', { d: ln.off, class: 'ln off' }));
+      heads.appendChild(svgEl('circle', { cx: ln.last[0], cy: ln.last[1], r: 9, fill: c, class: 'dot' }));
+      heads.appendChild(svgEl('text', { x: ln.last[0] + 18, y: ln.last[1] + 8, class: 'tlab' }, t.no + '팀'));
+      if (ln.mark) marks.appendChild(window.CGRankChart.mark(svgEl, ln.mark, clear, { size: b.fit ? 17 : 20, W: W }));
     });
     svg.appendChild(lines);
     svg.appendChild(heads);
+    svg.appendChild(marks);
     box.innerHTML = '';
     box.appendChild(svg);
   }

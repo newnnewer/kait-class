@@ -75,9 +75,10 @@ function cleanClass(raw) {
   let teams = Math.round(Number(raw.teams));
   if (!Number.isFinite(teams)) teams = OPTIONS.teams.def;
   c.teams = Math.max(OPTIONS.teams.min, Math.min(OPTIONS.teams.max, teams));
-  c.attacks = raw.attacks !== false; // 방해 아이템 (게임 중에도 교사가 켜고 끔)
-  c.sfx = raw.sfx !== false;         // 학생 기기 효과음 (6-2, 게임 중에도 켜고 끔)
-  c.bgm = raw.bgm !== false;         // 전광판 배경음
+  // 0.14.0: 교사 화면의 스위치를 없앰 — 방해 아이템 · 학생 효과음 · 전광판 배경음은 늘 켬
+  c.attacks = true;
+  c.sfx = true;
+  c.bgm = true;
   return c;
 }
 

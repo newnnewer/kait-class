@@ -671,10 +671,13 @@
 
   // ── 대기실 ──
   var room = null; // 서버가 보낸 방 정보 + closeAt
+  // 0.14.0 준비 재촉: 준비 안 한 채 기다리기 시작한 시각 (서버가 보낸 waitMs 로 화면에서 이어서 센다)
+  function stampWait(r) { (r.members || []).forEach(function (p) { p.waitFrom = p.waitMs ? Date.now() - p.waitMs : 0; }); }
 
   function openWait(r) {
     room = r;
     room.closeAt = Date.now() + r.closeMs;
+    stampWait(r);
     room.autoAt = r.autoMs ? Date.now() + r.autoMs : 0;
     if (current !== 'game') show('wait');
     renderWait();
@@ -692,6 +695,7 @@
     var lastTick = room && room.lastAutoTick;
     room = r;
     room.closeAt = Date.now() + r.closeMs;
+    stampWait(r);
     room.autoAt = r.autoMs ? Date.now() + r.autoMs : 0;
     room.lastAutoTick = lastTick;
     // 게임 중에는 대기실 화면으로 바꾸지 않는다 ('state' 로 게임 화면이 온다)
@@ -752,10 +756,12 @@
       ab.onclick = function () { roomBot({ op: 'add', no: team || 0 }); };
       return ab;
     }
-    var mine = myRoomTeam();
-    var e = el(team && team !== mine ? 'button' : 'div', 'slot empty' + (team && team !== mine ? ' movable' : ''));
+    var mine = myRoomTeam(), locked = amReady();
+    var can = team && team !== mine && !locked;
+    var e = el(can ? 'button' : 'div', 'slot empty' + (can ? ' movable' : ''));
     e.appendChild(el('i', null, '?'));
-    if (team && team !== mine) {
+    if (team && team !== mine && locked) e.appendChild(el('span', null, '준비를 풀면 옮길 수 있어요'));
+    else if (can) {
       e.type = 'button';
       e.appendChild(el('span', null, team + '팀으로 옮기기'));
       e.onclick = function (ev) { pickRoomTeam(team); };
@@ -768,8 +774,15 @@
     for (var k = 0; k < room.teams.length; k++) if (room.teams[k].members.some(function (p) { return p.id === ME.id; })) return room.teams[k].no;
     return 0;
   }
+  // 0.14.0: 내가 준비했는지 (준비한 동안은 팀을 못 옮긴다)
+  function amReady() {
+    if (!room || !ME || room.hostId === ME.id) return false;
+    for (var k = 0; k < room.members.length; k++) if (room.members[k].id === ME.id) return !!room.members[k].ready;
+    return false;
+  }
   function pickRoomTeam(no) {
     if (!room || room.mode !== 'battle' || room.phase !== 'waiting') return;
+    if (amReady() && no !== myRoomTeam()) { $('w-error').textContent = '준비를 풀어야 팀을 옮길 수 있어요'; return; }
     if (no > room.teams.length) return;
     if (no === myRoomTeam()) return;
     roomAct('team', { no: no });
@@ -1065,7 +1078,7 @@
     box.innerHTML = '';
     var NS = 'http://www.w3.org/2000/svg';
     function sv(tag, a, text) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); if (text != null) e.textContent = text; return e; }
-    var W = 460, H = Math.max(120, 40 + r.teams.length * 34), L = 44, R = 56, T = 16, B = 26;
+    var W = 460, H = Math.max(140, 58 + r.teams.length * 34), L = 44, R = 56, T = 34, B = 26; // T: 1위 클리어 이름표 자리 (0.14.0)
     var span = Math.max(hist[hist.length - 1].t, 10000), n = Math.max(2, r.teams.length);
     var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
     var y = function (k) { return T + (H - T - B) * (k - 1) / (n - 1); };
@@ -1077,22 +1090,20 @@
     svg.appendChild(sv('text', { x: L, y: H - 6, class: 'xlab', 'text-anchor': 'middle' }, '시작'));
     svg.appendChild(sv('text', { x: x(span), y: H - 6, class: 'xlab', 'text-anchor': 'middle' }, '끝 ' + mmss(span)));
     var mine = game && game.team ? game.team : (r.mode === 'battle' ? myRoomTeam() : myTeam());
+    // 0.14.0: 클리어한 팀은 그 순간 자리에 등수 · 시간(1~3위 트로피), 그 뒤 선은 회색
+    var marks = sv('g', {});
     r.teams.forEach(function (t) {
-      var d = '', prev = null;
-      hist.forEach(function (p) {
-        var i = p.order.indexOf(t.no);
-        if (i < 0) { prev = null; return; }
-        var px = x(p.t), py = y(i + 1);
-        if (!prev) d += 'M' + px.toFixed(1) + ' ' + py.toFixed(1);
-        else { var mx = (prev[0] + px) / 2; d += 'C' + mx.toFixed(1) + ' ' + prev[1].toFixed(1) + ' ' + mx.toFixed(1) + ' ' + py.toFixed(1) + ' ' + px.toFixed(1) + ' ' + py.toFixed(1); }
-        prev = [px, py];
-      });
-      if (!prev) return;
+      var clear = t.clear && t.rank && t.ms != null ? { rank: t.rank, ms: t.ms } : null;
+      var ln = window.CGRankChart.lines(hist, t.no, clear, x, y);
+      if (!ln) return;
       var c = TEAM_COLORS[(t.no - 1) % TEAM_COLORS.length];
-      svg.appendChild(sv('path', { d: d, class: 'ln' + (t.no === mine ? ' mine' : ''), stroke: c }));
-      svg.appendChild(sv('circle', { cx: prev[0], cy: prev[1], r: 6, fill: c }));
-      svg.appendChild(sv('text', { x: prev[0] + 10, y: prev[1] + 5, class: 'tlab' + (t.no === mine ? ' mine' : '') }, t.no + '팀'));
+      svg.appendChild(sv('path', { d: ln.on, class: 'ln' + (t.no === mine ? ' mine' : ''), stroke: c }));
+      if (ln.off) svg.appendChild(sv('path', { d: ln.off, class: 'ln off' }));
+      svg.appendChild(sv('circle', { cx: ln.last[0], cy: ln.last[1], r: 6, fill: c }));
+      svg.appendChild(sv('text', { x: ln.last[0] + 10, y: ln.last[1] + 5, class: 'tlab' + (t.no === mine ? ' mine' : '') }, t.no + '팀'));
+      if (ln.mark) marks.appendChild(window.CGRankChart.mark(sv, ln.mark, clear, { size: 11, W: W }));
     });
+    svg.appendChild(marks);
     box.appendChild(svg);
   }
 
@@ -1113,6 +1124,7 @@
         ab.textContent = '모두 준비 완료! ' + left + '초 뒤에 자동으로 시작해요';
         if (left <= 5 && left !== room.lastAutoTick) { room.lastAutoTick = left; sfx('tick'); }
       }
+      tickNudge(t);
     }
     if (game && current === 'game') {
       var left = game.endAt - (game.paused ? game.pauseAt : t);
@@ -1129,6 +1141,39 @@
     }
   }
   setInterval(tickClocks, 250);
+
+  // ── 준비 재촉 (0.14.0) ──
+  // 대기실에 사람이 2명 이상일 때, 준비 안 한 채 20초가 지나면 그 학생 화면에 재촉(띠 · 준비 단추 튐 · 소리),
+  // 그 뒤 10초마다 다시(점점 세게: 화면 테두리 깜빡임). 다른 사람 화면에는 그 학생 자리에 ⏳ 와 흔들림.
+  var NUDGE_FIRST = 20000, NUDGE_EVERY = 10000;
+  var nudge = { level: 0 };
+  function nudgeLevel(p, t) {
+    if (!p.waitFrom || p.ready || p.bot || p.id === room.hostId) return 0;
+    var w = t - p.waitFrom;
+    return w < NUDGE_FIRST ? 0 : 1 + Math.floor((w - NUDGE_FIRST) / NUDGE_EVERY);
+  }
+  function tickNudge(t) {
+    var on = room.phase === 'waiting' && room.members.filter(function (p) { return !p.bot; }).length >= 2;
+    var mine = 0;
+    room.members.forEach(function (p) {
+      var lv = on ? nudgeLevel(p, t) : 0;
+      if (ME && p.id === ME.id) mine = lv;
+      var slot = document.querySelector('#screen-wait .slot[data-pid="' + p.id + '"]');
+      if (slot) slot.classList.toggle('slow', lv > 0);
+    });
+    var banner = $('w-nudge'), rb = $('btn-ready');
+    banner.hidden = !mine;
+    rb.classList.toggle('nudge', mine > 0);
+    if (mine > nudge.level) { // 새 단계: 소리 + (2단계부터) 화면 테두리 깜빡임
+      sfx('nudge');
+      banner.classList.remove('pop'); void banner.offsetWidth; banner.classList.add('pop');
+      if (mine >= 2) {
+        var fl = $('nudge-flash');
+        fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+      }
+    }
+    nudge.level = mine;
+  }
 
   // 게임 중 '나가기': 한 번 더 눌러야 나간다 (실수 방지)
   var leaveArm = 0;
@@ -1266,9 +1311,24 @@
     if (!cell) return;
     cell.solved = m.solved;
     cell.boss = m.solved ? (m.boss || null) : null;
+    renderProgress();
+    // 0.14.0: 폭탄 · 레이저는 쓴 칸에서부터 차례로 '드르르륵' 터진다 (판 자료는 바로 바뀌고 화면만 늦게)
+    var wait = m.solved ? chainDelay(m) : 0;
+    if (wait > 0) {
+      cell.pend = (cell.pend || 0) + 1;
+      setTimeout(function () {
+        if (!game || game.board.cells[m.i] !== cell) return;
+        cell.pend -= 1;
+        renderCell(m.i);
+        pop(m.i, m.via);
+        itemFx.cellBurst(m.i, m.via);
+      }, wait);
+      return;
+    }
     renderCell(m.i);
     pop(m.i, m.solved ? (m.via || '') : 'revive');
-    renderProgress();
+    if (m.solved && m.via) itemFx.cellBurst(m.i, m.via);
+    else if (!m.solved) itemFx.cellBurst(m.i, 'revive');
   });
 
   // 쉬운 길: 블록 코드가 바뀌었다
@@ -1279,6 +1339,7 @@
     el.querySelector('code').textContent = m.code;
     el.classList.toggle('long', m.code.length > 16);
     pop(m.i, 'easy');
+    itemFx.cellBurst(m.i, 'easy');
   });
 
   // 누가 칸을 점유했다 / 풀었다
@@ -1373,6 +1434,10 @@
     el.querySelector('.bn-desc').textContent = m.desc + ' · ' + m.by;
     clearTimeout(el._t);
     el._t = setTimeout(function () { el.className = 'banner'; }, 2600);
+    // 0.14.0: 화면 가장자리 번쩍임 (폭탄 · 레이저는 터질 때 따로)
+    if (m.id !== 'bomb' && m.id !== 'laser' && m.id !== 'vlaser' || m.kind !== 'good') {
+      screenFlash(m.kind === 'bad' || m.kind === 'hit' ? 'bad' : m.kind === 'attack' ? 'attack' : m.kind === 'blocked' ? 'shield' : 'good');
+    }
     // 아이템마다 소리 (보스 격파 팡파르 바로 뒤에)
     var snd = m.kind === 'bad' ? 'bad' : m.kind === 'hit' ? 'hit' : m.kind === 'attack' ? 'attackSend' : m.kind === 'blocked' ? 'shield'
       : (m.kind === 'get' || m.kind === 'gather') ? (m.lost ? 'wrong' : 'good')
@@ -1571,6 +1636,7 @@
     game.fxDur = game.fxDur || {};
     game.fxDur[m.type] = m.ms;
     tickFx(); renderKeys();
+    screenFlash(m.type === 'freeze' ? 'ice' : m.type === 'cloud' ? 'cloud' : m.type === 'auto' ? 'good' : 'bad'); // 0.14.0
     if (m.type === 'freeze') setTimeout(function () { sfx('ice'); }, 500);
     if (m.type === 'cloud') setTimeout(function () { sfx('cloud'); }, 500);
   });
@@ -1584,6 +1650,82 @@
     li.textContent = f.text;
     ul.insertBefore(li, ul.firstChild);
     while (ul.children.length > 30) ul.removeChild(ul.lastChild);
+  }
+
+  // ── 아이템 효과 (0.14.0): 폭탄 · 레이저 차례로 터뜨리기 · 입자 · 빛줄기 · 화면 번쩍임 ──
+  var CHAIN_STEP = { laser: 70, vlaser: 70, bomb: 85 };
+  var BOMB_ORDER = ['-1,-1', '-1,0', '-1,1', '0,1', '1,1', '1,0', '1,-1', '0,-1']; // 시계 방향
+  /** 이 칸이 몇 ms 뒤에 터질지 — 레이저: 쓴 칸에서 멀수록, 폭탄: 왼쪽 위부터 시계 방향 */
+  function chainDelay(m) {
+    if (m.at == null || !CHAIN_STEP[m.via] || !game) return 0;
+    var cols = game.board.cols, r = Math.floor(m.i / cols), c = m.i % cols, r0 = Math.floor(m.at / cols), c0 = m.at % cols;
+    var k = m.via === 'laser' ? Math.abs(c - c0) : m.via === 'vlaser' ? Math.abs(r - r0) : BOMB_ORDER.indexOf((r - r0) + ',' + (c - c0)) + 1;
+    if (!itemFx.started(m)) itemFx.start(m); // 같은 아이템의 첫 칸에서 한 번: 충격파 · 빛줄기
+    return Math.max(0, k) * CHAIN_STEP[m.via] + 60;
+  }
+  var itemFx = (function () {
+    var last = {}; // via → { at, t } (같은 아이템의 칸들이 한꺼번에 오므로 시작 효과는 한 번만)
+    function boardBox() { return $('board'); }
+    function center(i) {
+      var e = cellEls[i];
+      return e ? { x: e.offsetLeft + e.offsetWidth / 2, y: e.offsetTop + e.offsetHeight / 2, w: e.offsetWidth, h: e.offsetHeight } : null;
+    }
+    function add(cls, css, ms) {
+      var d = document.createElement('div');
+      d.className = cls;
+      for (var k in css) d.style.setProperty(k, css[k]);
+      boardBox().appendChild(d);
+      setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, ms);
+      return d;
+    }
+    var COLORS = { bomb: ['#FFD23F', '#FF9F43', '#FF5C2A', '#fff'], laser: ['#7CF5FF', '#C9FBFF', '#45B1F5', '#fff'], vlaser: ['#7CF5FF', '#C9FBFF', '#45B1F5', '#fff'],
+      easy: ['#3DDC97', '#B8FFD9', '#fff'], revive: ['#FF6B81', '#FFB3C6'], gather: ['#FFB347', '#FFD9A6', '#fff'] };
+    /** 칸 한 개가 깨질 때: 입자 + 소리 */
+    function cellBurst(i, via) {
+      var c = center(i), cols = COLORS[via];
+      if (!c || !cols) return;
+      var n = via === 'bomb' ? 14 : via === 'revive' ? 6 : 9;
+      for (var k = 0; k < n; k++) {
+        var ang = Math.random() * Math.PI * 2, dist = (via === 'bomb' ? 50 : 34) + Math.random() * 40;
+        add('fx-spark', { left: c.x + 'px', top: c.y + 'px', '--dx': Math.cos(ang) * dist + 'px', '--dy': Math.sin(ang) * dist + 'px',
+          '--sc': (0.6 + Math.random() * 0.9).toFixed(2), background: cols[k % cols.length], color: cols[k % cols.length] }, 700);
+      }
+      if (via === 'bomb') {
+        add('fx-ring bomb', { left: c.x + 'px', top: c.y + 'px' }, 600);
+        sfx('blast');
+      } else if (via === 'laser' || via === 'vlaser') sfx('zap');
+    }
+    /** 아이템을 쓴 순간: 폭탄은 충격파 + 판 흔들림, 레이저는 빛줄기가 쓴 칸에서 양쪽 끝으로 */
+    function start(m) {
+      last[m.via] = { at: m.at, t: Date.now() };
+      var c = center(m.at);
+      if (!c) return;
+      var wrap = $('board-wrap');
+      if (m.via === 'bomb') {
+        add('fx-ring big', { left: c.x + 'px', top: c.y + 'px' }, 900);
+        add('fx-core', { left: c.x + 'px', top: c.y + 'px' }, 700);
+        wrap.classList.remove('fx-quake'); void wrap.offsetWidth; wrap.classList.add('fx-quake');
+        setTimeout(function () { wrap.classList.remove('fx-quake'); }, 1100);
+        screenFlash('bomb');
+      } else {
+        var b = boardBox(), horiz = m.via === 'laser';
+        var beam = add('fx-beam ' + (horiz ? 'h' : 'v'), horiz
+          ? { left: '0px', width: b.offsetWidth + 'px', top: (c.y - c.h * 0.22) + 'px', height: (c.h * 0.44) + 'px', 'transform-origin': c.x + 'px 50%' }
+          : { top: '0px', height: b.offsetHeight + 'px', left: (c.x - c.w * 0.22) + 'px', width: (c.w * 0.44) + 'px', 'transform-origin': '50% ' + c.y + 'px' }, 1300);
+        beam.style.setProperty('--len', (horiz ? game.board.cols : game.board.rows) * CHAIN_STEP[m.via] + 'ms');
+        screenFlash('laser');
+      }
+    }
+    function started(m) { var l = last[m.via]; return !!(l && l.at === m.at && Date.now() - l.t < 800); }
+    return { cellBurst: cellBurst, start: start, started: started };
+  })();
+  /** 화면 가장자리 번쩍임 — 아이템 종류마다 색 */
+  function screenFlash(kind) {
+    var f = $('fx-flash');
+    if (!f) return;
+    f.className = 'fx-flash';
+    void f.offsetWidth;
+    f.className = 'fx-flash go ' + kind;
   }
 
   function pop(i, kind) {
@@ -1630,8 +1772,9 @@
     var mine = by && by === game.meId;
     var other = by && !mine;
     var boss = game.boss && game.boss.i === i ? game.boss : null;
-    el.classList.toggle('solved', !!cell.solved);
-    el.classList.toggle('boss-won', !!(cell.solved && cell.boss));
+    var shown = !!cell.solved && !cell.pend; // 0.14.0: 차례로 터지는 중인 칸은 아직 안 깨진 모양
+    el.classList.toggle('solved', shown);
+    el.classList.toggle('boss-won', !!(shown && cell.boss));
     el.classList.toggle('occ-mine', !!mine);
     el.classList.toggle('occ-other', !!other);
     el.classList.toggle('boss', !!boss);

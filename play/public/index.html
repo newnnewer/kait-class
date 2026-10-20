@@ -35,6 +35,7 @@
     <span class="grow"></span>
     <span class="pill ghost">공식전 · 팀 배틀 · 레이드</span>
     <button type="button" class="snd-btn" id="e-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">배경음 켬 · Ctrl+S</button>
+    <a class="snd-btn t-link" href="teacher" tabindex="-1" title="선생님 화면 — 공식전 열기 · 관리 (비밀번호 필요)">선생님</a>
   </header>
 
   <div class="enter-body">
@@ -220,6 +221,7 @@
         <p class="muted small center-text">시작은 방장만 · 방장이 나가거나 연결이 10초 넘게 끊기면 다음 사람이 방장</p>
       </div>
       <div id="w-guest">
+        <p class="nudge-banner" id="w-nudge" hidden>⏳ 모두 기다리고 있어요! 준비해 주세요</p>
         <button type="button" class="btn yellow go wide tall ready-btn" id="btn-ready" aria-pressed="false">준비<kbd class="start-kbd">Ctrl + Enter</kbd></button>
         <p class="muted small center-text" id="w-guestinfo">모두 준비하면 15초 뒤에 자동으로 시작해요</p>
       </div>
@@ -382,9 +384,12 @@
 <script src="js/shared/move.js"></script>
 <script src="js/shared/typing.js"></script>
 <script src="js/shared/chat.js"></script>
+<script src="js/shared/rankchart.js"></script>
 <script src="js/avatar.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/intro.js"></script>
 <script src="js/app.js"></script>
+<div class="nudge-flash" id="nudge-flash" aria-hidden="true"></div>
+<div class="fx-flash" id="fx-flash" aria-hidden="true"></div>
 </body>
 </html>

@@ -436,7 +436,8 @@ class Match {
       cell.by = p ? p.id : null;
       if (extra && extra.boss && p) cell.bossBy = p.nick;
       if (p && extra && extra.count) { this.stat(p).solved += 1; this.emitAll('stat', { id: p.id, solved: this.stat(p).solved }); } // 왼쪽 '우리 팀' 막대 (v0.7.4)
-      this.emitAll('cell', { i, solved: true, by: cell.by, boss: cell.bossBy || null, via: extra && extra.via });
+      // 0.14.0: at = 아이템을 쓴 칸 (화면이 폭탄 · 레이저를 그 칸에서부터 차례로 터뜨린다)
+      this.emitAll('cell', { i, solved: true, by: cell.by, boss: cell.bossBy || null, via: extra && extra.via, at: extra && extra.at });
     }
     this.checkClear();
   }
@@ -661,7 +662,7 @@ class Match {
    * 아이템으로 칸 해결 — 점유 중인 칸도 해결한다 (치던 사람의 말풍선은 닫히고 안내가 뜬다).
    * 아이템으로 푼 칸은 개인 기록(블록 수)에 세지 않는다.
    */
-  itemSolve(list, p, via) {
+  itemSolve(list, p, via, at) {
     for (const i of list) {
       const o = this.occ.get(i);
       if (!o) continue;
@@ -671,7 +672,7 @@ class Match {
       if (who) this.emitTo(who, 'released', { i, why: 'item', via });
       this.emitAll('occ', { i, by: null, why: 'item' });
     }
-    this.solveCells(list, p, { via });
+    this.solveCells(list, p, { via, at });
   }
 
   /** 서 있는 사람을 옮긴다 — 점유 중이면 풀고 (치던 글자는 사라짐), 보스 공략 중인 사람은 그대로 */
@@ -725,19 +726,19 @@ class Match {
           const rr = r + dr, cc = c + dc;
           if ((dr || dc) && rr >= 0 && rr < rows && cc >= 0 && cc < cols) list.push(rr * cols + cc);
         }
-        this.itemSolve(list.filter(unsolved), p, 'bomb');
+        this.itemSolve(list.filter(unsolved), p, 'bomb', at);
         break;
       }
       case 'laser': { // 가로줄 남은 칸 모두
         const list = [];
         for (let k = 0; k < cols; k++) list.push(r * cols + k);
-        this.itemSolve(list.filter(unsolved), p, 'laser');
+        this.itemSolve(list.filter(unsolved), p, 'laser', at);
         break;
       }
       case 'vlaser': { // 세로줄 남은 칸 모두
         const list = [];
         for (let k = 0; k < rows; k++) list.push(k * cols + c);
-        this.itemSolve(list.filter(unsolved), p, 'vlaser');
+        this.itemSolve(list.filter(unsolved), p, 'vlaser', at);
         break;
       }
       case 'easy': { // 내 둘레 8칸 중 풀지 않았고 아무도 치고 있지 않은 칸 (v0.7.1)

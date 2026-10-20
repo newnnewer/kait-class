@@ -141,6 +141,8 @@ test('아이템: 폭탄(둘레 8칸, 점유 칸 포함) · 가로/세로 레이�
   room.applyItem({ id: 'bomb', name: '폭탄', kind: 'good' }, a, bi);
   const ring = [bi - W - 1, bi - W, bi - W + 1, bi - 1, bi + 1, bi + W - 1, bi + W, bi + W + 1];
   assert.deepStrictEqual(ring.map(i => b.cells[i].solved), ring.map(() => true));
+  // 0.14.0: 화면이 쓴 칸에서부터 차례로 터뜨리도록 cell 알림에 at(쓴 칸)이 붙는다
+  assert.ok(io.log.filter(x => x.ev === 'cell' && x.data.via === 'bomb').every(x => x.data.at === bi));
   assert.strictEqual(room.occBy.has('t'), false, '치던 사람의 점유가 풀림');
   assert.strictEqual(io.log.filter(x => x.ev === 'released').pop().data.why, 'item');
   assert.strictEqual(room.stats.get('t').solved, 0, '아이템으로 푼 칸은 개인 기록에 안 셈');

@@ -155,7 +155,6 @@
     };
   }
   roomsSwitch($('home-rooms'));
-  roomsSwitch($('c-rooms'));
 
   var REASON = { clear: '모든 팀 클리어', time: '시간 종료', stop: '교사가 종료' };
   // 방해 기록: 공격 · 맞음 · 막음 (없으면 빈칸)
@@ -704,12 +703,9 @@
     $('btn-pause').textContent = cur.paused ? '다시 시작' : '일시정지';
     $('btn-pause').classList.toggle('on', !!cur.paused);
     $('btn-stop').hidden = !playing;
+    $('btn-close').hidden = playing; // 0.14.0: 게임 시작 옆으로 옮김 — 게임 중에는 숨김
     $('c-timer').hidden = !playing;
     $('c-teams-note').textContent = playing ? '게임 중에도 팀을 옮기거나 새로 들어온 학생을 넣을 수 있어요' : '학생이 직접 팀을 고르고, 여기서 옮길 수도 있어요';
-    $('c-rooms').setAttribute('aria-pressed', String(cur.allowRooms !== false));
-    $('c-attacks').setAttribute('aria-pressed', String(cur.settings.attacks !== false));
-    $('c-sfx').setAttribute('aria-pressed', String(cur.settings.sfx !== false));
-    $('c-bgm').setAttribute('aria-pressed', String(cur.settings.bgm !== false));
     allowRooms = cur.allowRooms !== false;
     // 게임 중에는 설정(바꿀 수 없음) 대신 한 줄 요약만 — 팀 현황을 넓게
     $('c-settings').hidden = playing;
@@ -777,28 +773,6 @@
     call('class:close', {}, function (res) { if (res.ok) { toast('공식전을 끝냈어요'); showHome(); } });
   });
   $('btn-autoassign').onclick = function () { call('class:autoassign', {}, function () {}); };
-  $('c-attacks').onclick = function () {
-    var on = cur.settings.attacks === false;
-    call('class:attacks', { on: on }, function (res) {
-      if (!res.ok) return toast(res.error || '바꾸지 못했어요', 'warn');
-      cur.settings.attacks = res.attacks;
-      renderClass();
-      toast(res.attacks ? '방해 아이템을 켰어요' : '방해 아이템을 껐어요');
-    });
-  };
-  function soundSwitch(key, label) {
-    $('c-' + key).onclick = function () {
-      var m = {}; m[key] = cur.settings[key] === false;
-      call('class:sound', m, function (res) {
-        if (!res.ok) return toast(res.error || '바꾸지 못했어요', 'warn');
-        cur.settings.sfx = res.sfx; cur.settings.bgm = res.bgm;
-        renderClass();
-        toast(label + (res[key] ? '을 켰어요' : '을 껐어요'));
-      });
-    };
-  }
-  soundSwitch('sfx', '학생 효과음');
-  soundSwitch('bgm', '전광판 배경음');
   // 전광판: 새 창 (같은 브라우저라 로그인이 이어짐). 프로젝터 화면으로 옮긴 뒤 F11 로 전체 화면
   $('btn-board').onclick = function () {
     window.open(BASE + '/board?code=' + encodeURIComponent(cur.code), 'cg-board-' + cur.code);

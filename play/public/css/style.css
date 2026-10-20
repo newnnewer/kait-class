@@ -305,14 +305,46 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 @keyframes gatherBlink { 50% { outline-color: rgba(255,179,71,.2); } }
 .cell.radar { outline: 3px dashed #D9A6FF; outline-offset: 2px; animation: radarBlink .5s linear infinite; }
 @keyframes radarBlink { 50% { outline-color: transparent; } }
-.cell.fx-bomb { animation: boom .5s ease-out; }
-@keyframes boom { 0% { transform: scale(1.3); background: #FF9F43; } 100% { transform: scale(1); } }
-.cell.fx-laser, .cell.fx-vlaser { animation: laser .5s ease-out; }
-@keyframes laser { 0% { background: #7CF5FF; box-shadow: 0 0 20px 6px #7CF5FF; } 100% { } }
-.cell.fx-easy { animation: easy .6s ease-out; }
-@keyframes easy { 0% { background: var(--green); } 100% { } }
+.cell.fx-bomb { animation: boom .55s cubic-bezier(.2,1.4,.4,1); z-index: 3; }
+@keyframes boom { 0% { transform: scale(1.45) rotate(-4deg); background: #FFF3B0; box-shadow: 0 0 30px 12px #FF9F43; } 35% { background: #FF9F43; transform: scale(1.15) rotate(3deg); } 100% { transform: scale(1); } }
+.cell.fx-laser, .cell.fx-vlaser { animation: laser .5s ease-out; z-index: 3; }
+@keyframes laser { 0% { background: #fff; box-shadow: 0 0 26px 10px #7CF5FF; transform: scale(1.18); } 40% { background: #7CF5FF; } 100% { transform: scale(1); } }
+.cell.fx-easy { animation: easy .7s ease-out; }
+@keyframes easy { 0% { background: var(--green); box-shadow: 0 0 22px 6px rgba(61,220,151,.8); transform: scale(1.12); } 100% { transform: scale(1); } }
 .cell.fx-revive { animation: revive .6s ease-out; }
-@keyframes revive { 0% { background: #FF6B81; transform: scale(.85); } 100% { transform: scale(1); } }
+@keyframes revive { 0% { background: #FF6B81; transform: scale(.85); box-shadow: 0 0 22px 6px rgba(255,107,129,.7); } 100% { transform: scale(1); } }
+.cell.fx-gather { animation: boom .55s ease-out; }
+
+/* ── 아이템 효과 (0.14.0): 입자 · 충격파 · 빛줄기 · 판 흔들림 · 화면 번쩍임 ── */
+.fx-spark, .fx-ring, .fx-core, .fx-beam { position: absolute; pointer-events: none; z-index: 40; }
+.fx-spark { width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 3px; box-shadow: 0 0 8px currentColor; animation: spark .65s cubic-bezier(.15,.7,.35,1) forwards; }
+@keyframes spark { 0% { transform: translate(0, 0) scale(var(--sc)) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0) rotate(220deg); opacity: 0; } }
+.fx-ring { width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 5px solid #FFD23F; box-shadow: 0 0 16px 4px rgba(255,159,67,.8), inset 0 0 12px rgba(255,159,67,.8); animation: ring .55s ease-out forwards; }
+.fx-ring.big { border-width: 8px; animation: ringBig .85s ease-out forwards; }
+@keyframes ring { 0% { transform: scale(.3); opacity: 1; } 100% { transform: scale(6); opacity: 0; } }
+@keyframes ringBig { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(17); opacity: 0; border-width: 1px; } }
+.fx-core { width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; background: radial-gradient(circle, #fff 0%, #FFF3B0 25%, #FF9F43 55%, rgba(255,92,42,0) 72%); animation: core .65s ease-out forwards; }
+@keyframes core { 0% { transform: scale(.2); opacity: 1; } 40% { transform: scale(3.2); opacity: 1; } 100% { transform: scale(4.2); opacity: 0; } }
+.fx-beam { border-radius: 999px; background: linear-gradient(var(--bd, 90deg), rgba(124,245,255,0), #C9FBFF 20%, #fff 50%, #C9FBFF 80%, rgba(124,245,255,0)); box-shadow: 0 0 24px 8px rgba(124,245,255,.75), 0 0 60px 18px rgba(69,177,245,.45); }
+.fx-beam.h { --bd: 180deg; animation: beamH var(--len, .8s) cubic-bezier(.3,.6,.5,1) forwards, beamOut .45s ease-in var(--len, .8s) forwards; }
+.fx-beam.v { --bd: 90deg; animation: beamV var(--len, .8s) cubic-bezier(.3,.6,.5,1) forwards, beamOut .45s ease-in var(--len, .8s) forwards; }
+@keyframes beamH { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes beamV { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes beamOut { to { opacity: 0; filter: blur(4px); } }
+.board-wrap.fx-quake .board { animation: quake .9s cubic-bezier(.36,.07,.19,.97); }
+@keyframes quake { 0%, 100% { transform: translate(0, 0); } 10% { transform: translate(-7px, 3px); } 20% { transform: translate(6px, -4px); } 30% { transform: translate(-5px, -2px); } 40% { transform: translate(5px, 3px); } 50% { transform: translate(-4px, 2px); } 60% { transform: translate(3px, -2px); } 75% { transform: translate(-2px, 1px); } 90% { transform: translate(1px, 0); } }
+.fx-flash { position: fixed; inset: 0; pointer-events: none; z-index: 880; opacity: 0; --fc: 61,220,151; box-shadow: inset 0 0 0 6px rgba(var(--fc), .9), inset 0 0 120px 30px rgba(var(--fc), .45); }
+.fx-flash.go { animation: fxFlash .8s ease-out; }
+.fx-flash.bomb { --fc: 255,159,67; animation-duration: 1s; }
+.fx-flash.laser { --fc: 124,245,255; }
+.fx-flash.bad { --fc: 255,92,138; }
+.fx-flash.attack { --fc: 226,54,112; }
+.fx-flash.shield { --fc: 69,177,245; }
+.fx-flash.ice { --fc: 191,230,255; animation-duration: 1.2s; }
+.fx-flash.cloud { --fc: 120,120,140; animation-duration: 1.2s; }
+@keyframes fxFlash { 0% { opacity: 0; } 12% { opacity: 1; } 100% { opacity: 0; } }
+.banner.show { animation: bannerIn .45s cubic-bezier(.2,1.5,.4,1); }
+@keyframes bannerIn { 0% { filter: brightness(2.2); } 100% { filter: brightness(1); } }
 
 /* 보스 말풍선 */
 .boss-bubble { border-color: #4B1C8C; box-shadow: 0 10px 0 rgba(0,0,0,.35), 0 0 0 4px rgba(179,111,255,.35); gap: 10px; }
@@ -779,6 +811,9 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 /* 6-2: 소리 버튼 (게임 화면 위쪽) */
 .snd-btn { height: 30px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-family: var(--body); font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .snd-btn[aria-pressed="true"] { color: #062A1B; background: var(--green); border-color: var(--green); }
+/* 입장 화면 오른쪽 위 '선생님' (0.14.0) */
+.t-link { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.t-link:hover { color: var(--text, #fff); border-color: #4A68A8; }
 .snd-btn:disabled { cursor: default; color: #6D86B3; background: transparent; border-color: #2B4278; }
 
 /* v0.9.0 — 저작권 · 라이선스 표기 (입장 · 로비 · 교사 화면 아래쪽, 지우면 안 됨: LICENSE 의 Required Notice) */
@@ -892,3 +927,28 @@ button.me-chip:hover { border-color: #4B58A8; }
 .side > .card:not(.feed-card) { flex-shrink: 0; }
 .members { scrollbar-width: none; padding-bottom: 6px; } /* 캐릭터 그림자가 아래로 4px 삐져나와 늘 스크롤이 생겼음 */
 .members::-webkit-scrollbar { display: none; }
+
+/* ── 준비 재촉 (0.14.0) ── */
+.nudge-banner { margin: 0 0 10px; padding: 10px 14px; border-radius: 12px; text-align: center; font-weight: 800; font-size: 16px; color: #2A1A00; background: var(--yellow); box-shadow: 0 0 0 3px rgba(255,210,63,.35); }
+.nudge-banner kbd { font-family: var(--mono); font-size: 12px; margin-left: 6px; padding: 2px 6px; border-radius: 6px; background: rgba(0,0,0,.15); }
+.nudge-banner.pop { animation: nudgePop .5s cubic-bezier(.2,1.6,.4,1); }
+@keyframes nudgePop { 0% { transform: scale(.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.ready-btn.nudge:not(.on) { animation: nudgeBounce .9s ease-in-out infinite, nudgeGlow .9s ease-in-out infinite alternate; }
+@keyframes nudgeBounce { 0%, 100% { transform: translateY(0) scale(1); } 15% { transform: translateY(-7px) scale(1.04); } 30% { transform: translateY(0) scale(.98); } 45% { transform: translateY(-3px) scale(1.01); } 60% { transform: translateY(0) scale(1); } }
+@keyframes nudgeGlow { from { box-shadow: 0 0 0 0 rgba(255,210,63,0); } to { box-shadow: 0 0 0 6px rgba(255,210,63,.55), 0 0 30px 8px rgba(255,210,63,.45); } }
+/* 다른 사람 화면: 오래 준비 안 한 사람 자리 */
+.slot.slow { border-color: #FFB347; animation: slowWiggle 2s ease-in-out infinite; }
+.slot.slow::before { content: '⏳'; position: absolute; top: -12px; left: -10px; z-index: 2; font-size: 26px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); animation: blink 1s linear infinite; }
+.slot.slow .ready-badge { color: #2A1A00; background: #FFB347; }
+@keyframes slowWiggle { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-2deg); } 80% { transform: rotate(2deg); } 85% { transform: rotate(-2deg); } 90% { transform: rotate(1deg); } }
+/* 2단계부터: 화면 테두리 깜빡임 */
+.nudge-flash { position: fixed; inset: 0; pointer-events: none; z-index: 900; opacity: 0; box-shadow: inset 0 0 0 10px #FFD23F, inset 0 0 80px 20px rgba(255,210,63,.55); }
+.nudge-flash.go { animation: nudgeFlash 1.2s ease-out; }
+@keyframes nudgeFlash { 0%, 30%, 60% { opacity: 1; } 15%, 45% { opacity: .2; } 100% { opacity: 0; } }
+
+/* ── 팀 배틀 결과 순위 그래프 클리어 표시 (0.14.0) ── */
+.rs-graph .ln.off { stroke: #6B7591; stroke-width: 3; opacity: .9; }
+.rs-graph .rc-pill { fill: #0B1230; stroke-width: 1.5; }
+.rs-graph .rc-text { fill: #fff; font-family: var(--display); font-weight: 800; }
+.rs-graph .rc-mark.r1 .rc-text { fill: #FFE68A; }
+.rs-graph .rc-dot { stroke: #0B1230; stroke-width: 2; }

@@ -434,29 +434,6 @@ class ClassGame {
     if (text) board.emit('board:feed', { text, kind });
   }
 
-  /** 소리 (6-2): 학생 효과음 · 전광판 배경음 켜고 끄기 — 게임 중에도 바로 */
-  setSound(m) {
-    const next = { ...this.settings };
-    if (typeof m.sfx === 'boolean') next.sfx = m.sfx;
-    if (typeof m.bgm === 'boolean') next.bgm = m.bgm;
-    this.settings = next;
-    this.touch();
-    this.changed();
-    return { ok: true, sfx: next.sfx !== false, bgm: next.bgm !== false };
-  }
-
-  // ── 방해 아이템 (5-2) ──
-
-  /** 방해 아이템 켜기/끄기 — 게임 중에도 바로 적용 */
-  setAttacks(on) {
-    this.settings = { ...this.settings, attacks: !!on };
-    if (this.round) this.round.setAttacks(on);
-    this.io.to(this.boardChannel).emit('board:feed', { text: `방해 아이템 ${on ? '켜짐' : '꺼짐'}`, kind: 'info' });
-    this.touch();
-    this.changed();
-    return { ok: true, attacks: !!on };
-  }
-
   // ── 전광판 ──
 
   /** 전광판에 보여 줄 모든 것 (팀마다 작은 판 · 효과 · 방패) */

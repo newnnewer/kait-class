@@ -37,7 +37,7 @@
       { id: 'left', text: '왼쪽 맡을게!' },
       { id: 'right', text: '오른쪽 맡을게!' },
       { id: 'boss', text: '보스는 내가! 👑' },
-      { id: 'gather', text: '집결 보스 나오면 모이자!' },
+      { id: 'gather', text: '집결 보스 나오면 빨리 잡자!' },
       { id: 'shield', text: '방패 아껴 두자! 🛡', only: 'class' },
     ] },
     { id: 'after', name: '끝난 뒤', list: [

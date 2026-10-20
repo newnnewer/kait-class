@@ -82,6 +82,10 @@
     // v0.12.0: 틀린 글자 (입력란이 멈출 때) — 짧고 낮은 '틱'
     typo: function () { tone([N.C3, N.A2], 0.06, 'square', 0.32); noise(0.03, 0.2, 0, 1200); },
     chat: function () { tone(N.E6, 0.05, 'triangle', 0.3); tone(N.A6, 0.06, 'triangle', 0.25, 0.05); },
+    // 0.14.0: 준비 재촉 '띵띵' · 폭탄 한 칸 '쾅' · 레이저 한 칸 '지직'
+    nudge: function () { tone(N.A6, 0.09, 'square', 0.4); tone(N.A6, 0.09, 'square', 0.4, 0.13); tone(N.E7, 0.16, 'triangle', 0.35, 0.26); },
+    blast: function () { noise(0.22, 0.65, 0, 1100); tone([140 + Math.random() * 60, 45], 0.2, 'sine', 0.55); },
+    zap: function () { tone([N.C7 - Math.random() * 300, N.C6], 0.07, 'sawtooth', 0.28); noise(0.05, 0.25, 0, 7000); },
     // v0.11.0: 방에 누가 들어옴 (방장에게) — '딩동'
     join: function () { tone(N.E6, 0.22, 'triangle', 0.6); tone(N.C6, 0.4, 'triangle', 0.55, 0.22); tone(N.E7, 0.08, 'square', 0.15); },
     good: function () { tone([N.C5, N.C7], 0.25, 'triangle', 0.5); },

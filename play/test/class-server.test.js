@@ -220,9 +220,6 @@ test('전광판: 교사 로그인 열쇠로만 지켜볼 수 있고, 판 정보�
   await call(t, 'class:start', {});
   const d = await playing;
   assert.strictEqual(d.teams[0].cells.length, 24);
-  const off = once(b, 'board', x => x.attacks === false);
-  assert.strictEqual((await call(t, 'class:attacks', { on: false })).attacks, false);
-  await off;
   await call(t, 'class:close', {});
   a.s.close(); b.close(); t.close();
 });

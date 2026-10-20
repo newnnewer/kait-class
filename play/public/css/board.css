@@ -175,3 +175,10 @@
 .sb-wait.has-chart .sb-result li .rk { width: 48px; font-size: 16px; }
 .sb-wait.has-chart .sb-teamlist { flex: 0 0 auto; max-height: 230px; }
 .sb-result li .sb-sw { flex-shrink: 0; }
+
+/* ── 순위 그래프 클리어 표시 (0.14.0) ── */
+.sb-chart .ln.off { stroke: #6B7591; stroke-width: 5; }
+.sb-chart .rc-pill { fill: #0B1230; stroke-width: 2.5; }
+.sb-chart .rc-text { fill: #fff; font-family: var(--display); font-weight: 800; }
+.sb-chart .rc-mark.r1 .rc-text { fill: #FFE68A; }
+.sb-chart .rc-dot { stroke: var(--panel); stroke-width: 3; }

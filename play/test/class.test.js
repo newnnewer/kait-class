@@ -438,7 +438,7 @@ test('보스를 잡으면 방해 아이템은 덱으로 → 원할 때 써서 �
     assert.strictEqual(m.atk.sent, 1);
     // 방해 끄기 → 덱의 공격 아이템은 못 쓰고(회색) 그대로 남는다
     m.giveItem(p, { id: 'cloud', name: '먹구름', desc: '', kind: 'attack' });
-    c.setAttacks(false);
+    c.round.setAttacks(false); // 0.14.0: 교사 스위치는 없앴지만 match 의 끄기 처리는 그대로 시험
     assert.strictEqual(m.useItem(p, 1).why, 'attacks-off');
     assert.strictEqual(m.deckMsg(p.id).slots[0].off, true);
     assert.strictEqual(m.deckOf(p.id)[0].id, 'cloud');
@@ -522,15 +522,11 @@ test('시작 카운트다운: 5초(시험은 0.15초) 동안 움직임 · 보스
   clearInterval(m.sweeper);
 });
 
-test('소리 스위치: 학생 효과음 · 전광판 배경음 (기본 켜짐, 게임 중에도 바뀜)', () => {
+test('0.14.0: 공식전은 방해 아이템 · 효과음 · 배경음이 늘 켜짐', () => {
   const { c } = setup();
-  assert.strictEqual(c.settings.sfx, true);
-  assert.strictEqual(c.settings.bgm, true);
-  const r = c.setSound({ sfx: false });
-  assert.deepStrictEqual([r.sfx, r.bgm], [false, true]);
-  assert.strictEqual(c.detail().sfx, false);
-  c.setSound({ bgm: false });
-  assert.strictEqual(c.boardState().bgm, false);
+  assert.deepStrictEqual([c.settings.attacks, c.settings.sfx, c.settings.bgm], [true, true, true]);
+  assert.strictEqual(c.detail().sfx, true);
+  assert.strictEqual(c.boardState().bgm, true);
 });
 
 // ── v0.12.0: 조 선택 잠그기 · 무작위로 섞기 ──

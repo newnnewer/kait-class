@@ -65,7 +65,7 @@ test('시작 조건: 상대 팀이 있어야 하고, 모두 준비해야 한다 
   // 모두 같은 팀이면 시작 못 함
   assert.strictEqual(room.setTeam(b, 1).ok, true);
   assert.strictEqual(room.startCheck().why, 'rival');
-  assert.strictEqual(room.ready.has(b.id), true, '팀을 옮겨도 준비는 그대로');
+  assert.strictEqual(room.ready.has(b.id), true, 'setTeam(안쪽 함수)은 준비를 건드리지 않음');
   cleanup(room);
 });
 
@@ -201,4 +201,43 @@ test('협동방에도 준비: 다른 사람이 준비해야 시작 · 모두 준
   assert.ok(room.match && room.match.has(b));
   assert.strictEqual(room.pickTeam(b, 1).ok, false, '협동방에는 팀이 없다');
   room.match.stop(); room.closed = true;
+});
+
+test('0.14.0: 준비한 학생은 스스로 팀을 못 옮기고, 방장이 옮기면 준비가 풀린다', () => {
+  const w = fakeWorld();
+  const { room, host } = battleRoom(w, { teamSize: 3 });
+  const b = w.person(), c = w.person();
+  room.join(b, b.sock); room.join(c, c.sock); // b → 2팀, c → 1팀
+  room.toggleReady(b);
+  const r = room.pickTeam(b, 1);
+  assert.strictEqual(r.ok, false);
+  assert.match(r.error, /준비를 풀어야/);
+  assert.strictEqual(room.teamOf.get(b.id), 2);
+  room.toggleReady(b); // 준비 풀기
+  assert.strictEqual(room.pickTeam(b, 1).ok, true, '준비를 풀면 옮길 수 있음');
+  room.toggleReady(b); room.toggleReady(c);
+  assert.ok(room.autoAt > 0 || room.startCheck().why === 'rival');
+  assert.strictEqual(room.moveTo(host, b.id, 2).ok, true, '방장은 준비한 학생도 옮길 수 있음');
+  assert.strictEqual(room.teamOf.get(b.id), 2);
+  assert.strictEqual(room.ready.has(b.id), false, '옮겨지면 준비가 풀림');
+  assert.strictEqual(room.ready.has(c.id), true, '다른 사람은 그대로');
+  assert.strictEqual(room.autoAt, 0, '자동 시작 시계도 멈춤');
+  cleanup(room);
+});
+
+test('0.14.0: 준비 재촉 — 준비 안 한 채 기다린 시간(waitMs)을 보낸다 (준비한 사람 · 방장은 0)', () => {
+  const w = fakeWorld();
+  const { room, host } = battleRoom(w);
+  const b = w.person(), c = w.person();
+  room.join(b, b.sock); room.join(c, c.sock);
+  const old = Date.now() - 25000;
+  room.waitSince.set(b.id, old); room.waitSince.set(c.id, old);
+  room.toggleReady(c);
+  const m = id => room.detail().members.find(x => x.id === id);
+  assert.ok(m(b.id).waitMs >= 25000, '준비 안 한 b 는 25초');
+  assert.strictEqual(m(c.id).waitMs, 0, '준비한 c 는 0');
+  assert.strictEqual(m(host.id).waitMs, 0, '방장은 0');
+  room.toggleReady(c); // 준비를 풀면 처음부터
+  assert.ok(m(c.id).waitMs < 1000);
+  cleanup(room);
 });
