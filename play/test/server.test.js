@@ -280,7 +280,10 @@ test('대전방(v0.13.0): 팀 고르기 · 준비 · 시작하면 팀마다 판 
   const sa = once(a.s, 'state'), sb = once(b.s, 'state'), sc = once(c.s, 'state');
   assert.strictEqual((await call(a.s, 'room:start', {})).ok, true);
   const [ga, gb, gc] = await Promise.all([sa, sb, sc]);
-  assert.deepStrictEqual([ga.room.mode, ga.room.name, gb.room.name, gc.room.name], ['battle', '1팀', '2팀', '2팀']);
+  assert.strictEqual(ga.room.mode, 'battle');
+  assert.strictEqual(gb.room.name, gc.room.name, '같은 팀은 같은 이름');
+  assert.notStrictEqual(ga.room.name, gb.room.name);
+  assert.deepStrictEqual(made.room.names.slice(0, 2).map(n => n + ' 팀'), [ga.room.name, gb.room.name]);
   assert.strictEqual(gb.players.length, 2);
   a.s.close(); b.s.close(); c.s.close();
 });

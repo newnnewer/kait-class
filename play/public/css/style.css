@@ -952,3 +952,14 @@ button.me-chip:hover { border-color: #4B58A8; }
 .rs-graph .rc-text { fill: #fff; font-family: var(--display); font-weight: 800; }
 .rs-graph .rc-mark.r1 .rc-text { fill: #FFE68A; }
 .rs-graph .rc-dot { stroke: #0B1230; stroke-width: 2; }
+
+/* 0.14.0: 팀 이름 (컴퓨터과학자) 한 줄 소개 — 공식전 팀 고르기 */
+.team-btn b { word-break: keep-all; text-align: center; }
+.team-btn .team-desc { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.35; word-break: keep-all; }
+.team-btn[aria-pressed="true"] .team-desc { color: #C9D6F2; }
+
+/* 0.14.0: 게임 화면 위쪽 줄 — 팀 이름이 길어져도 글자가 줄바꿈되지 않게 (모자라면 태그부터 가림) */
+.top-bar > * { white-space: nowrap; flex-shrink: 0; }
+.top-bar > .tags { flex-shrink: 1; min-width: 0; overflow: hidden; flex-wrap: nowrap; }
+.top-bar > .tags > * { flex-shrink: 0; }
+@media (max-width: 1599px) { .top-bar .conn > span { display: none; } }

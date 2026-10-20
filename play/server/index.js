@@ -347,6 +347,7 @@ io.on('connection', (socket) => {
   adminOn('class:autoassign', withClass(c => c.autoAssign()));
   adminOn('class:teamlock', withClass((c, m) => c.setTeamLock(!!m.on)));
   adminOn('class:shuffle', withClass(c => c.shuffleTeams()));
+  adminOn('class:names', withClass(c => c.rerollNames())); // 0.14.0: 팀 이름 다시 뽑기
   // 문제 은행 (6단계) — 붙여넣기 추가와 내려받기는 글자가 많아 아래 HTTP 주소로
   adminOn('bank:list', () => ({ ok: true, problems: store.bank().normal.map(p => ({ ...p, kind: 'normal' })).concat(store.bank().boss.map(p => ({ ...p, kind: 'boss' }))) }));
   adminOn('bank:update', m => store.update(m.id, m.fields));

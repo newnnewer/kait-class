@@ -220,8 +220,8 @@ for i in range(3):
     <section class="t-teams-col">
       <div class="field-head">
         <h2>팀 현황</h2>
-        <span class="muted" id="c-teams-note"></span>
         <span class="grow"></span>
+        <button type="button" class="btn small ghost-btn" id="btn-names" title="팀 이름(컴퓨터과학자)을 새로 뽑아요 — 게임 전에만">🎲 팀 이름 다시 뽑기</button>
         <button type="button" class="btn small ghost-btn" id="btn-teamlock" aria-pressed="false" title="잠그면 학생이 팀을 고르거나 바꿀 수 없어요 (선생님은 옮길 수 있음)">🔓 팀 선택 열림</button>
         <button type="button" class="btn small ghost-btn" id="btn-shuffle" title="팀 미선택 학생까지 모두 무작위로 섞어 고르게 나눠요 (비트는 그대로)">🔀 무작위로 섞기</button>
         <button type="button" class="btn small ghost-btn" id="btn-autoassign">팀 미선택 학생 자동 배정</button>
@@ -270,6 +270,7 @@ for i in range(3):
 <script src="js/avatar.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/intro.js"></script>
+<script src="js/shared/teams.js"></script>
 <script src="js/teacher.js"></script>
 </body>
 </html>

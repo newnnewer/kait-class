@@ -31,6 +31,9 @@
 
   var socket = io({ path: BASE + '/socket.io', transports: ['polling', 'websocket'] });
   var B = null, gotAt = 0;
+  // 0.14.0: 팀 이름 (컴퓨터과학자) — 없으면 'N팀'
+  var TEAMS = window.CGTeams;
+  function tl(no, names) { return TEAMS.label(names || (B && B.names), no); }
 
   // ── 소리 (6-2): 브라우저는 한 번 누르기 전에는 소리를 못 낸다 → '소리 켜기' 버튼 ──
   var SND = window.CGSound, soundOn = false, lastTick = 0;
@@ -95,11 +98,11 @@
   socket.on('board:attack', function (a) {
     play(a.blocked ? 'shield' : 'hit');
     if (a.blocked) {
-      band('blocked', 'SHIELD', a.from + '팀 ' + a.name + ' → ' + a.to + '팀 방패로 막음!', '', 4000);
-      addFeed({ text: a.from + '팀 → ' + a.to + '팀 ' + a.name + ' (막힘)', kind: 'info' });
+      band('blocked', 'SHIELD', tl(a.from) + ' ' + a.name + ' → ' + tl(a.to) + ' 방패로 막음!', '', 4000);
+      addFeed({ text: tl(a.from) + ' → ' + tl(a.to) + ' ' + a.name + ' (막힘)', kind: 'info' });
     } else {
-      band('attack', 'ATTACK', a.from + '팀 → ' + a.to + '팀 ' + a.name + '!', a.to + '팀 ' + a.desc, 4500);
-      addFeed({ text: a.from + '팀 → ' + a.to + '팀 ' + a.name + '!', kind: 'attack' });
+      band('attack', 'ATTACK', tl(a.from) + ' → ' + tl(a.to) + ' ' + a.name + '!', tl(a.to) + ' ' + a.desc, 4500);
+      addFeed({ text: tl(a.from) + ' → ' + tl(a.to) + ' ' + a.name + '!', kind: 'attack' });
     }
   });
   socket.on('board:feed', function (f) {
@@ -139,7 +142,7 @@
     b.teams.forEach(function (t) {
       var c = el('div', 'sb-tl');
       var h = el('div', 'sb-tl-head');
-      h.appendChild(el('b', null, t.no + '팀'));
+      h.appendChild(el('b', null, tl(t.no)));
       var nb = t.members.filter(function (p) { return p.bot; }).length;
       h.appendChild(el('span', null, t.members.length + '명' + (nb ? ' (비트 ' + nb + ')' : '')));
       c.appendChild(h);
@@ -162,13 +165,13 @@
       r.teams.forEach(function (t) {
         var li = el('li', t.rank === 1 ? 'first' : '');
         li.appendChild(el('span', 'rk', t.rank + '위'));
-        li.appendChild(el('b', null, t.no + '팀'));
+        li.appendChild(el('b', null, tl(t.no, r.names)));
         li.appendChild(el('span', null, t.clear ? '클리어 ' + mmss(t.ms) : '진행률 ' + t.pct + '%'));
         if (withChart) { var sw = el('i', 'sb-sw'); sw.style.background = teamColor(t.no); li.insertBefore(sw, li.children[1]); }
         ol.appendChild(li);
       });
       if (withChart) {
-        var rb = { history: r.history, elapsedMs: r.history[r.history.length - 1].t, limitMs: r.limitMs, fit: true };
+        var rb = { names: r.names, history: r.history, elapsedMs: r.history[r.history.length - 1].t, limitMs: r.limitMs, fit: true };
         // 화면에 붙은 뒤 크기를 재야 해서 한 박자 늦게
         requestAnimationFrame(function () { renderChart($('sb-result-chart'), rb, r.teams); });
       }
@@ -214,7 +217,7 @@
       r.classList.toggle('done', !!t.rank);
       r.querySelector('.sb-rank').textContent = t.rank ? t.rank : k + 1;
       r.querySelector('.sb-sw').style.background = teamColor(t.no);
-      r.querySelector('.sb-bname span').textContent = t.no + '팀';
+      r.querySelector('.sb-bname span').textContent = tl(t.no);
       r.querySelector('.sb-bfill').style.width = t.pct + '%';
       r.querySelector('.sb-bval').textContent = t.rank ? '클리어' : t.pct + '%';
       var fx = t.fx || {}, chips = [];
@@ -249,7 +252,7 @@
     if (!pts.length || nowT > pts[pts.length - 1].t) pts.push({ t: nowT, order: cur });
     else pts[pts.length - 1] = { t: pts[pts.length - 1].t, order: cur };
     var n = Math.max(2, teams.length);
-    var L = 70, R = 96, T = 64, Bm = 46; // T: 1위 클리어 이름표 자리 (0.14.0)
+    var L = 70, R = 150, T = 64, Bm = 46; // T: 1위 클리어 이름표 자리 (0.14.0)
     var span = b.fit ? Math.max(nowT, 10000) : Math.max(b.limitMs || 0, nowT, 60000);
     var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
     var y = function (rank) { return T + (H - T - Bm) * (rank - 1) / (n - 1); };
@@ -279,7 +282,7 @@
       lines.appendChild(svgEl('path', { d: ln.on, class: 'ln', stroke: c }));
       if (ln.off) lines.appendChild(svgEl('path', { d: ln.off, class: 'ln off' }));
       heads.appendChild(svgEl('circle', { cx: ln.last[0], cy: ln.last[1], r: 9, fill: c, class: 'dot' }));
-      heads.appendChild(svgEl('text', { x: ln.last[0] + 18, y: ln.last[1] + 8, class: 'tlab' }, t.no + '팀'));
+      heads.appendChild(svgEl('text', { x: ln.last[0] + 18, y: ln.last[1] + 8, class: 'tlab' }, TEAMS.name(b.names, t.no)));
       if (ln.mark) marks.appendChild(window.CGRankChart.mark(svgEl, ln.mark, clear, { size: b.fit ? 17 : 20, W: W }));
     });
     svg.appendChild(lines);
@@ -331,7 +334,7 @@
     var e = c.el;
     e.classList.toggle('first', k === 0);
     e.querySelector('.sb-rank').textContent = t.rank ? t.rank : k + 1;
-    e.querySelector('.sb-name').textContent = t.no + '팀';
+    e.querySelector('.sb-name').textContent = tl(t.no);
     var pct = e.querySelector('.sb-pct');
     pct.textContent = t.pct + '%';
     pct.classList.toggle('done', !!t.rank);

@@ -598,3 +598,21 @@ test('순위 기록 (v0.12.0): 10초마다 순위를 남기고 전광판 정보�
   assert.strictEqual(x.c.round.history.length, 2, '10초가 안 지나면 더 남기지 않음');
   assert.strictEqual(x.c.boardState().history.length, 2);
 });
+
+// ── 0.14.0: 팀 이름 (컴퓨터과학자 8명, 공식전을 만들 때 무작위 · 다시 뽑기는 게임 전에만) ──
+test('0.14.0: 팀 이름 — 8명이 겹치지 않게 뽑히고, 교사는 게임 전에만 다시 뽑는다', () => {
+  const TEAMS = require('../public/js/shared/teams');
+  const { c } = setup();
+  assert.strictEqual(c.names.length, 8);
+  assert.strictEqual(new Set(c.names).size, 8);
+  assert.deepStrictEqual([...c.names].sort(), TEAMS.LIST.map(x => x.name).sort());
+  assert.deepStrictEqual(c.detail().names, c.names);
+  assert.deepStrictEqual(c.boardState().names, c.names);
+  const before = c.names.slice(0, c.settings.teams).join();
+  const r = c.rerollNames();
+  assert.strictEqual(r.ok, true);
+  assert.notStrictEqual(c.names.slice(0, c.settings.teams).join(), before, '쓰는 팀들의 이름이 바뀜');
+  assert.strictEqual(TEAMS.label(c.names, 1), c.names[0] + ' 팀');
+  assert.strictEqual(TEAMS.label(null, 3), '3팀', '이름이 없는 옛 기록은 N팀');
+  assert.strictEqual(TEAMS.numbered(c.names, 2), '② ' + c.names[1] + ' 팀');
+});

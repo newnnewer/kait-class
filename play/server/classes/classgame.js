@@ -13,6 +13,7 @@ const { randomSeed, makeRng, shuffle } = require('../rng');
 const { rollNick } = require('../nick');
 const { makeBot } = require('./bot');
 const CHAT = require('../../public/js/shared/chat');
+const TEAMS = require('../../public/js/shared/teams');
 
 const MAX_BOTS = 40; // 공식전 하나에 넣을 수 있는 비트 수
 
@@ -23,6 +24,7 @@ class ClassGame {
     this.code = code;
     this.settings = settings;
     this.chatLog = [];         // 팀 선택 화면 채팅 최근 8개 (v0.7.3)
+    this.names = TEAMS.roll(); // 0.14.0: 팀 이름 (컴퓨터과학자) — 공식전을 만들 때 뽑고 닫을 때까지 그대로
     this.teamLock = false;     // v0.12.0: 교사가 팀 선택을 잠금 (학생은 팀을 못 고름 · 교사는 옮길 수 있음)
     this.channel = 'class:' + code;
     this.teachChannel = 'teach:' + code;
@@ -72,6 +74,7 @@ class ClassGame {
       teams: Array.from({ length: s.teams }, (_, k) => ({ no: k + 1, members: this.teamMembers(k + 1).map(p => this.pubOf(p)) })),
       waiting: this.teamMembers(0).length,
       teamLock: this.teamLock,
+      names: this.names,
       settings: { tags: s.tags, limitMin: s.limitMin },
       sfx: s.sfx !== false,
       remainMs: this.remainMs(),
@@ -114,6 +117,7 @@ class ClassGame {
       teams: Array.from({ length: s.teams }, (_, k) => ({ no: k + 1, members: this.teamMembers(k + 1).map(person) })),
       unassigned: this.teamMembers(0).map(person),
       teamLock: this.teamLock,
+      names: this.names,
       count: this.members.size,
       blocksNow: s.blocks || recommendBlocks(Math.max(1, biggest)),
       blocks: this.round ? this.round.blocks : null,
@@ -294,6 +298,17 @@ class ClassGame {
     return { ok: true, on: this.teamLock };
   }
 
+  /** 0.14.0: 팀 이름 다시 뽑기 (교사, 게임 전에만) */
+  rerollNames() {
+    if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 팀 이름을 바꿀 수 없어요' };
+    const old = this.names.join();
+    do { this.names = TEAMS.roll(); } while (this.names.slice(0, this.settings.teams).join() === old.split(',').slice(0, this.settings.teams).join());
+    this.touch();
+    this.changed();
+    this.sendBoard();
+    return { ok: true, names: this.names };
+  }
+
   /** v0.12.0: 학생(팀 미선택 포함)을 무작위로 섞어 고르게 나눈다. 비트는 제자리 — 비트까지 센 인원이 고르게 */
   shuffleTeams() {
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 섞을 수 없어요' };
@@ -420,17 +435,19 @@ class ClassGame {
   /** 0.2초마다 (TeamRound) — 전광판은 0.5초마다 */
   onRoundTick() { if (Date.now() - this.lastBoardAt >= 500) this.sendBoard(); }
 
+  tl(no) { return TEAMS.label(this.names, no); }
+
   /** 판에서 생긴 소식 → 전광판 */
   onRoundEvent(type, d) {
     const board = this.io.to(this.boardChannel);
     if (type === 'attack') { board.emit('board:attack', d); return; }
-    if (type === 'clear') { board.emit('board:feed', { text: `${d.no}팀 클리어! ${d.rank}위`, kind: 'clear' }); return; }
+    if (type === 'clear') { board.emit('board:feed', { text: `${this.tl(d.no)} 클리어! ${d.rank}위`, kind: 'clear' }); return; }
     if (type !== 'match') return;
     const no = d.no, e = d.e;
     let text = null, kind = 'info';
-    if (e.type === 'boss') { text = `${no}팀 ${e.nick} 보스 격파!`; kind = 'boss'; }
-    else if (e.type === 'gather') { text = `${no}팀 모두 잡았다! (집결 보스)`; kind = 'good'; }
-    else if (e.type === 'item') { text = `${no}팀 ${e.item.kind === 'bad' ? '페널티' : '아이템'} ${e.item.name}`; kind = e.item.kind === 'bad' ? 'bad' : 'good'; }
+    if (e.type === 'boss') { text = `${this.tl(no)} ${e.nick} 보스 격파!`; kind = 'boss'; }
+    else if (e.type === 'gather') { text = `${this.tl(no)} 모두 잡았다! (집결 보스)`; kind = 'good'; }
+    else if (e.type === 'item') { text = `${this.tl(no)} ${e.item.kind === 'bad' ? '페널티' : '아이템'} ${e.item.name}`; kind = e.item.kind === 'bad' ? 'bad' : 'good'; }
     if (text) board.emit('board:feed', { text, kind });
   }
 
@@ -470,6 +487,7 @@ class ClassGame {
       limitMs: r ? r.limitMs : s.limitMin * 60000, attacks: s.attacks !== false, bgm: s.bgm !== false,
       teams, waiting: this.teamMembers(0).length, result: this.phase === 'waiting' ? this.lastResult : null,
       history: r ? r.history : null, elapsedMs: r ? Math.round(this.elapsed()) : 0,
+      names: this.names,
     };
   }
 

@@ -6,6 +6,10 @@
   var AV = window.CGAvatar;
   var MOVE = window.CGMove;
   var SND = window.CGSound;
+  var TEAMS = window.CGTeams;
+  // 0.14.0: 팀 이름 (컴퓨터과학자) — 지금 공식전 · 팀 배틀 방이 뽑은 이름. 없으면 'N팀'
+  function curNames() { return (cls && cls.names) || (room && room.names) || null; }
+  function tl(no, names) { return TEAMS.label(names || curNames(), no); }
 
   // ── 소리 (6-2): 내 설정 + 공식전은 교사 스위치 ──
   //   v0.12.0: 두 스위치가 따로 — 배경음 · 효과음(Ctrl+S) / 타자음 · 오류음(Ctrl+K)
@@ -252,7 +256,7 @@
       var tc = el('span', 'lr-teams');
       r.teamCounts.forEach(function (k, i) {
         var t = el('span', 'lr-team');
-        t.appendChild(el('em', null, (i + 1) + '팀'));
+        t.appendChild(el('em', null, TEAMS.name(r.names, i + 1)));
         var dots = '';
         for (var d = 0; d < r.teamSize; d++) dots += d < k ? '●' : '○';
         t.appendChild(el('span', null, dots));
@@ -372,7 +376,7 @@
     var mine = myTeam();
     $('t-code').textContent = cls.code;
     if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
-    $('t-picked').textContent = mine ? mine + '팀 선택' : '팀을 골라 주세요';
+    $('t-picked').textContent = mine ? tl(mine) + ' 선택' : '팀을 골라 주세요';
     $('t-picked').classList.toggle('none', !mine);
     $('t-teaminfo').textContent = cls.teamLock ? '🔒 선생님이 팀 선택을 잠갔어요 — 정해진 팀으로 참여해요' : '팀마다 들어온 사람 수가 보여요 · 선생님이 팀을 옮길 수도 있어요';
     $('t-teaminfo').classList.toggle('locked', !!cls.teamLock);
@@ -383,7 +387,8 @@
       b.type = 'button';
       b.setAttribute('aria-pressed', String(t.no === mine));
       if (cls.teamLock && t.no !== mine) b.classList.add('locked');
-      b.appendChild(el('b', null, t.no + '팀'));
+      b.appendChild(el('b', null, tl(t.no)));
+      b.appendChild(el('small', 'team-desc', TEAMS.desc(cls.names, t.no)));
       var av = el('span', 'team-avs');
       t.members.slice(0, 6).forEach(function (p) { av.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av')); });
       if (t.members.length > 6) av.appendChild(el('em', null, '+' + (t.members.length - 6)));
@@ -432,7 +437,7 @@
       li.appendChild(el('span', 'st-rank' + (k === 0 ? ' first' : ''), x.rank ? x.rank + '위' : String(k + 1)));
       var mid = el('div', 'st-mid');
       var top = el('div', 'st-top');
-      var name = el('b', null, x.no + '팀');
+      var name = el('b', null, tl(x.no));
       if (x.no === game.team) name.appendChild(el('small', null, '우리 팀'));
       top.appendChild(name);
       top.appendChild(el('span', 'st-pct', x.rank ? '클리어' : x.pct + '%'));
@@ -724,7 +729,7 @@
         var sel = el('select', 'team-sel');
         sel.setAttribute('aria-label', p.nick + ' 팀 옮기기');
         room.teams.forEach(function (t) {
-          var o = el('option', null, t.no + '팀');
+          var o = el('option', null, TEAMS.name(room.names, t.no));
           o.value = t.no;
           if (t.no === opt.team) o.selected = true;
           sel.appendChild(o);
@@ -763,7 +768,7 @@
     if (team && team !== mine && locked) e.appendChild(el('span', null, '준비를 풀면 옮길 수 있어요'));
     else if (can) {
       e.type = 'button';
-      e.appendChild(el('span', null, team + '팀으로 옮기기'));
+      e.appendChild(el('span', null, tl(team) + '으로 옮기기'));
       e.onclick = function (ev) { pickRoomTeam(team); };
     } else e.appendChild(el('span', null, '친구를 기다리는 중'));
     return e;
@@ -812,7 +817,9 @@
         var col = el('section', 'wteam' + (t.no === mine ? ' mine' : ''));
         col.style.setProperty('--tc', TEAM_COLORS[(t.no - 1) % TEAM_COLORS.length]);
         var hd = el('div', 'wt-head');
-        hd.appendChild(el('b', null, t.no + '팀'));
+        var tn = el('b', null, tl(t.no));
+        tn.title = TEAMS.desc(room.names, t.no);
+        hd.appendChild(tn);
         hd.appendChild(el('span', 'pixel', t.members.length + '/' + s.teamSize));
         if (t.no === mine) hd.appendChild(el('em', null, '우리 팀'));
         col.appendChild(hd);
@@ -852,7 +859,7 @@
     if (chk.why === 'rival') msg = battle ? '상대 팀이 없어요 — 다른 팀에도 사람이나 비트가 있어야 시작할 수 있어요' : '';
     else if (chk.why === 'ready') msg = chk.notReady + '명이 아직 준비하지 않았어요';
     if (chk.ok && chk.warn === 'uneven') {
-      msg = room.teams.filter(function (t) { return t.members.length; }).map(function (t) { return t.no + '팀 ' + t.members.length + '명'; }).join(' · ') + ' — 인원이 달라요';
+      msg = room.teams.filter(function (t) { return t.members.length; }).map(function (t) { return tl(t.no) + ' ' + t.members.length + '명'; }).join(' · ') + ' — 인원이 달라요';
     }
     $('w-check').textContent = msg;
     $('w-check').hidden = !msg;
@@ -1035,7 +1042,7 @@
     var box = document.querySelector('#overlay-result .result');
     box.classList.toggle('fail', !(my && my.rank === 1));
     $('rs-kind').textContent = CLASS_REASON[r.reason] || '게임 끝';
-    $('rs-title').textContent = my ? my.no + '팀 ' + my.rank + '위' : '게임 끝';
+    $('rs-title').textContent = my ? tl(my.no, r.names) + ' ' + my.rank + '위' : '게임 끝';
     var stats = $('rs-stats');
     stats.innerHTML = '';
     var mineRows = [['걸린 시간', mmss(my ? my.ms : r.ms)], ['깬 블록', my ? my.solved + ' / ' + my.total : '-'], ['보스 격파', (my ? my.bosses : 0) + '마리']];
@@ -1045,7 +1052,7 @@
     r.teams.forEach(function (t) {
       var li = el('li', t.no === mine ? 'me' : '');
       li.appendChild(el('span', 'rt-rank', t.rank + '위'));
-      li.appendChild(el('b', null, t.no + '팀'));
+      li.appendChild(el('b', null, tl(t.no, r.names)));
       li.appendChild(el('em', null, t.clear ? '클리어 · ' + mmss(t.ms) : t.reason === 'forfeit' ? '기권 · ' + t.pct + '%' : '진행률 ' + t.pct + '%'));
       ol.appendChild(li);
     });
@@ -1078,7 +1085,7 @@
     box.innerHTML = '';
     var NS = 'http://www.w3.org/2000/svg';
     function sv(tag, a, text) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); if (text != null) e.textContent = text; return e; }
-    var W = 460, H = Math.max(140, 58 + r.teams.length * 34), L = 44, R = 56, T = 34, B = 26; // T: 1위 클리어 이름표 자리 (0.14.0)
+    var W = 460, H = Math.max(140, 58 + r.teams.length * 34), L = 44, R = 92, T = 34, B = 26; // T: 1위 클리어 이름표 자리 (0.14.0)
     var span = Math.max(hist[hist.length - 1].t, 10000), n = Math.max(2, r.teams.length);
     var x = function (t) { return L + (W - L - R) * Math.min(1, t / span); };
     var y = function (k) { return T + (H - T - B) * (k - 1) / (n - 1); };
@@ -1100,7 +1107,7 @@
       svg.appendChild(sv('path', { d: ln.on, class: 'ln' + (t.no === mine ? ' mine' : ''), stroke: c }));
       if (ln.off) svg.appendChild(sv('path', { d: ln.off, class: 'ln off' }));
       svg.appendChild(sv('circle', { cx: ln.last[0], cy: ln.last[1], r: 6, fill: c }));
-      svg.appendChild(sv('text', { x: ln.last[0] + 10, y: ln.last[1] + 5, class: 'tlab' + (t.no === mine ? ' mine' : '') }, t.no + '팀'));
+      svg.appendChild(sv('text', { x: ln.last[0] + 10, y: ln.last[1] + 5, class: 'tlab' + (t.no === mine ? ' mine' : '') }, TEAMS.name(r.names, t.no)));
       if (ln.mark) marks.appendChild(window.CGRankChart.mark(sv, ln.mark, clear, { size: 11, W: W }));
     });
     svg.appendChild(marks);
@@ -1430,7 +1437,7 @@
     el.className = 'banner show ' + KIND[0];
     fitBanner();
     el.querySelector('.bn-kind').textContent = KIND[1];
-    el.querySelector('.bn-name').textContent = m.kind === 'attack' ? m.to + '팀에 ' + m.name : m.name;
+    el.querySelector('.bn-name').textContent = m.kind === 'attack' ? tl(m.to) + '에 ' + m.name : m.name;
     el.querySelector('.bn-desc').textContent = m.desc + ' · ' + m.by;
     clearTimeout(el._t);
     el._t = setTimeout(function () { el.className = 'banner'; }, 2600);
@@ -1535,7 +1542,7 @@
       var b = el('button', 'aim-team' + (x.no === def ? ' def' : ''));
       b.type = 'button';
       b.appendChild(el('kbd', null, String(x.no)));
-      b.appendChild(el('b', null, x.no + '팀'));
+      b.appendChild(el('b', null, tl(x.no)));
       b.appendChild(el('span', null, x.pct + '%' + (x.no === def ? ' · 기본' : '')));
       b.onmousedown = function (e) { e.preventDefault(); };
       b.onclick = function () { if (game && game.aim) fireSlot(game.aim.slot, x.no); };
@@ -1553,7 +1560,7 @@
       e.preventDefault();
       if (e.repeat) return true;
       var to = Number(m[2]);
-      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 팀은 공격할 수 없어요' : to + '팀은 공격할 수 없어요', 'warn', 1400); return true; }
+      if (!aimTargets().some(function (x) { return x.no === to; })) { toast(to === game.team ? '우리 팀은 공격할 수 없어요' : tl(to) + '은 공격할 수 없어요', 'warn', 1400); return true; }
       fireSlot(game.aim.slot, to);
       return true;
     }
@@ -1609,7 +1616,7 @@
     if (!x) return;
     var mine = (game.deck && game.deck.shields) || 0;
     box.classList.toggle('can', mine > 0);
-    box.querySelector('.in-title').textContent = '⚠ ' + x.from + '팀의 ' + x.name + ' 공격!' + (game.incoming.length > 1 ? ' (+' + (game.incoming.length - 1) + ')' : '');
+    box.querySelector('.in-title').textContent = '⚠ ' + tl(x.from) + '의 ' + x.name + ' 공격!' + (game.incoming.length > 1 ? ' (+' + (game.incoming.length - 1) + ')' : '');
     box.querySelector('.in-help').textContent = mine > 0 ? '지금 Ctrl+Shift+9 로 막기! (내 방패 ' + mine + ')'
       : (x.holders && x.holders.length ? '방패: ' + x.holders.join(', ') + ' — Ctrl+Shift+9' : '우리 팀에 방패가 없어요');
     tickIncoming();

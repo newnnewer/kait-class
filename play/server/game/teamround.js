@@ -16,6 +16,7 @@ const { Match } = require('./match');
 const { recommendBlocks } = require('./board');
 const { randomSeed, makeRng, shuffle } = require('../rng');
 const { stepBot } = require('../classes/bot');
+const TEAMS = require('../../public/js/shared/teams');
 
 const RANK_SNAP_MS = 10000; // 순위 변동 그래프 기록 간격
 const OUT_REASONS = ['forfeit', 'idle']; // 이렇게 끝난 팀은 맨 아래 (완성 · 시간 끝이 아님)
@@ -82,7 +83,7 @@ class TeamRound {
     const o = this.owner, s = o.settings;
     m = new Match({
       io: this.io, channel: o.teamChannel(no), seed: this.seed,
-      info: { id: o.label, name: `${no}팀`, tags: s.tags, mode: o.mode, team: no },
+      info: { id: o.label, name: TEAMS.label(o.names, no), tags: s.tags, mode: o.mode, team: no },
       codes: this.codes, bosses: this.bosses,
       s: {
         blocks: this.blocks,
@@ -97,6 +98,7 @@ class TeamRound {
         countdownMs: this.countdownUntil ? Math.max(0, this.countdownUntil - Date.now()) : 0,
         attacks: o.attacksOn(),
         onAttack: (item, p, to) => this.attack(no, item, p, to),
+        teamLabel: k => TEAMS.label(o.names, k),
         onEvent: e => this.event(no, e),
       },
       onEnd: result => this.teamEnded(no, result),
@@ -230,17 +232,20 @@ class TeamRound {
     }
     target.m.receiveAttack(item, fromNo, p.nick, (blocked, byNick) => {
       this.emitEvent('attack', { from: fromNo, to: target.no, id: item.id, name: item.name, desc: item.desc, blocked });
-      this.io.to(this.owner.channel).emit('class:feed', { text: `${fromNo}팀 → ${target.no}팀 ${item.name}${blocked ? ' (방패에 막힘)' : '!'}`, kind: blocked ? 'info' : 'attack' });
+      this.io.to(this.owner.channel).emit('class:feed', { text: `${this.tl(fromNo)} → ${this.tl(target.no)} ${item.name}${blocked ? ' (방패에 막힘)' : '!'}`, kind: blocked ? 'info' : 'attack' });
       // 공격한 팀에도 결과를 알려 준다
       const from = this.matches.get(fromNo);
       if (from && !from.ended) {
         from.emitAll('item', { id: blocked ? 'shield' : item.id, name: blocked ? '막힘' : item.name,
-          desc: blocked ? `${target.no}팀 ${byNick} 님이 방패로 막았어요` : `${target.no}팀에 ${item.name} 명중!`, kind: blocked ? 'blocked' : 'attack', by: p.nick, to: target.no });
-        from.feed(`${target.no}팀에 ${item.name} ${blocked ? '→ 방패에 막힘' : '명중!'}`, blocked ? 'muted' : 'attack');
+          desc: blocked ? `${this.tl(target.no)} ${byNick} 님이 방패로 막았어요` : `${this.tl(target.no)}에 ${item.name} 명중!`, kind: blocked ? 'blocked' : 'attack', by: p.nick, to: target.no });
+        from.feed(`${this.tl(target.no)}에 ${item.name} ${blocked ? '→ 방패에 막힘' : '명중!'}`, blocked ? 'muted' : 'attack');
       }
     });
     return { to: target.no };
   }
+
+  /** 팀 이름 ('튜링 팀') — 공식전 · 팀 배틀 방이 만들 때 뽑은 이름 (0.14.0) */
+  tl(no) { return TEAMS.label(this.owner.names, no); }
 
   setAttacks(on) { for (const m of this.matches.values()) m.attacks = !!on; }
 
@@ -332,6 +337,7 @@ class TeamRound {
     const result = {
       code: this.owner.label, mode: this.owner.mode, startedAt: this.startedAt, endedAt: Date.now(), reason,
       limitMs: this.limitMs, blocks: this.blocks, ms: Math.min(this.elapsed(), this.limitMs), teams, history: hist,
+      names: (this.owner.names || []).slice(), // 0.14.0: 이 판의 팀 이름 (기록에도 남음)
     };
     if (this.owner.onRoundEnd) this.owner.onRoundEnd(result);
   }

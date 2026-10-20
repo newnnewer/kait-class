@@ -15,6 +15,9 @@
   var OPTIONS = null, BANK_TAGS = { normal: [], boss: [] };
   var allowRooms = true;
   var classes = [];
+  // 0.14.0: 팀 이름 (컴퓨터과학자) — 없으면 'N팀'
+  var TEAMS = window.CGTeams;
+  function tl(no, names) { return TEAMS.label(names || (cur && cur.names), no); }
   var cur = null;       // 보고 있는 공식전 (서버가 보낸 교사용 정보)
   var standings = [];
   var clockBase = 0;    // 남은 시간을 받은 시각
@@ -183,7 +186,7 @@
         var td = el('td', 'rec-teams');
         (g.result.teams || []).forEach(function (t) {
           var chip = el('span', 'rec-chip' + (t.rank === 1 ? ' first' : ''));
-          chip.appendChild(el('b', null, t.rank + '위 ' + t.no + '팀'));
+          chip.appendChild(el('b', null, t.rank + '위 ' + tl(t.no, g.result.names || [])));
           chip.appendChild(document.createTextNode(' ' + t.pct + '%' + (t.clear ? ' · ' + mmss(t.ms) : '') + ' · ' + t.members.length + '명' + (t.bots ? '(비트 ' + t.bots + ')' : '') + atkText(t.atk)));
           td.appendChild(chip);
         });
@@ -604,7 +607,7 @@
     var sel = el('select', 'move-sel');
     sel.setAttribute('aria-label', p.nick + ' 팀 옮기기');
     var o0 = el('option', null, '미선택'); o0.value = '0'; sel.appendChild(o0);
-    for (var k = 1; k <= cur.settings.teams; k++) { var o = el('option', null, k + '팀'); o.value = String(k); sel.appendChild(o); }
+    for (var k = 1; k <= cur.settings.teams; k++) { var o = el('option', null, TEAMS.name(cur.names, k)); o.value = String(k); sel.appendChild(o); }
     sel.value = String(no);
     sel.onchange = function () {
       call('class:move', { id: p.id, no: Number(sel.value) }, function (res) { if (!res.ok) toast(res.error || '옮기지 못했어요', 'warn'); });
@@ -639,7 +642,9 @@
     cur.teams.forEach(function (t) {
       var card = el('div', 'card tteam');
       var head = el('div', 'tt-head');
-      head.appendChild(el('b', 'tt-name', t.no + '팀'));
+      var nm = el('b', 'tt-name', tl(t.no));
+      nm.title = TEAMS.desc(cur.names, t.no);
+      head.appendChild(nm);
       var nb = t.members.filter(function (p) { return p.bot; }).length;
       head.appendChild(el('span', 'muted', t.members.length + '명' + (nb ? ' (비트 ' + nb + ')' : '')));
       var x = byNo[t.no];
@@ -655,7 +660,7 @@
       t.members.forEach(function (p) { card.appendChild(personRow(p, t.no)); });
       var ab = el('button', 'add-bot', '+ 비트 부르기');
       ab.type = 'button';
-      ab.setAttribute('aria-label', t.no + '팀에 비트 부르기');
+      ab.setAttribute('aria-label', tl(t.no) + '에 비트 부르기');
       ab.onclick = function () { call('class:bot:add', { no: t.no }, function (res) { if (!res.ok) toast(res.error || '넣지 못했어요', 'warn'); }); };
       card.appendChild(ab);
       grid.appendChild(card);
@@ -705,7 +710,7 @@
     $('btn-stop').hidden = !playing;
     $('btn-close').hidden = playing; // 0.14.0: 게임 시작 옆으로 옮김 — 게임 중에는 숨김
     $('c-timer').hidden = !playing;
-    $('c-teams-note').textContent = playing ? '게임 중에도 팀을 옮기거나 새로 들어온 학생을 넣을 수 있어요' : '학생이 직접 팀을 고르고, 여기서 옮길 수도 있어요';
+    $('btn-names').disabled = cur.phase !== 'waiting'; // 0.14.0: 팀 이름 다시 뽑기는 게임 전에만
     allowRooms = cur.allowRooms !== false;
     // 게임 중에는 설정(바꿀 수 없음) 대신 한 줄 요약만 — 팀 현황을 넓게
     $('c-settings').hidden = playing;
@@ -791,6 +796,12 @@
       toast(on ? '팀 선택을 잠갔어요 — 학생은 팀을 바꿀 수 없어요' : '팀 선택을 열었어요');
     });
   };
+  $('btn-names').onclick = function () { // 0.14.0: 팀 이름 다시 뽑기
+    call('class:names', {}, function (res) {
+      if (!res.ok) return toast(res.error || '뽑지 못했어요', 'warn');
+      toast('팀 이름을 새로 뽑았어요');
+    });
+  };
   $('btn-shuffle').onclick = function () { // 한 번 누르면 바로 (v0.12.0)
     call('class:shuffle', {}, function (res) {
       if (!res.ok) return toast(res.error || '섞지 못했어요', 'warn');
@@ -830,13 +841,13 @@
     if (!cur || r.code !== cur.code) return;
     lastShown = r.endedAt;
     $('tr-kind').textContent = (REASON[r.reason] || '게임 끝') + ' · ' + mmss(r.ms) + ' · 팀마다 ' + r.blocks + '블록';
-    $('tr-title').textContent = r.teams.length ? r.teams.filter(function (t) { return t.rank === 1; }).map(function (t) { return t.no + '팀'; }).join(' · ') + ' 1위!' : '게임 끝';
+    $('tr-title').textContent = r.teams.length ? r.teams.filter(function (t) { return t.rank === 1; }).map(function (t) { return tl(t.no, r.names || []); }).join(' · ') + ' 1위!' : '게임 끝';
     var ol = $('tr-teams');
     ol.innerHTML = '';
     r.teams.forEach(function (t) {
       var li = el('li');
       li.appendChild(el('span', 'rt-rank', t.rank + '위'));
-      li.appendChild(el('b', null, t.no + '팀'));
+      li.appendChild(el('b', null, tl(t.no, r.names || [])));
       li.appendChild(el('em', null, (t.clear ? '클리어 ' + mmss(t.ms) : '진행률 ' + t.pct + '%') + ' · 블록 ' + t.solved + '/' + t.total + ' · 보스 ' + t.bosses + ' · ' + t.members.length + '명' + (t.bots ? '(비트 ' + t.bots + ')' : '') + atkText(t.atk)));
       ol.appendChild(li);
     });

@@ -108,7 +108,7 @@ test('시작하면 팀마다 같은 판 · 팀 채널 · 방해 아이템 켬 ·
   const m1 = room.matchOf(host), m2 = room.matchOf(b);
   assert.ok(m1 && m2 && m1 !== m2);
   assert.deepStrictEqual(m1.board.cells.map(c => c.code), m2.board.cells.map(c => c.code));
-  assert.deepStrictEqual([m1.info.mode, m1.info.name, m2.info.name], ['battle', '1팀', '2팀']);
+  assert.deepStrictEqual([m1.info.mode, m1.info.name, m2.info.name], ['battle', room.names[0] + ' 팀', room.names[1] + ' 팀'], '0.14.0: 팀 이름은 방을 만들 때 뽑은 컴퓨터과학자');
   assert.ok(host.sock.joined.has('room:r1:t1') && b.sock.joined.has('room:r1:t2'));
   assert.strictEqual(m1.attacks, true);
   assert.strictEqual(room.summary().phase, 'playing');

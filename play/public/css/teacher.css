@@ -83,7 +83,7 @@ body.teacher {
 .pstate.off { color: #C25E00; }
 .pstate.hot { color: #A06A00; }
 .pstate.boss { color: #6B2BD9; }
-.move-sel { width: 66px; flex-shrink: 0; height: 28px; background: #fff; color: var(--text); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-family: var(--body); padding: 0 4px; }
+.move-sel { width: 88px; flex-shrink: 0; height: 28px; background: #fff; color: var(--text); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; font-family: var(--body); padding: 0 4px; }
 .kick-btn { height: 28px; padding: 0 10px; border: 1px solid #7A1238; border-radius: 8px; background: transparent; color: #FF7AA2; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: var(--body); }
 .kick-btn.armed { background: #7A1238; color: #fff; }
 .t-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 14px 22px; background: var(--panel); border: 2px solid var(--panel-line); border-radius: 16px; padding: 12px 18px; }
@@ -178,3 +178,8 @@ body.teacher .toggle[aria-pressed="true"] { background: var(--accent); }
 body.teacher .join-btn { flex-shrink: 0; white-space: nowrap; }
 /* v0.8.2 — 조 수 · 제한 시간 · 블록 수 숫자를 다른 글자와 같은 글꼴(프리텐다드)로 */
 body.teacher .stepper b, body.teacher .step-num input { font-family: var(--body); font-weight: 800; font-size: 20px; }
+
+/* 0.14.0: 팀 현황 줄 — 좁으면 버튼째로 다음 줄로 (버튼 안 글자는 줄바꿈하지 않음) */
+.t-teams-col > .field-head { flex-wrap: wrap; align-items: center; row-gap: 8px; }
+.t-teams-col > .field-head h2 { white-space: nowrap; }
+.t-teams-col > .field-head .btn { white-space: nowrap; }

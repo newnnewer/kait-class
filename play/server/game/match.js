@@ -54,6 +54,7 @@ class Match {
     //   onEvent(e) → 전광판에 보낼 소식 (아이템 · 보스 격파)
     this.attacks = !!s.attacks;
     this.onAttack = s.onAttack || null;
+    this.teamLabel = s.teamLabel || (no => no + '팀'); // 0.14.0: 팀 이름 ('튜링 팀')
     this.onEvent = s.onEvent || (() => {});
     this.atk = { sent: 0, got: 0, blocked: 0 };
     this.decks = new Map();    // player id → [아이템 | null] × 5 (개인 덱)
@@ -280,8 +281,8 @@ class Match {
       d[k] = null;
       this.sendDeck(p);
       this.atk.sent += 1;
-      this.emitAll('item', { id: item.id, name: item.name, desc: `${r.to}팀에 ${item.name} 발사! (${item.desc})`, kind: 'attack', by: p.nick, to: r.to });
-      this.feed(`${p.nick} → ${r.to}팀 ${item.name}`, 'attack');
+      this.emitAll('item', { id: item.id, name: item.name, desc: `${this.teamLabel(r.to)}에 ${item.name} 발사! (${item.desc})`, kind: 'attack', by: p.nick, to: r.to });
+      this.feed(`${p.nick} → ${this.teamLabel(r.to)} ${item.name}`, 'attack');
       return { ok: true, item: { id: item.id, name: item.name, kind: 'attack', to: r.to } };
     }
     d[k] = null;
@@ -323,8 +324,8 @@ class Match {
     this.atk.blocked += 1;
     this.emitAll('shield', { n: this.shields });
     this.emitAll('incoming:end', { id: x.id, blocked: true, by: p.nick });
-    this.emitAll('item', { id: 'shield', name: '방패', desc: `${p.nick} 님이 ${x.fromNo}팀의 ${x.item.name} 공격을 막았어요!`, kind: 'blocked', by: p.nick });
-    this.feed(`${x.fromNo}팀의 ${x.item.name} → ${p.nick} 방패로 막음!`, 'good');
+    this.emitAll('item', { id: 'shield', name: '방패', desc: `${p.nick} 님이 ${this.teamLabel(x.fromNo)}의 ${x.item.name} 공격을 막았어요!`, kind: 'blocked', by: p.nick });
+    this.feed(`${this.teamLabel(x.fromNo)}의 ${x.item.name} → ${p.nick} 방패로 막음!`, 'good');
     x.cb(true, p.nick);
     return { ok: true, blocked: x.item.name };
   }
@@ -335,8 +336,8 @@ class Match {
     const b = this.board, item = x.item;
     this.atk.got += 1;
     this.emitAll('incoming:end', { id: x.id, blocked: false });
-    this.emitAll('item', { id: item.id, name: item.name, desc: `${x.fromNo}팀의 공격! ${item.desc}`, kind: 'hit', by: `${x.fromNo}팀 ${x.fromNick}` });
-    this.feed(`${x.fromNo}팀의 공격: ${item.name}`, 'bad');
+    this.emitAll('item', { id: item.id, name: item.name, desc: `${this.teamLabel(x.fromNo)}의 공격! ${item.desc}`, kind: 'hit', by: `${this.teamLabel(x.fromNo)} ${x.fromNick}` });
+    this.feed(`${this.teamLabel(x.fromNo)}의 공격: ${item.name}`, 'bad');
     switch (item.id) {
       case 'ice': case 'cloud': case 'flip': this.startEffect(item.id); break;
       case 'revive': this.revive(POWER.revive, 'revive'); break;

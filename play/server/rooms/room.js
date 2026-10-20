@@ -15,6 +15,7 @@ const { recommendBlocks } = require('../game/board');
 const { makeBot, stepBot } = require('../classes/bot');
 const { rollNick } = require('../nick');
 const { randomSeed } = require('../rng');
+const TEAMS = require('./../../public/js/shared/teams');
 const CHAT = require('../../public/js/shared/chat');
 
 const WAIT_CLOSE_MS = 10 * 60000;
@@ -34,6 +35,7 @@ class Room {
     this.members = new Map(); // id → player (들어온 순서대로)
     this.teamOf = new Map();  // 팀 배틀: id → 팀 번호
     this.ready = new Set();   // 준비한 사람 id
+    this.names = TEAMS.roll(); // 0.14.0: 팀 이름 (컴퓨터과학자) — 방을 만들 때 뽑고 닫을 때까지 그대로
     this.waitSince = new Map(); // 0.14.0 준비 재촉: id → 준비 안 한 채 기다리기 시작한 시각
     this.kicked = new Set();  // 내보낸 브라우저 열쇠
     this.phase = 'waiting';
@@ -98,6 +100,7 @@ class Room {
       out.teams = s.teams;
       out.teamSize = s.teamSize;
       out.teamCounts = Array.from({ length: s.teams }, (_, k) => this.teamMembers(k + 1).length);
+      out.names = this.names;
     }
     return out;
   }
@@ -140,6 +143,7 @@ class Room {
       result: this.lastResult,
       chat: this.chatLog,
     };
+    if (this.battle) d.names = this.names;
     if (this.battle) d.teams = Array.from({ length: s.teams }, (_, k) => ({ no: k + 1, members: this.teamMembers(k + 1).map(person) }));
     return d;
   }
@@ -262,7 +266,7 @@ class Room {
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
     if (this.teamOf.get(p.id) === no) return { ok: true };
-    if (this.teamMembers(no).length >= this.settings.teamSize) return { ok: false, error: `${no}팀은 꽉 찼어요` };
+    if (this.teamMembers(no).length >= this.settings.teamSize) return { ok: false, error: `${TEAMS.label(this.names, no)}은 꽉 찼어요` };
     this.teamOf.set(p.id, no);
     this.changed();
     return { ok: true, moved: true };
@@ -332,7 +336,7 @@ class Room {
     if (this.battle) {
       team = Math.round(Number(no)) || this.emptiestTeam();
       if (!(team >= 1 && team <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
-      if (this.teamMembers(team).length >= this.settings.teamSize) return { ok: false, error: `${team}팀은 꽉 찼어요` };
+      if (this.teamMembers(team).length >= this.settings.teamSize) return { ok: false, error: `${TEAMS.label(this.names, team)}은 꽉 찼어요` };
     }
     const used = new Set([...this.members.values()].map(x => x.nick));
     const bot = makeBot(rollNick(used));
