@@ -619,3 +619,13 @@ test('0.14.0: 팀 이름 — 8명이 겹치지 않게 뽑히고, 교사는 게�
   assert.deepStrictEqual(['튜링', '호퍼', '섀넌', '반로섬'].map(w => TEAMS.josa(w, '은/는')), ['튜링은', '호퍼는', '섀넌은', '반로섬은']);
   assert.deepStrictEqual(['튜링', '호퍼', '알콰리즈미'].map(w => TEAMS.josa(w, '으로/로')), ['튜링으로', '호퍼로', '알콰리즈미로']);
 });
+
+test('0.14.1: 교사 화면의 학생 수는 비트를 빼고 센다 (공식전 목록 · 접속 수)', () => {
+  const x = setup({ teams: 2 });
+  const s = x.student();
+  x.hub.join(s.p, s.sock, x.code);
+  x.c.addBot(1); x.c.addBot(2);
+  assert.strictEqual(x.c.members.size, 3);
+  assert.strictEqual(x.c.teacherDetail().students, 1);
+  assert.strictEqual(x.hub.list().find(c => c.code === x.code).count, 1);
+});

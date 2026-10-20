@@ -119,6 +119,7 @@ class ClassGame {
       teamLock: this.teamLock,
       names: this.names,
       count: this.members.size,
+      students: this.members.size - this.bots().length, // 0.14.0: 비트를 뺀 학생 수 (화면에 보이는 숫자)
       blocksNow: s.blocks || recommendBlocks(Math.max(1, biggest)),
       blocks: this.round ? this.round.blocks : null,
       remainMs: this.remainMs(),

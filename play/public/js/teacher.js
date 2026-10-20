@@ -690,7 +690,7 @@
     var inTeam = cur.count - cur.unassigned.length;
     $('c-counts').innerHTML = '';
     $('c-counts').appendChild(document.createTextNode('접속 '));
-    $('c-counts').appendChild(el('b', null, cur.count + '명'));
+    $('c-counts').appendChild(el('b', null, (cur.students != null ? cur.students : cur.count) + '명')); // 0.14.0: 비트 빼고
     $('c-counts').appendChild(document.createTextNode(' · 팀 미선택 '));
     $('c-counts').appendChild(el('b', null, cur.unassigned.length + '명'));
     $('c-help').innerHTML = '';

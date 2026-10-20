@@ -40,7 +40,8 @@ class ClassHub {
 
   list() {
     return [...this.classes.values()].map(c => ({
-      code: c.code, phase: c.phase, count: c.members.size, teams: c.settings.teams, tags: c.settings.tags, createdAt: c.createdAt,
+      code: c.code, phase: c.phase, count: c.members.size - c.bots().length, // 0.14.0: 비트는 빼고 센다
+      teams: c.settings.teams, tags: c.settings.tags, createdAt: c.createdAt,
     }));
   }
 
