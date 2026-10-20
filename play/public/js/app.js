@@ -768,9 +768,9 @@
     if (team && team !== mine && locked) e.appendChild(el('span', null, '준비를 풀면 옮길 수 있어요'));
     else if (can) {
       e.type = 'button';
-      e.appendChild(el('span', null, TEAMS.josa(tl(team), '으로/로') + ' 옮기기'));
+      e.appendChild(el('span', null, '여기로 옮기기')); // 팀 칸 안이라 이름은 빼고 짧게 (좁은 칸에서 줄바꿈되지 않게)
       e.onclick = function (ev) { pickRoomTeam(team); };
-    } else e.appendChild(el('span', null, '친구를 기다리는 중'));
+    } else e.appendChild(el('span', null, team ? '빈자리' : '친구를 기다리는 중')); // 0.14.0: 팀 칸은 좁아서 짧게
     return e;
   }
   emptySlot.botShown = {};
@@ -819,9 +819,7 @@
         var hd = el('div', 'wt-head');
         var tn = el('b', null, tl(t.no));
         tn.title = TEAMS.desc(room.names, t.no);
-        hd.appendChild(tn);
-        hd.appendChild(el('span', 'pixel', t.members.length + '/' + s.teamSize));
-        if (t.no === mine) hd.appendChild(el('em', null, '우리 팀'));
+        hd.appendChild(tn); // 0.14.0: 인원 표시 · '우리 팀' 뺌 — 내 팀은 칸 전체를 도드라지게 (.wteam.mine)
         col.appendChild(hd);
         var g = el('div', 'wt-slots');
         t.members.forEach(function (p) { g.appendChild(personSlot(p, { team: t.no })); });

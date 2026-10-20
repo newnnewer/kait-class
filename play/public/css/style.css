@@ -963,3 +963,11 @@ button.me-chip:hover { border-color: #4B58A8; }
 .top-bar > .tags { flex-shrink: 1; min-width: 0; overflow: hidden; flex-wrap: nowrap; }
 .top-bar > .tags > * { flex-shrink: 0; }
 @media (max-width: 1599px) { .top-bar .conn > span { display: none; } }
+
+/* 0.14.0: 팀 배틀 대기실 — 인원 · '우리 팀' 표시를 빼고 내 팀 칸을 도드라지게 */
+.wt-head b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.wteam.mine { border-color: var(--yellow); border-top-color: var(--yellow); background: #1F3270;
+  box-shadow: 0 0 0 2px rgba(255,210,63,.55), 0 0 30px 4px rgba(255,210,63,.35); }
+.wteam.mine .wt-head { background: var(--tc); border-radius: 10px; padding: 4px 10px; }
+.wteam.mine .wt-head b { color: #fff; filter: none; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.wteam.mine .wt-head b::before { content: '★ '; color: var(--yellow); }
