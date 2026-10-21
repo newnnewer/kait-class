@@ -6,7 +6,7 @@
 
 const { createBoard } = require('./board');
 const { step, edge, corner, reverse } = require('../../public/js/shared/move');
-const { isCorrect, isBossCorrect } = require('./grade');
+const { isCorrect, isBossCorrect, typingLines } = require('./grade');
 const { rollItem, rollHelp, sample, MAX_SHIELD, DECK_SIZE, DEFEND_MS, ITEM_MS, FX_OF, POWER } = require('./items');
 const { randomSeed, makeRng, shuffle } = require('../rng');
 
@@ -19,6 +19,9 @@ const IDLE_WARN_MS = 15000; // 경고 뒤 이만큼 더 없으면 방 종료
 const GATHER_MS = 8000; // v0.12.0: 5초 → 8초
 const GATHER_MIN = 3;
 const GATHER_EVERY = 4;
+// 타이핑 보스 (0.15.0): 문제 없이 완성된 코드를 한 줄씩 친다. 시간 = 기본 5초 + 줄마다 bossLineMs
+const TYPING_BASE_MS = 5000;
+const TYPING_TITLE = '타이핑 보스';
 
 class Match {
   /**
@@ -41,6 +44,8 @@ class Match {
     this.bossEveryMs = s.bossEveryMs || 15000;
     this.bossWaitMs = s.bossWaitMs || 8000;
     this.bossLimitMs = s.bossLimitMs || 30000;
+    this.bossMode = s.bossMode === 'typing' ? 'typing' : 'quiz'; // 0.15.0: 문제 풀이 / 타이핑
+    this.bossLineMs = s.bossLineMs || 7000;
     this.penalty = s.penalty !== false;
     this.limitMs = s.limitMs || 10 * 60000;
     this.idleMs = s.idleMs || IDLE_MS;
@@ -133,7 +138,7 @@ class Match {
       shields: this.shields,
       deck: forId ? this.deckMsg(forId) : null,
       incoming: this.incoming.filter(x => !x.done).map(x => this.incomingMsg(x)),
-      limits: { occ: this.occLimitMs, boss: this.bossLimitMs, bossWait: this.bossWaitMs },
+      limits: { occ: this.occLimitMs, boss: this.bossLimitMs, bossWait: this.bossWaitMs }, bossMode: this.bossMode,
       endMs: this.msLeft(this.endAt),
       idle: this.idleWarn ? { ms: this.msLeft(this.lastInput + this.idleMs + this.idleWarnMs) } : null,
       paused: !!this.pausedAt && !this.countdownUntil,
@@ -596,13 +601,19 @@ class Match {
     const target = cur.r * this.board.cols + cur.c + (key === 'Delete' ? 1 : -1);
     const sameRow = Math.floor(target / this.board.cols) === cur.r;
     if (!sameRow || target !== boss.i) return { ok: false, why: key === 'Delete' ? 'left' : 'right' };
+    const q = boss.q;
+    const typing = this.bossMode === 'typing';
+    if (typing) { boss.lines = typingLines(q); boss.line = 0; }
+    const ms = typing ? TYPING_BASE_MS + boss.lines.length * this.bossLineMs : this.bossLimitMs;
     boss.phase = 'fight';
     boss.pid = p.id;
-    boss.until = Date.now() + this.bossLimitMs;
-    this.emitAll('boss', { i: boss.i, phase: 'fight', by: p.id, ms: this.bossLimitMs });
-    const q = boss.q;
-    // 정답은 보내지 않는다
-    return { ok: true, i: boss.i, side: key === 'Delete' ? 'left' : 'right', ms: this.bossLimitMs,
+    boss.until = Date.now() + ms;
+    this.emitAll('boss', { i: boss.i, phase: 'fight', by: p.id, ms });
+    const side = key === 'Delete' ? 'left' : 'right';
+    // 타이핑 보스: 완성된 코드를 보여 준다 (문제가 없으므로 정답을 숨길 것이 없다)
+    if (typing) return { ok: true, i: boss.i, side, ms, q: { title: TYPING_TITLE, typing: true, lines: boss.lines, line: 0 } };
+    // 문제 풀이 보스: 정답은 보내지 않는다
+    return { ok: true, i: boss.i, side, ms,
       q: { title: q.title, code: q.code, input: q.input, blank: q.code.includes('___') } };
   }
 
@@ -615,17 +626,26 @@ class Match {
     if (this.pausedAt) return { ok: false, why: 'paused' };
     text = String(text == null ? '' : text).slice(0, MAX_INPUT);
     const q = boss.q;
-    if (!isBossCorrect(q, text)) {
+    if (boss.lines) {
+      // 타이핑 보스: 지금 줄만 채점. 틀리면 그 줄을 다시 (시간 안에는 몇 번이든), 맞으면 다음 줄
+      if (!isCorrect(text, boss.lines[boss.line])) return { ok: true, correct: false, line: boss.line, retry: true };
+      boss.line += 1;
+      if (boss.line < boss.lines.length) {
+        this.emitAll('bossline', { i: boss.i, line: boss.line, total: boss.lines.length });
+        return { ok: true, correct: true, line: boss.line, more: true };
+      }
+    } else if (!isBossCorrect(q, text)) {
       this.bossEnd('wrong', p);
       return { ok: true, correct: false }; // 정답은 알려 주지 않는다 (같은 보스가 다시 나오므로)
     }
+    const title = boss.lines ? TYPING_TITLE : q.title;
     const i = boss.i;
     this.boss = null;
     if (!this.external) this.nextBossAt = Date.now() + this.bossEveryMs;
     this.stat(p).bosses += 1;
     this.emitAll('boss', { i: -1, end: 'win', at: i, by: p.id });
-    this.feed(`${p.nick} 보스 "${q.title}" 격파!`, 'good');
-    this.onEvent({ type: 'boss', nick: p.nick, title: q.title });
+    this.feed(boss.lines ? `${p.nick} ${TYPING_TITLE} 격파!` : `${p.nick} 보스 "${title}" 격파!`, 'good');
+    this.onEvent({ type: 'boss', nick: p.nick, title });
     const item = rollItem({ penalty: this.penalty, attacks: this.attacks && !!this.onAttack, force: process.env.FORCE_ITEM }); // FORCE_ITEM: 시험용
     if (item.kind === 'bad') {
       // 페널티는 덱에 넣지 않고 바로 (마지막 칸이면 판 완성은 그 뒤에)

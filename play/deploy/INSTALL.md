@@ -49,16 +49,6 @@ sudo bash play/install.sh
 
 > 다시 설치하면 게임 서버가 재시작되어 **진행 중인 게임은 사라집니다.** 수업 중에는 하지 마세요.
 
-### 개발용: PC 에서 연습 서버로 올리기
-
-`play\deploy\upload-test-server.bat` 을 두 번 누르면 `play` 폴더를 묶어 서버로 보내고 `play/install.sh` 를 실행합니다.
-서버 주소는 같은 폴더의 `server.local.bat` 에 적어 둡니다 (GitHub 에 올리지 않는 파일):
-
-```bat
-set SERVER=root@서버IP
-set SSH_PORT=22
-```
-
 > **교사 화면 비밀번호** (아이디 없이 비밀번호 하나, **KAIT-CLASS 관리자 비밀번호와 따로**)
 > - **처음 비밀번호**: 설치할 때 무작위로 만들어 설치 끝 화면에 보여 줍니다. 다시 보기: `sudo grep ADMIN_PASSWORD /opt/kait-play/.env`
 > - **바꾸기**: 교사 화면 위쪽 **비밀번호 바꾸기**. 바꾼 비밀번호는 암호화해서 `data/game.db` 에 저장되고, 그때부터 `.env` 의 처음 비밀번호는 쓰이지 않아요. 다른 컴퓨터의 교사 화면은 로그아웃돼요.

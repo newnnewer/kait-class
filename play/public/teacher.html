@@ -206,9 +206,11 @@ for i in range(3):
         <span class="muted small" id="c-blkhelp"></span></div>
       <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="c-occ"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
+      <div class="field"><h3>보스 방식</h3><div class="seg-switch" id="c-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="c-bosshelp"></span></div>
       <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div></div>
       <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div></div>
-      <div class="field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
+      <div class="field" id="c-bosslimit-field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
+      <div class="field" id="c-bossline-field" hidden><h3>타이핑 시간 (줄마다)</h3><div class="seg-row" id="c-bossline"></div><span class="muted small">5초 + 줄 수 × 이 시간</span></div>
       <div class="field-sep" aria-hidden="true"></div>
       <div class="field"><h3>비트 속도</h3><div class="seg-row" id="c-botspeed"></div></div>
       <div class="field-sep" aria-hidden="true"></div>
@@ -228,6 +230,7 @@ for i in range(3):
         <button type="button" class="btn small ghost-btn" id="btn-botfill" title="모든 팀을 가장 큰 팀 인원까지 비트로 채워요 (아무도 없는 팀은 빼고)">비트로 인원 맞추기</button>
         <button type="button" class="btn small ghost-btn" id="btn-botclear" hidden>비트 모두 빼기</button>
       </div>
+      <div class="wait-alert" id="c-waitalert" role="status" hidden></div>
       <div class="t-teams" id="c-teams-grid"></div>
       <p class="error" id="c-error" role="alert"></p>
     </section>

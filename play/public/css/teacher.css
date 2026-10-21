@@ -183,3 +183,18 @@ body.teacher .stepper b, body.teacher .step-num input { font-family: var(--body)
 .t-teams-col > .field-head { flex-wrap: wrap; align-items: center; row-gap: 8px; }
 .t-teams-col > .field-head h2 { white-space: nowrap; }
 .t-teams-col > .field-head .btn { white-space: nowrap; }
+
+/* 0.15.0: 게임 중 팀을 기다리는 학생 */
+.wait-alert {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 12px; padding: 10px 14px;
+  background: #FFF4D6; border: 2px solid #E8A200; border-radius: 12px; color: #6B4600;
+  animation: waitPulse 1.6s ease-in-out infinite alternate;
+}
+.wait-alert[hidden] { display: none; }
+.wait-alert b { font-size: 15px; }
+.wait-alert .wa-names { font-weight: 700; }
+.wait-alert .btn { margin-left: auto; }
+.tteam.unassigned.hot { border: 2px solid #E8A200; box-shadow: 0 0 0 3px rgba(232,162,0,.25); }
+@keyframes waitPulse { from { box-shadow: 0 0 0 0 rgba(232,162,0,.0); } to { box-shadow: 0 0 0 4px rgba(232,162,0,.35); } }
+
+body.teacher .seg-switch .ss-opt[aria-pressed="true"] { background: var(--accent); color: #fff; }

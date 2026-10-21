@@ -250,6 +250,7 @@
     info.push(playing ? r.count + '명' : r.count + '/' + r.max + '명');
     if (playing) info.push(r.pct + '%');
     else info.push(r.tags.map(function (t) { return '#' + t; }).join(' '), r.limitMin + '분');
+    if (!playing && r.bossMode === 'typing') info.push('타이핑 보스');
     li.appendChild(el('span', 'lr-info', info.join(' · ')));
     li.appendChild(el('b', 'lr-name', r.name));
     if (r.mode === 'battle' && !playing && r.teamCounts) {
@@ -368,7 +369,7 @@
     game = null;
     show('team');
     renderTeam();
-    pageToast('선생님이 팀을 다시 정하고 있어요. 팀을 골라 주세요', 'warn');
+    pageToast('선생님이 팀을 다시 정하고 있어요. 잠시 기다려 주세요', 'warn');
   });
 
   function renderTeam() {
@@ -376,17 +377,20 @@
     var mine = myTeam();
     $('t-code').textContent = cls.code;
     if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
-    $('t-picked').textContent = mine ? tl(mine) + ' 선택' : '팀을 골라 주세요';
+    $('t-picked').textContent = mine ? tl(mine) + ' 선택' : cls.phase === 'playing' ? '팀 배정을 기다리는 중' : '팀을 골라 주세요';
     $('t-picked').classList.toggle('none', !mine);
-    $('t-teaminfo').textContent = cls.teamLock ? '🔒 선생님이 팀 선택을 잠갔어요 — 정해진 팀으로 참여해요' : '팀마다 들어온 사람 수가 보여요 · 선생님이 팀을 옮길 수도 있어요';
-    $('t-teaminfo').classList.toggle('locked', !!cls.teamLock);
+    // 0.15.0: 게임 중에는 학생이 팀을 고를 수 없다 — 선생님이 정해 줌
+    var playingNow = cls.phase === 'playing';
+    var noPick = cls.teamLock || playingNow;
+    $('t-teaminfo').textContent = playingNow ? '⏳ 게임 중에는 선생님이 팀을 정해 줘요' : cls.teamLock ? '🔒 선생님이 팀 선택을 잠갔어요 — 정해진 팀으로 참여해요' : '팀마다 들어온 사람 수가 보여요 · 선생님이 팀을 옮길 수도 있어요';
+    $('t-teaminfo').classList.toggle('locked', noPick);
     var box = $('t-teams');
     box.innerHTML = '';
     cls.teams.forEach(function (t) {
       var b = el('button', 'team-btn');
       b.type = 'button';
       b.setAttribute('aria-pressed', String(t.no === mine));
-      if (cls.teamLock && t.no !== mine) b.classList.add('locked');
+      if (noPick && t.no !== mine) b.classList.add('locked');
       b.appendChild(el('b', null, tl(t.no)));
       b.appendChild(el('small', 'team-desc', TEAMS.desc(cls.names, t.no)));
       var av = el('span', 'team-avs');
@@ -399,7 +403,7 @@
     });
     var st = $('t-status'), txt = st.querySelector('span');
     st.classList.toggle('playing', cls.phase === 'playing');
-    if (cls.phase === 'playing') txt.textContent = cls.paused ? '게임이 잠시 멈춰 있어요 — 팀을 고르면 바로 참여해요' : '게임 진행 중 — 팀을 고르면 바로 참여해요!';
+    if (cls.phase === 'playing') txt.textContent = '게임이 진행 중이에요. 선생님이 팀을 정해 주면 바로 들어가요';
     else txt.textContent = mine ? '선생님이 게임을 시작하기를 기다리는 중' : '먼저 팀을 골라 주세요';
     renderChat();
     renderSoundBtns();
@@ -407,6 +411,7 @@
 
   function pickClassTeam(no) {
     if (!cls || no > cls.teams.length || no === myTeam()) return;
+    if (cls.phase === 'playing') { pageToast('게임 중이에요 — 선생님이 팀을 정해 주면 바로 들어가요', 'warn'); return; }
     if (cls.teamLock) { pageToast('선생님이 팀 선택을 잠갔어요', 'warn'); return; }
     socket.emit('class:team', { no: no }, function (res) {
       if (!res || !res.ok) pageToast((res && res.error) || '팀을 고르지 못했어요', 'warn');
@@ -527,12 +532,17 @@
   var cr = null;
   var BOT_SPEED = { slow: '느림 (20초)', normal: '보통 (12초)', fast: '빠름 (7초)' };
   var BOT_SPEED_SHORT = { slow: '느림', normal: '보통', fast: '빠름' };
+  var BOSS_MODE = { quiz: '문제 풀이', typing: '타이핑' };
+  var BOSS_MODE_HELP = {
+    quiz: '보스가 빈칸 채우기 · 출력 결과 맞히기 문제를 내요 (한 번만 제출)',
+    typing: '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시 · 시간은 5초 + 줄마다 7초)'
+  };
   function optDefault(k) { return OPTIONS && OPTIONS[k] ? OPTIONS[k].def : null; }
 
   function openCreate(mode) {
     cr = cr || {
       tags: [], max: optDefault('max') || 4, teams: optDefault('roomTeams') || 2, teamSize: optDefault('teamSize') || 4, limitMin: optDefault('limitMin') || 5,
-      botSpeed: optDefault('botSpeed') || 'normal', auto: true, blocks: 72
+      botSpeed: optDefault('botSpeed') || 'normal', auto: true, blocks: 72, bossMode: 'quiz'
     };
     cr.mode = mode === 'battle' ? 'battle' : 'coop';
     $('cr-error').textContent = '';
@@ -602,6 +612,17 @@
     if (document.activeElement !== $('cr-lim')) $('cr-lim').value = cr.limitMin;
     $('cr-lim-down').disabled = cr.limitMin <= limMin;
     $('cr-lim-up').disabled = cr.limitMin >= limMax;
+    // 0.15.0 보스 방식: 문제 풀이 / 타이핑
+    var bm = $('cr-bossmode');
+    bm.innerHTML = '';
+    ['quiz', 'typing'].forEach(function (v) {
+      var b = el('button', 'ss-opt', BOSS_MODE[v]);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(v === cr.bossMode));
+      b.onclick = function () { cr.bossMode = v; renderCreate(); };
+      bm.appendChild(b);
+    });
+    $('cr-bosshelp').textContent = BOSS_MODE_HELP[cr.bossMode];
     var sb = $('cr-botspeed');
     sb.innerHTML = '';
     ((o.botSpeed || {}).list || ['slow', 'normal', 'fast']).forEach(function (v) {
@@ -621,7 +642,7 @@
     var sum = [
       ['방식', battle ? '팀 배틀' : '레이드'], ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
       battle ? ['팀', cr.teams + '팀 × ' + cr.teamSize + '명 (최대 ' + (cr.teams * cr.teamSize) + '명)'] : ['최대 인원', cr.max + '명'], ['게임 시간', cr.limitMin + '분'],
-      ['블록 수', cr.auto ? '자동' : cr.blocks + '블록'], ['비트 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
+      ['블록 수', cr.auto ? '자동' : cr.blocks + '블록'], ['보스', BOSS_MODE[cr.bossMode]], ['비트 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
     ];
     fillSummary($('cr-summary'), sum);
     $('btn-open').disabled = !cr.tags.length;
@@ -666,7 +687,7 @@
     var settings = {
       mode: cr.mode, teams: cr.teams, teamSize: cr.teamSize,
       tags: cr.tags, max: cr.max, limitMin: cr.limitMin, blocks: cr.auto ? 0 : cr.blocks,
-      botSpeed: cr.botSpeed
+      botSpeed: cr.botSpeed, bossMode: cr.bossMode
     };
     socket.emit('room:create', { settings: settings }, function (res) {
       if (!res || !res.ok) { $('btn-open').disabled = false; $('cr-error').textContent = (res && res.error) || '방을 열지 못했어요'; return; }
@@ -839,6 +860,7 @@
     sum.push(battle ? ['팀', s.teams + '팀 × ' + s.teamSize + '명'] : ['최대 인원', s.max + '명']);
     sum.push(['게임 시간', s.limitMin + '분'],
       ['블록 수', s.blocks ? s.blocks + '블록' : (battle ? '자동 (가장 큰 팀 × 24)' : '자동 (인원 × 24)')],
+      ['보스', BOSS_MODE[s.bossMode] || '문제 풀이'],
       ['비트 속도', BOT_SPEED_SHORT[s.botSpeed] || '보통']);
     if (battle) sum.push(['방해 아이템', '늘 나옴']);
     fillSummary($('w-summary'), sum);
@@ -1394,6 +1416,12 @@
   });
 
   // 집결 보스: 모인 사람 수
+  // 0.15.0 타이핑 보스: 몇 줄째 깨고 있는지 (팀원 화면의 '공략 중' 표시)
+  socket.on('bossline', function (m) {
+    if (!game || !game.boss || game.boss.i !== m.i) return;
+    game.boss.prog = m.line + '/' + m.total;
+    renderCell(m.i);
+  });
   socket.on('gather', function (m) {
     if (!game || !game.boss || game.boss.phase !== 'gather') return;
     game.boss.got = m.got; game.boss.need = m.need; game.boss.ids = m.ids || [];
@@ -1795,7 +1823,7 @@
       el.style.setProperty('--occ', p ? p.color : '#FFD23F');
       tag.textContent = nickOf(by) + ' 점유';
     } else if (boss && boss.phase === 'fight') {
-      tag.textContent = (boss.by === game.meId ? '내가' : nickOf(boss.by)) + ' 공략 중';
+      tag.textContent = boss.prog ? '공략 중 ' + boss.prog : (boss.by === game.meId ? '내가' : nickOf(boss.by)) + ' 공략 중';
     } else if (boss && boss.phase === 'gather') {
       tag.textContent = '잡아라 ' + (boss.got || 0) + '/' + (boss.need || 0);
     } else if (cell.solved && cell.boss) {
@@ -2103,7 +2131,7 @@
       if (game.fx.auto > now()) list.push(['Tab', '자동완성']);
     } else if (game.mode === 'boss') {
       label = '보스 공략'; cls = ' boss';
-      list = [['← →', '커서'], ['Enter', '제출'], ['Esc', '포기']];
+      list = bossBubble.typing ? [['Enter', '이 줄 제출'], ['Backspace', '틀린 글자 지우기'], ['Esc', '포기']] : [['← →', '커서'], ['Enter', '제출'], ['Esc', '포기']];
     } else {
       label = '이동';
       list = [['← ↑ → ↓ · Tab · Shift+Tab', '한 블록'], ['Home / End', '줄 처음 · 끝'], ['Ctrl + Home / End', '맵 처음 · 끝'], ['Ctrl + 방향키', '점프'], ['Enter', '블록 점유']];
@@ -2410,17 +2438,91 @@
       '<pre class="bb-code"></pre>' +
       '<div class="bb-given"></div>' +
       '<label class="bb-answer"><span>출력 결과는?</span><input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" lang="en" maxlength="200" aria-label="출력 결과"></label>' +
+      // 0.15.0 타이핑 보스: 지금 줄을 흐린 글씨로 깔고 따라 친다 (일반 블록 입력란과 같은 방식)
+      '<div class="bb-type b-field" hidden>' +
+        '<div class="b-ghost show" aria-hidden="true"><span class="g-done"></span><span class="g-bad"></span><i class="g-caret"></i><span class="g-rest"></span></div>' +
+        '<input class="b-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" lang="en" maxlength="200" aria-label="코드 입력">' +
+      '</div>' +
       '<div class="b-bar"><div></div></div>' +
       '<span class="b-hint">Enter 제출 · Esc 포기 · 한 번만 제출할 수 있어요</span>';
+    var tf = el.querySelector('.bb-type');
     return {
       el: el, title: el.querySelector('.bb-title'), kind: el.querySelector('.bb-kind'), code: el.querySelector('.bb-code'),
       given: el.querySelector('.bb-given'), answer: el.querySelector('.bb-answer'), answerInput: el.querySelector('.bb-answer input'),
-      bar: el.querySelector('.b-bar div'), tail: el.querySelector('.tail'), blankInput: null, side: 'left'
+      bar: el.querySelector('.b-bar div'), tail: el.querySelector('.tail'), hint: el.querySelector('.b-hint'), blankInput: null, side: 'left',
+      typeField: tf, typeInput: tf.querySelector('.b-input'), ghost: tf.querySelector('.b-ghost'),
+      gDone: tf.querySelector('.g-done'), gBad: tf.querySelector('.g-bad'), gCaret: tf.querySelector('.g-caret'), gRest: tf.querySelector('.g-rest'),
+      typing: null // 타이핑 보스: { lines, line, els }
     };
   })();
   guardInput(bossBubble.answerInput);
-  function bossInputs() { return [bossBubble.answerInput].concat(bossBubble.blankInput ? [bossBubble.blankInput] : []); }
-  function bossActiveInput() { return bossBubble.blankInput || bossBubble.answerInput; }
+  bossBubble.typeInput._ownTypeSound = true;
+  guardInput(bossBubble.typeInput);
+  function bossInputs() { return [bossBubble.answerInput, bossBubble.typeInput].concat(bossBubble.blankInput ? [bossBubble.blankInput] : []); }
+  function bossActiveInput() { return bossBubble.typing ? bossBubble.typeInput : (bossBubble.blankInput || bossBubble.answerInput); }
+
+  // ── 타이핑 보스 (0.15.0): 한 줄씩 깨기 ──
+  function bossTypeLine() { var t = bossBubble.typing; return t ? t.lines[t.line].replace(/^\s+/, '') : ''; }
+  function bossTypeState() {
+    if (!bossBubble.typing) return null;
+    var code = bossTypeLine();
+    return { code: code, a: TYPING.align(code, bossBubble.typeInput.value) };
+  }
+  function renderBossLines() {
+    var t = bossBubble.typing;
+    if (!t) return;
+    t.els.forEach(function (e, k) {
+      e.classList.toggle('done', k < t.line);
+      e.classList.toggle('cur', k === t.line);
+    });
+    bossBubble.kind.textContent = '한 줄씩 깨기 · ' + t.line + ' / ' + t.lines.length + '줄';
+  }
+  function updateBossGhost() {
+    var st = bossTypeState();
+    var inp = bossBubble.typeInput, done = '', bad = '', rest = '';
+    if (st) {
+      done = st.code.slice(0, st.a.pos);
+      if (st.a.bad >= 0) bad = inp.value[st.a.bad] === ' ' ? '␣' : inp.value[st.a.bad];
+      var t = game ? (game.paused ? game.pauseAt : now()) : 0;
+      rest = game && game.fx.cloud > t ? '' : st.code.slice(st.a.pos);
+    }
+    bossBubble.gDone.textContent = done;
+    bossBubble.gBad.textContent = bad;
+    bossBubble.gRest.textContent = rest;
+    bossBubble.el.classList.toggle('typo', !!bad);
+    var g = bossBubble.ghost;
+    g.scrollLeft = Math.max(0, bossBubble.gCaret.offsetLeft - g.clientWidth + 60);
+  }
+  (function () {
+    var inp = bossBubble.typeInput, repeat = false;
+    inp.addEventListener('keydown', function (e) {
+      repeat = !!e.repeat;
+      var k = e.key;
+      if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'Home' || k === 'End' || k === 'ArrowUp' || k === 'ArrowDown') { e.preventDefault(); return; }
+      if ((e.ctrlKey || e.metaKey) && (k === 'a' || k === 'A')) e.preventDefault();
+    });
+    inp.addEventListener('input', function (e) {
+      var st = bossTypeState();
+      if (st && st.a.bad >= 0 && inp.value.length > st.a.bad + 1) inp.value = inp.value.slice(0, st.a.bad + 1);
+      if (e.inputType && e.inputType.indexOf('insert') === 0 && !e.isComposing) typeSfx(st && st.a.bad >= 0 ? 'typo' : 'type');
+      var n = inp.value.length; inp.setSelectionRange(n, n);
+      updateBossGhost();
+    });
+    inp.addEventListener('beforeinput', function (e) {
+      if (!e.inputType || e.inputType.indexOf('insert') !== 0) return;
+      var st = bossTypeState();
+      if (st && st.a.bad >= 0) {
+        e.preventDefault();
+        if (!repeat) typeSfx('typo');
+        hintOnce('틀린 글자(빨간색)를 Backspace 로 지우세요');
+        var el = bossBubble.el; el.classList.remove('typo-shake'); void el.offsetWidth; el.classList.add('typo-shake');
+      }
+    });
+    ['click', 'select', 'focus', 'keyup'].forEach(function (ev) {
+      inp.addEventListener(ev, function () { var n = inp.value.length; if (inp.selectionStart !== n) inp.setSelectionRange(n, n); updateBossGhost(); });
+    });
+    bindBossKeys(inp);
+  })();
 
   function openBossBubble(res) {
     var q = res.q;
@@ -2430,7 +2532,22 @@
     bossBubble.kind.textContent = q.blank ? '빈칸 채우기' : '출력 결과 맞히기';
     bossBubble.code.innerHTML = '';
     bossBubble.blankInput = null;
-    if (q.blank) {
+    bossBubble.typing = null;
+    bossBubble.el.classList.toggle('typing', !!q.typing);
+    bossBubble.typeField.hidden = !q.typing;
+    bossBubble.typeInput.value = '';
+    bossBubble.hint.textContent = q.typing ? 'Enter 이 줄 제출 · Esc 포기 · 틀린 줄은 다시 칠 수 있어요' : 'Enter 제출 · Esc 포기 · 한 번만 제출할 수 있어요';
+    if (q.typing) {
+      // 타이핑 보스: 완성된 코드를 줄마다 보여 주고, 지금 줄을 아래 입력란에서 친다
+      var els = q.lines.map(function (line) {
+        var d = el('span', 'bb-line', line);
+        bossBubble.code.appendChild(d);
+        return d;
+      });
+      bossBubble.typing = { lines: q.lines, line: q.line || 0, els: els };
+      renderBossLines();
+      updateBossGhost();
+    } else if (q.blank) {
       // 빈칸(___) 자리에 입력칸을 그대로 넣는다
       var parts = q.code.split('___');
       bossBubble.code.appendChild(document.createTextNode(parts[0]));
@@ -2451,8 +2568,8 @@
       bossBubble.code.textContent = q.code;
     }
     bossBubble.given.textContent = q.input != null ? '입력: ' + q.input : '';
-    bossBubble.given.hidden = q.input == null;
-    bossBubble.answer.hidden = q.blank;
+    bossBubble.given.hidden = q.input == null || !!q.typing;
+    bossBubble.answer.hidden = q.blank || !!q.typing;
     bossBubble.answerInput.value = '';
     bossBubble.el.hidden = false;
     $('toast').className = 'toast'; // '보스 등장' 알림이 말풍선을 가리지 않게
@@ -2466,6 +2583,7 @@
 
   function closeBossBubble() {
     bossBubble.el.hidden = true;
+    bossBubble.typing = null;
     bossInputs().forEach(function (x) { x.blur(); });
     if (game && game.mode === 'boss') { game.mode = 'move'; renderKeys(); renderMembers(); }
   }
@@ -2495,12 +2613,28 @@
   function bossSubmit() {
     if (!game || game.mode !== 'boss' || game.pending) return;
     var text = bossActiveInput().value;
-    if (!text.trim()) { hintOnce('답을 입력하세요'); return; }
+    if (!text.trim()) { hintOnce(bossBubble.typing ? '보이는 코드를 그대로 치세요' : '답을 입력하세요'); return; }
     game.pending = true;
+    var typing = bossBubble.typing;
     socket.emit('boss:submit', { text: text }, function (res) {
       if (!game) return;
       game.pending = false;
       if (res && (res.why === 'frozen' || res.why === 'paused')) return;
+      if (typing && res && res.ok && (res.more || res.retry)) {
+        // 타이핑 보스: 이 줄을 깼으면 다음 줄, 틀렸으면 그 줄 다시
+        if (res.more) {
+          typing.line = res.line;
+          bossBubble.typeInput.value = '';
+          sfx('correct');
+        } else {
+          sfx('wrong');
+          hintOnce('아직 이 줄이 덜 쳐졌어요 — 끝까지 똑같이 치세요');
+          var e2 = bossBubble.el; e2.classList.remove('typo-shake'); void e2.offsetWidth; e2.classList.add('typo-shake');
+        }
+        renderBossLines();
+        updateBossGhost();
+        return;
+      }
       closeBossBubble();
     });
   }

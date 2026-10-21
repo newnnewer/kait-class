@@ -70,4 +70,14 @@ function isBossCorrect(boss, input) {
   return boss.code.includes('___') ? isCorrect(input, boss.answers) : isCorrectOutput(input, boss.answers);
 }
 
-module.exports = { tokenize, isCorrect, isCorrectOutput, isBossCorrect };
+/**
+ * 0.15.0 타이핑 보스: 보스 문제의 완성된 코드를 줄 목록으로.
+ *   빈칸(___)은 첫 번째 정답으로 채우고, 빈 줄은 뺀다 (들여쓰기는 화면에 보여 주되 채점에서는 무시).
+ */
+function typingLines(boss) {
+  let code = String(boss.code || '');
+  if (code.includes('___')) code = code.split('___').join(String((boss.answers || [])[0] || ''));
+  return code.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim());
+}
+
+module.exports = { tokenize, isCorrect, isCorrectOutput, isBossCorrect, typingLines };

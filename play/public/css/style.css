@@ -370,6 +370,15 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
   font-family: var(--mono); font-size: 20px; font-weight: 700; color: #1A0B33; outline: none; font-variant-ligatures: none;
 }
 .boss-bubble .b-bar div { background: #8B3DFF; }
+/* 0.15.0 타이핑 보스: 줄마다 — 깬 줄은 흐리게 + 체크, 지금 줄은 노란 띠 */
+.boss-bubble.typing .bb-code { display: flex; flex-direction: column; }
+.bb-line { display: block; padding: 0 6px; margin: 0 -6px; border-radius: 6px; white-space: pre; }
+.bb-line.done { color: #9A8BB8; text-decoration: line-through; text-decoration-color: rgba(139,61,255,.5); }
+.bb-line.cur { background: #FFF1A8; box-shadow: inset 4px 0 0 #8B3DFF; }
+.boss-bubble .bb-type .b-input { background: #FFF6CC; border-bottom-color: #8B3DFF; }
+.boss-bubble.typo .bb-type .b-input { background: #FFE3E3; }
+.boss-bubble.typo .g-caret { background: #E5484D; }
+.boss-bubble.typo-shake .bb-type { animation: typoShake .25s ease-out; }
 
 /* 아이템 알림 */
 .banner {
@@ -971,3 +980,12 @@ button.me-chip:hover { border-color: #4B58A8; }
 .wteam.mine .wt-head { background: var(--tc); border-radius: 10px; padding: 4px 10px; }
 .wteam.mine .wt-head b { color: #fff; filter: none; text-shadow: 0 2px 0 rgba(0,0,0,.25); }
 .wteam.mine .wt-head b::before { content: '★ '; color: var(--yellow); }
+
+/* 0.15.0 둘 중 하나 고르는 스위치 (보스 방식: 문제 풀이 / 타이핑) — 다른 선택 버튼과 같은 테두리 · 높이(42px) · 둥글기, 고른 쪽만 채움 */
+.seg-switch { display: inline-flex; align-self: flex-start; box-sizing: border-box; height: 42px; gap: 2px; padding: 2px; border: 2px solid var(--line); border-radius: 10px; background: var(--panel-deep); }
+.seg-switch .ss-opt {
+  height: 34px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent;
+  font-size: 15px; font-weight: 700; color: var(--soft); cursor: pointer; transition: background .15s, color .15s;
+}
+.seg-switch .ss-opt:disabled { cursor: default; }
+.seg-switch .ss-opt[aria-pressed="true"] { background: var(--blue); color: #062041; }

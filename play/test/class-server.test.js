@@ -118,7 +118,7 @@ test('수업 게임: 코드로 입장 → 조 선택 → 시작 → 같은 판 �
   a.s.close(); b.s.close(); t.close();
 });
 
-test('게임 중에 들어온 학생도 조를 고르면 바로 판을 받는다', async () => {
+test('게임 중에 들어온 학생은 기다리다가 교사가 팀을 정하면 바로 판을 받는다', async () => {
   const t = await teacher();
   await call(t, 'admin:login', { password: 'test-pw' });
   const made = await call(t, 'class:create', { settings: { tags: ['출력'], teams: 2, blocks: 24 } });
@@ -129,8 +129,10 @@ test('게임 중에 들어온 학생도 조를 고르면 바로 판을 받는다
   await call(t, 'class:start', {});
   const late = await student();
   await call(late.s, 'class:join', { code });
+  const no = await call(late.s, 'class:team', { no: 2 });
+  assert.strictEqual(no.ok, false, '게임 중에는 스스로 못 고름');
   const st = once(late.s, 'state');
-  await call(late.s, 'class:team', { no: 2 });
+  assert.ok((await call(t, 'class:autoassign', {})).ok); // 교사가 배정 (사람이 적은 팀부터 → 2팀)
   const g = await st;
   assert.ok(TEAMS_LIST.includes(g.room.name));
   assert.ok(g.endMs > 0 && g.endMs <= 600000);

@@ -92,7 +92,7 @@ class Room {
     const s = this.settings;
     const out = {
       id: this.id, name: this.name, phase: this.phase, mode: s.mode,
-      count: this.members.size, max: s.max, tags: s.tags, limitMin: s.limitMin,
+      count: this.members.size, max: s.max, tags: s.tags, limitMin: s.limitMin, bossMode: s.bossMode,
       members: [...this.members.values()].slice(0, 8).map(p => ({ kind: p.kind, color: p.color })),
       pct: this.progress(),
     };
@@ -436,6 +436,7 @@ class Room {
           bossEveryMs: s.bossEverySec * 1000,
           bossWaitMs: s.bossWaitSec * 1000,
           bossLimitMs: s.bossLimitSec * 1000,
+          bossMode: s.bossMode, bossLineMs: s.bossLineSec * 1000,
           penalty: s.penalty,
           limitMs: s.limitMin * 60000,
           idleMs: this.lobby.idleMs, idleWarnMs: this.lobby.idleWarnMs,

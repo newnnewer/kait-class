@@ -137,13 +137,17 @@ test('일시정지: 입력이 막히고 시계가 멈췄다가 멈춘 만큼 뒤
   assert.strictEqual(m.occupy(a.p).ok, true);
 });
 
-test('게임 중에 들어온 학생: 사람이 없던 조도 같은 판으로 참여 · 조를 옮기면 판도 옮긴다', () => {
+test('게임 중에 들어온 학생: 스스로 못 고르고 교사가 배정 → 사람이 없던 조도 같은 판으로 참여 · 조를 옮기면 판도 옮긴다', () => {
   const { c, hub, code, student, stopTimers } = setup();
   const a = student(), late = student();
   hub.join(a.p, a.sock, code); c.pickTeam(a.p, 1);
   c.begin(); stopTimers();
   hub.join(late.p, late.sock, code);
-  c.pickTeam(late.p, 3);
+  assert.strictEqual(c.pickTeam(late.p, 3).ok, false, '게임 중에는 학생이 고를 수 없다');
+  assert.strictEqual(c.teamOf.get(late.p.id), 0);
+  assert.strictEqual(c.pickTeam(a.p, 2).ok, false, '이미 팀에 있는 학생도 게임 중에는 못 옮긴다');
+  assert.strictEqual(c.teamOf.get(a.p.id), 1);
+  c.move(late.p.id, 3);
   stopTimers();
   const m3 = c.round.matches.get(3);
   assert.ok(m3 && m3.has(late.p));

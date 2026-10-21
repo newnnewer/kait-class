@@ -179,6 +179,8 @@ class ClassGame {
   }
 
   pickTeam(p, no) {
+    // 0.15.0: 게임 중(일시정지 포함)에는 학생이 팀을 고르거나 바꿀 수 없다 — 팀 미선택으로 기다리고 교사가 배정
+    if (this.phase !== 'waiting') return { ok: false, error: '게임 중이에요 — 선생님이 팀을 정해 주면 바로 들어가요' };
     if (this.teamLock) return { ok: false, error: '선생님이 팀 선택을 잠갔어요' };
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };

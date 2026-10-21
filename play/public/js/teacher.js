@@ -424,7 +424,7 @@
   // ── 공식전 만들기 · 열기 ──
   function defaults() {
     function d(k, v) { return OPTIONS && OPTIONS[k] && OPTIONS[k].def != null ? OPTIONS[k].def : v; }
-    return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 5), occSec: d('occSec', 20), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), penalty: true, blocks: 0 };
+    return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 5), occSec: d('occSec', 20), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), bossMode: 'quiz', bossLineSec: d('bossLineSec', 7), penalty: true, blocks: 0 };
   }
   $('btn-new-class').onclick = function () {
     var last = null;
@@ -538,6 +538,22 @@
     $('c-lim-up').disabled = lock || s.limitMin >= limMax;
     seg('c-occ', (o.occSec || {}).list || [10, 15, 20, 30], s.occSec, '초', function (x, v) { x.occSec = v; }, lock);
     seg('c-bosslimit', (o.bossLimitSec || {}).list || [20, 30, 45, 60], s.bossLimitSec, '초', function (x, v) { x.bossLimitSec = v; }, lock);
+    // 0.15.0 보스 방식: 문제 풀이 / 타이핑 — 타이핑이면 '풀이 시간' 대신 '줄마다 시간'
+    var typing = s.bossMode === 'typing';
+    var bm = $('c-bossmode');
+    bm.innerHTML = '';
+    [['quiz', '문제 풀이'], ['typing', '타이핑']].forEach(function (x) {
+      var b = el('button', 'ss-opt', x[1]);
+      b.type = 'button';
+      b.disabled = lock;
+      b.setAttribute('aria-pressed', String(x[0] === (s.bossMode || 'quiz')));
+      b.onclick = function () { changeSettings(function (y) { y.bossMode = x[0]; }); };
+      bm.appendChild(b);
+    });
+    $('c-bosshelp').textContent = typing ? '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시)' : '빈칸 채우기 · 출력 결과 맞히기 (한 번만 제출)';
+    $('c-bosslimit-field').hidden = typing;
+    $('c-bossline-field').hidden = !typing;
+    seg('c-bossline', (o.bossLineSec || {}).list || [5, 7, 10, 12], s.bossLineSec || 7, '초', function (x, v) { x.bossLineSec = v; }, lock);
     seg('c-bossevery', (o.bossEverySec || {}).list || [10, 15, 30, 60], s.bossEverySec, '초', function (x, v) { x.bossEverySec = v; }, lock);
     seg('c-bosswait', (o.bossWaitSec || {}).list || [5, 8, 12, 20], s.bossWaitSec, '초', function (x, v) { x.bossWaitSec = v; }, lock);
     var SPEED = { slow: '느림 (20초)', normal: '보통 (12초)', fast: '빠름 (7초)' };
@@ -665,14 +681,28 @@
       card.appendChild(ab);
       grid.appendChild(card);
     });
-    var un = el('div', 'card tteam unassigned');
+    // 0.15.0: 게임 중에는 학생이 팀을 못 고른다 → 기다리는 학생을 눈에 띄게 (맨 앞 카드 + 위쪽 알림 줄)
+    var waiting = playing ? cur.unassigned.filter(function (p) { return !p.bot; }) : [];
+    var un = el('div', 'card tteam unassigned' + (waiting.length ? ' hot' : ''));
     var uh = el('div', 'tt-head');
-    uh.appendChild(el('b', 'tt-name', '팀 미선택'));
+    uh.appendChild(el('b', 'tt-name', waiting.length ? '⏳ 팀을 기다리는 학생' : '팀 미선택'));
     uh.appendChild(el('span', 'muted', cur.unassigned.length + '명'));
     un.appendChild(uh);
-    if (!cur.unassigned.length) un.appendChild(el('span', 'muted small', '모두 팀을 골랐어요'));
+    if (!cur.unassigned.length) un.appendChild(el('span', 'muted small', playing ? '기다리는 학생이 없어요' : '모두 팀을 골랐어요'));
     cur.unassigned.forEach(function (p) { un.appendChild(personRow(p, 0)); });
-    grid.appendChild(un);
+    if (waiting.length) grid.insertBefore(un, grid.firstChild); else grid.appendChild(un);
+    var wa = $('c-waitalert');
+    wa.hidden = !waiting.length;
+    wa.innerHTML = '';
+    if (waiting.length) {
+      wa.appendChild(el('b', null, '⏳ 팀을 기다리는 학생 ' + waiting.length + '명'));
+      wa.appendChild(el('span', 'wa-names', waiting.map(function (p) { return p.nick; }).join(' · ')));
+      wa.appendChild(el('span', 'muted small', '게임 중에는 학생이 팀을 고를 수 없어요 — 팀을 정해 주면 바로 들어가요'));
+      var ab2 = el('button', 'btn small', '자동 배정 (사람 적은 팀부터)');
+      ab2.type = 'button';
+      ab2.onclick = function () { call('class:autoassign', {}, function (res) { if (!res.ok) toast(res.error || '배정하지 못했어요', 'warn'); }); };
+      wa.appendChild(ab2);
+    }
     $('btn-autoassign').disabled = !cur.unassigned.length;
     // v0.12.0: 팀 선택 잠그기 · 무작위로 섞기
     var lk = $('btn-teamlock');
@@ -717,7 +747,7 @@
     $('c-summary').hidden = !playing;
     var s = cur.settings;
     var BS = { slow: '느림', normal: '보통', fast: '빠름' };
-    $('c-summary').textContent = '이번 판: ' + s.tags.join(' · ') + ' · 제한 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 ' + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · 풀이 ' + s.bossLimitSec + '초) · 비트 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
+    $('c-summary').textContent = '이번 판: ' + s.tags.join(' · ') + ' · 제한 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 ' + (s.bossMode === 'typing' ? '타이핑 · ' : '') + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · ' + (s.bossMode === 'typing' ? '줄마다 ' + (s.bossLineSec || 7) : '풀이 ' + s.bossLimitSec) + '초) · 비트 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
     $('c-teams-grid').classList.toggle('wide', playing);
     renderSettings();
     renderTeams();
