@@ -8,9 +8,11 @@
 //   · 방장: 비트 넣고 빼기 · (팀 배틀) 학생을 다른 팀으로 옮기기 · 내보내기(같은 방에 다시 못 들어옴)
 //   · 10분 동안 시작하지 않으면 닫힌다 · 경기가 끝나면 결과를 보여 주고 대기실로 돌아온다 (준비는 모두 풀림)
 //   · 팀 배틀: 팀원(사람)이 모두 나간 팀은 기권 → 맨 아래 순위
+//   · 0.16.0: 팀 배틀은 게임을 고른다 — 블록 러시(TeamRound) / 플립 배틀(FlipRound: 2팀이 맵 하나, 팀마다 1~16명)
 
 const { Match } = require('../game/match');
 const { TeamRound } = require('../game/teamround');
+const { FlipRound, flipBlocks, flipShape } = require('../game/flip');
 const { recommendBlocks } = require('../game/board');
 const { makeBot, stepBot } = require('../classes/bot');
 const { rollNick } = require('../nick');
@@ -52,6 +54,7 @@ class Room {
 
   isRoom() { return true; }
   get battle() { return this.settings.mode === 'battle'; }
+  get flip() { return this.settings.game === 'flip'; }
   pubOf(p) { return { id: p.id, nick: p.nick, kind: p.kind, color: p.color, online: p.online, bot: !!p.bot }; }
   humans() { return [...this.members.values()].filter(p => !p.bot); }
   bots() { return [...this.members.values()].filter(p => p.bot); }
@@ -92,7 +95,7 @@ class Room {
     const s = this.settings;
     const out = {
       id: this.id, name: this.name, phase: this.phase, mode: s.mode,
-      count: this.members.size, max: s.max, tags: s.tags, limitMin: s.limitMin, bossMode: s.bossMode,
+      count: this.members.size, max: s.max, tags: s.tags, limitMin: s.limitMin, bossMode: s.bossMode, game: s.game || 'rush',
       members: [...this.members.values()].slice(0, 8).map(p => ({ kind: p.kind, color: p.color })),
       pct: this.progress(),
     };
@@ -136,7 +139,7 @@ class Room {
       id: this.id, name: this.name, phase: this.phase, hostId: this.hostId, mode: s.mode,
       members: [...this.members.values()].map(person),
       settings: s,
-      blocksNow: this.blocksFor(this.battle ? this.biggestTeam() : this.members.size),
+      blocksNow: this.flip ? flipShape(s.blocks || flipBlocks(this.members.size, s.limitMin)).total : this.blocksFor(this.battle ? this.biggestTeam() : this.members.size),
       closeMs: Math.max(0, this.closeAt - Date.now()),
       autoMs: this.autoAt ? Math.max(0, this.autoAt - Date.now()) : 0,
       check: this.startCheck(),
@@ -423,7 +426,9 @@ class Room {
       }
       const teams = [];
       for (let no = 1; no <= s.teams; no++) if (this.teamMembers(no).length) teams.push(no);
-      this.round = new TeamRound({ owner: this, teams, seed: randomSeed(), codes, bosses, countdownMs: cd });
+      this.round = this.flip
+        ? new FlipRound({ owner: this, seed: randomSeed(), codes, countdownMs: cd })
+        : new TeamRound({ owner: this, teams, seed: randomSeed(), codes, bosses, countdownMs: cd });
       this.round.sendStandings(true);
     } else {
       this.match = new Match({

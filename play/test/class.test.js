@@ -633,3 +633,60 @@ test('0.14.1: 교사 화면의 학생 수는 비트를 빼고 센다 (공식전 
   assert.strictEqual(x.c.teacherDetail().students, 1);
   assert.strictEqual(x.hub.list().find(c => c.code === x.code).count, 1);
 });
+
+test('0.16.0 플립 배틀 공식전: 2팀이 판 하나 · 늦게 온 학생은 교사가 넣으면 같은 판 · 전광판 · 끝내면 기록', () => {
+  const { c, hub, code, student, stopTimers, db, io } = setup({ game: 'flip', limitMin: 3, blocks: 0 });
+  assert.strictEqual(c.settings.teams, 2);
+  const a = student(), b = student(), late = student();
+  hub.join(a.p, a.sock, code); hub.join(b.p, b.sock, code);
+  c.pickTeam(a.p, 1);
+  assert.strictEqual(c.begin().ok, false, '한 팀만 있으면 시작 못 함');
+  c.pickTeam(b.p, 2);
+  assert.strictEqual(c.begin().ok, true);
+  stopTimers();
+  const m = c.round.matches.get(1);
+  assert.strictEqual(m, c.round.matches.get(2));
+  assert.strictEqual(m.board.cells.length, 40);
+  assert.strictEqual(io.last('state', a.sock.id).data.game, 'flip');
+  // 늦게 온 학생 → 교사가 2팀에
+  hub.join(late.p, late.sock, code);
+  c.move(late.p.id, 2);
+  stopTimers();
+  assert.ok(m.has(late.p));
+  assert.strictEqual(m.teamOf(late.p), 2);
+  // 교사가 1팀으로 옮김 → 같은 판에서 팀만 바뀜
+  c.move(late.p.id, 1);
+  assert.ok(m.has(late.p));
+  assert.strictEqual(m.teamOf(late.p), 1);
+  // 전광판
+  const bs = c.boardState();
+  assert.strictEqual(bs.game, 'flip');
+  assert.strictEqual(bs.map.cells.length, 40);
+  assert.strictEqual(bs.counts[0] + bs.counts[1], 40);
+  assert.strictEqual(c.teacherDetail().blocksNow, 40);
+  // 끝내기 → 결과 · 기록
+  c.stop();
+  assert.strictEqual(c.phase, 'waiting');
+  const res = c.lastResult;
+  assert.strictEqual(res.game, 'flip');
+  assert.strictEqual(res.reason, 'stop');
+  assert.ok(res.id, '기록이 저장된다');
+  assert.ok(db);
+});
+
+test('0.16.0 플립 배틀로 바꾸면 3팀 이상 학생은 빨강 · 파랑 중 적은 팀으로 · 블록 러시 팀 수는 rushTeams 에 기억', () => {
+  const { c, hub, code, student } = setup({ teams: 4 });
+  const xs = [student(), student(), student(), student(), student()];
+  xs.forEach(x => hub.join(x.p, x.sock, code));
+  c.pickTeam(xs[0].p, 1); c.pickTeam(xs[1].p, 3); c.pickTeam(xs[2].p, 4); c.pickTeam(xs[3].p, 4);
+  // xs[4] 는 팀 미선택 그대로
+  const s = cleanClass({ tags: ['출력'], teams: 4, game: 'flip', limitMin: 3 });
+  assert.strictEqual(s.rushTeams, 4);
+  assert.strictEqual(cleanClass({ tags: ['출력'], teams: 2, rushTeams: 6, game: 'flip' }).rushTeams, 6, '플립 배틀 동안 다시 보내도 기억');
+  assert.strictEqual(c.updateSettings(s).ok, true);
+  const n1 = c.teamMembers(1).length, n2 = c.teamMembers(2).length;
+  assert.strictEqual(n1 + n2, 4, '3 · 4팀 학생 셋이 빨강 · 파랑으로');
+  assert.ok(Math.abs(n1 - n2) <= 1);
+  assert.strictEqual(c.teamOf.get(xs[4].p.id), 0, '팀을 안 고른 학생은 그대로');
+  assert.ok(xs[1].sock.rooms.has(c.teamChannel(c.teamOf.get(xs[1].p.id))));
+});

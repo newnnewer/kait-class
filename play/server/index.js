@@ -51,7 +51,7 @@ router.get('/healthz', (req, res) => {
   const m = process.memoryUsage();
   let playing = 0;
   for (const r of lobby.rooms.values()) if (r.match) playing += 1;
-  for (const c of hub.classes.values()) if (c.round) playing += c.round.matches.size;
+  for (const c of hub.classes.values()) if (c.round) playing += new Set(c.round.matches.values()).size; // 플립 배틀은 두 팀이 판 하나
   res.json({
     ok: true, version: VERSION, players: players.count(), rooms: lobby.rooms.size, classes: hub.classes.size,
     matches: playing, sockets: io.engine ? io.engine.clientsCount : null,

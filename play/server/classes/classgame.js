@@ -6,8 +6,10 @@
 //   · 순위: 판을 완성한 순서 → 시간이 끝나면(또는 교사가 끝내면) 남은 팀은 해결률 순
 //   · 일시정지: 모든 팀의 입력과 모든 시계가 멈춘다
 //   · 게임 중에도 들어오거나 팀을 옮길 수 있다 (지각생)
+//   · 0.16.0: 게임 — 블록 러시(TeamRound, 팀마다 판) / 플립 배틀(FlipRound, 두 팀이 판 하나). 판과 판 사이에 바꿀 수 있다
 
 const { TeamRound } = require('../game/teamround');
+const { FlipRound, flipBlocks, flipShape, SNAP_MS } = require('../game/flip');
 const { recommendBlocks } = require('../game/board');
 const { randomSeed, makeRng, shuffle } = require('../rng');
 const { rollNick } = require('../nick');
@@ -75,7 +77,7 @@ class ClassGame {
       waiting: this.teamMembers(0).length,
       teamLock: this.teamLock,
       names: this.names,
-      settings: { tags: s.tags, limitMin: s.limitMin },
+      settings: { tags: s.tags, limitMin: s.limitMin, game: s.game || 'rush' },
       sfx: s.sfx !== false,
       remainMs: this.remainMs(),
       chat: this.chatLog,
@@ -120,7 +122,7 @@ class ClassGame {
       names: this.names,
       count: this.members.size,
       students: this.members.size - this.bots().length, // 0.14.0: 비트를 뺀 학생 수 (화면에 보이는 숫자)
-      blocksNow: s.blocks || recommendBlocks(Math.max(1, biggest)),
+      blocksNow: s.game === 'flip' ? flipShape(s.blocks || flipBlocks(this.teamMembers(1).length + this.teamMembers(2).length, s.limitMin)).total : (s.blocks || recommendBlocks(Math.max(1, biggest))),
       blocks: this.round ? this.round.blocks : null,
       remainMs: this.remainMs(),
       bots: this.bots().length, maxBots: MAX_BOTS,
@@ -269,14 +271,18 @@ class ClassGame {
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 설정을 바꿀 수 없어요' };
     this.settings = s;
     // 팀 수를 줄였으면 없어진 팀의 학생은 '팀 미선택'으로
+    //   0.16.0: 플립 배틀로 바꾼 것이면 빨강 · 파랑 중 사람이 적은 팀으로 바로 넣는다 (교실에서 바로 시작할 수 있게)
+    const moved = [];
     for (const p of this.members.values()) {
       const no = this.teamOf.get(p.id);
       if (no > s.teams) {
         const sock = this.socketOf(p);
         if (sock) sock.leave(this.teamChannel(no));
         this.teamOf.set(p.id, 0);
+        moved.push(p);
       }
     }
+    if (s.game === 'flip') for (const p of moved) this.setTeam(p, this.teamMembers(1).length <= this.teamMembers(2).length ? 1 : 2);
     this.touch();
     this.changed();
     return { ok: true };
@@ -417,11 +423,14 @@ class ClassGame {
     const teams = [];
     for (let no = 1; no <= s.teams; no++) if (this.teamMembers(no).length) teams.push(no);
     if (!teams.length) return { ok: false, error: '팀을 고른 학생이 없어요' };
+    if (s.game === 'flip' && teams.length < 2) return { ok: false, error: '플립 배틀은 두 팀 모두 학생이나 비트가 있어야 해요' };
     const seed = (opts && opts.seed != null) ? opts.seed >>> 0 : randomSeed();
     this.lastResult = null;
     this.phase = 'playing';
     const cd = this.hub.countdownMs == null ? 5000 : this.hub.countdownMs;
-    this.round = new TeamRound({ owner: this, teams, seed, codes, bosses, countdownMs: cd });
+    this.round = s.game === 'flip'
+      ? new FlipRound({ owner: this, seed, codes, countdownMs: cd })
+      : new TeamRound({ owner: this, teams, seed, codes, bosses, countdownMs: cd });
     this.touch();
     this.changed();
     this.sendStandings(true);
@@ -458,6 +467,7 @@ class ClassGame {
 
   /** 전광판에 보여 줄 모든 것 (팀마다 작은 판 · 효과 · 방패) */
   boardState() {
+    if (this.settings.game === 'flip') return this.flipBoardState();
     const r = this.round, s = this.settings, now = Date.now();
     const teams = [];
     for (let no = 1; no <= s.teams; no++) {
@@ -492,6 +502,28 @@ class ClassGame {
       history: r ? r.history : null, elapsedMs: r ? Math.round(this.elapsed()) : 0,
       names: this.names,
     };
+  }
+
+  /** 0.16.0: 플립 배틀 전광판 — 맵 하나(칸마다 팀 번호 글자, 점유 중이면 'a'·'b') · 블록 수 · 그래프 기록 */
+  flipBoardState() {
+    const r = this.round && this.round.game === 'flip' ? this.round : null, s = this.settings, now = Date.now();
+    const teams = [1, 2].map(no => ({ no, members: this.teamMembers(no).map(p => this.pubOf(p)) }));
+    const out = {
+      game: 'flip',
+      code: this.code, phase: this.phase, paused: !!(r && r.pausedAt && !r.countdownUntil), remainMs: this.remainMs(),
+      countdownMs: r && r.countdownUntil ? Math.max(0, r.countdownUntil - now) : 0,
+      limitMs: r ? r.limitMs : s.limitMin * 60000, bgm: s.bgm !== false,
+      teams, waiting: this.teamMembers(0).length, result: this.phase === 'waiting' ? this.lastResult : null,
+      history: r ? r.history : null, elapsedMs: r ? Math.round(this.elapsed()) : 0, snapMs: SNAP_MS,
+      names: this.names,
+    };
+    if (r) {
+      const m = r.match;
+      out.map = { cols: m.board.cols, rows: m.board.rows, cells: m.board.cells.map((c, i) => (m.occ.has(i) ? (c.t === 1 ? 'a' : 'b') : String(c.t))).join('') };
+      out.counts = m.counts();
+      out.players = [...m.members.values()].map(p => ({ ...this.pubOf(p), ...m.pos.get(p.id), team: m.teamOf(p) }));
+    }
+    return out;
   }
 
   sendBoard() {

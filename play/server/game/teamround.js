@@ -94,6 +94,7 @@ class TeamRound {
           bossMode: s.bossMode, bossLineMs: s.bossLineSec * 1000,
         penalty: s.penalty,
         limitMs: Math.max(1000, this.remainMs()),
+        totalMs: this.limitMs,
         idleMs: o.idleMs, idleWarnMs: o.idleWarnMs,
         external: true, noIdle: !!o.noIdle, keepEmpty: true,
         countdownMs: this.countdownUntil ? Math.max(0, this.countdownUntil - Date.now()) : 0,

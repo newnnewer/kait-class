@@ -106,7 +106,7 @@
     <section class="card lcol" id="lob-battle" aria-label="팀 배틀">
       <div class="lc-head"><h2>팀 배틀</h2><span class="muted lc-count"></span><span class="grow"></span>
         <button type="button" class="btn yellow small lc-create" data-mode="battle">＋ 방 만들기</button></div>
-      <p class="muted small lc-desc">팀을 나눠 누가 먼저 맵을 클리어하는지 겨뤄요 · 방해 아이템으로 다른 팀을 공격!</p>
+      <p class="muted small lc-desc">팀끼리 겨뤄요 · 블록 러시(먼저 맵 클리어 · 방해 아이템) / 플립 배틀(맵 하나에서 블록 뒤집기)</p>
       <label class="lc-open"><input type="checkbox" class="lc-open-cb"> 모집중인 방만 보기</label>
       <ul class="lc-rooms"></ul>
     </section>
@@ -134,6 +134,12 @@
   </header>
   <div class="create-body">
     <section class="card create-form">
+      <!-- 0.16.0: 게임 고르기 (팀 배틀만) — 블록 러시 / 플립 배틀 -->
+      <div class="field" id="cr-game-field" hidden>
+        <div class="field-head"><h2>게임</h2></div>
+        <div class="seg-switch game-switch" id="cr-game" role="group" aria-label="게임"></div>
+        <span class="muted small" id="cr-gamehelp"></span>
+      </div>
       <div class="field">
         <div class="field-head"><h2>문제 태그</h2><span class="muted">여러 개 고를 수 있어요 · 숫자는 일반·보스 문제 수</span></div>
         <div class="tag-list" id="cr-tags"></div>
@@ -144,11 +150,13 @@
         <div class="field" id="cr-ppl-field"><h3>최대 인원</h3>
           <div class="stepper"><button type="button" class="step-btn" id="cr-ppl-down" aria-label="인원 줄이기">−</button><b id="cr-ppl">4</b><button type="button" class="step-btn" id="cr-ppl-up" aria-label="인원 늘리기">+</button><span class="muted">2 ~ 16명</span></div></div>
         <div class="field" id="cr-team-field" hidden><h3>팀 수 · 팀 인원</h3>
-          <div class="stepper"><button type="button" class="step-btn" id="cr-tm-down" aria-label="팀 수 줄이기">−</button><b id="cr-tm">2팀</b><button type="button" class="step-btn" id="cr-tm-up" aria-label="팀 수 늘리기">+</button>
+          <div class="stepper"><span class="stepper" id="cr-tm-wrap"><button type="button" class="step-btn" id="cr-tm-down" aria-label="팀 수 줄이기">−</button><b id="cr-tm">2팀</b><button type="button" class="step-btn" id="cr-tm-up" aria-label="팀 수 늘리기">+</button></span>
+            <span id="cr-tm-flip" class="flip-teams" hidden><i class="ft-red"></i><span>빨강</span><i class="ft-blue"></i><span>파랑</span></span>
             <span class="muted">×</span>
             <button type="button" class="step-btn" id="cr-ts-down" aria-label="팀 인원 줄이기">−</button><b id="cr-ts">4명</b><button type="button" class="step-btn" id="cr-ts-up" aria-label="팀 인원 늘리기">+</button></div>
-          <span class="muted small">2 ~ 4팀 · 팀마다 1 ~ 8명 (1:1 도 돼요)</span></div>
-        <div class="field"><h3>게임 시간</h3>
+          <span class="muted small" id="cr-team-help">2 ~ 4팀 · 팀마다 1 ~ 8명 (1:1 도 돼요)</span></div>
+        <div class="field" id="cr-flipmin-field" hidden><h3>게임 시간</h3><div class="seg-row" id="cr-flipmin"></div></div>
+        <div class="field" id="cr-lim-field"><h3>게임 시간</h3>
           <div class="stepper"><button type="button" class="step-btn" id="cr-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="cr-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="cr-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
       </div>
       <div class="field-grid sep">
@@ -157,10 +165,10 @@
           <span class="muted small" id="cr-blkhelp"></span></div>
       </div>
       <div class="field-grid sep">
-        <div class="field"><h3>보스</h3><div class="seg-switch" id="cr-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="cr-bosshelp"></span></div>
+        <div class="field" id="cr-boss-field"><h3>보스</h3><div class="seg-switch" id="cr-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="cr-bosshelp"></span></div>
       </div>
       <div class="field-grid sep">
-        <div class="field"><h3>비트 속도</h3><div class="seg-row" id="cr-botspeed"></div><span class="muted small">대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)</span></div>
+        <div class="field"><h3>비트 속도</h3><div class="seg-row" id="cr-botspeed"></div><span class="muted small" id="cr-bothelp">대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)</span></div>
       </div>
     </section>
     <aside class="create-side">
@@ -207,7 +215,7 @@
           <span><kbd>Enter</kbd>블록 점유 · 제출</span>
           <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 블록 (→ · ← 와 같음)</span>
           <span><kbd>Ctrl + Home / End</kbd>맵 맨 처음 · 맨 끝</span>
-          <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
+          <span class="rush-only"><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
           <span><kbd>Ctrl + S</kbd>배경음 · 효과음 켜기 · 끄기</span>
           <span><kbd>Ctrl + K</kbd>타자음 · 오류음 켜기 · 끄기 (게임 중)</span>
         </div>
@@ -240,6 +248,7 @@
     <button type="button" class="linklike exit" id="btn-team-leave" title="Alt + Q 두 번">공식전 나가기 · Alt+Q</button>
     <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="pill blue">공식전</span>
+    <span class="pill game-pill" id="t-game">블록 러시</span> <!-- 0.16.0: 이번 게임 -->
     <span class="grow"></span>
     <button type="button" class="snd-btn snd-big" id="t-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">배경음 켬 · Ctrl+S</button>
     <span class="muted">코드</span>
@@ -273,7 +282,7 @@
           <span><kbd>Enter</kbd>블록 점유 · 제출</span>
           <span><kbd>Tab / Shift+Tab</kbd>오른쪽 · 왼쪽 한 블록 (→ · ← 와 같음)</span>
           <span><kbd>Ctrl + Home / End</kbd>맵 맨 처음 · 맨 끝</span>
-          <span><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
+          <span class="rush-only"><kbd>Delete / Backspace</kbd>보스 왼쪽 · 오른쪽에서 공격</span>
           <span><kbd>Ctrl + S</kbd>배경음 · 효과음 켜기 · 끄기</span>
           <span><kbd>Ctrl + K</kbd>타자음 · 오류음 켜기 · 끄기 (게임 중)</span>
         </div>
@@ -319,6 +328,14 @@
       <button type="button" class="btn small ghost-btn" id="btn-leave" tabindex="-1">나가기 · Alt+Q</button>
     </header>
 
+    <!-- 0.16.0 플립 배틀: 위쪽 가로 막대 하나 (빨강 | 파랑 블록 비율 · 앞선 팀을 밝게) -->
+    <div class="flip-bar" id="flip-bar" hidden aria-live="off">
+      <span class="fb-side fb-red"><b class="fb-name"></b><em class="fb-num">0</em></span>
+      <div class="fb-track"><i class="fb-fill fb-red-fill"></i><i class="fb-fill fb-blue-fill"></i><span class="fb-mid"></span></div>
+      <span class="fb-side fb-blue"><em class="fb-num">0</em><b class="fb-name"></b></span>
+    </div>
+    <!-- 0.16.0: 남은 시간 막대 (모든 게임) — 꽉 찬 상태에서 줄어든다 · 1분 주황 · 30초 빨강 깜빡 -->
+    <div class="time-bar" id="time-bar" role="progressbar" aria-label="남은 게임 시간" aria-valuemin="0" aria-valuemax="100"><i></i></div>
     <div class="board-wrap" id="board-wrap">
       <div class="board" id="board"></div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -359,6 +376,7 @@
     <div class="rs-stats" id="rs-stats"></div>
     <ol class="rs-teams" id="rs-teams" hidden></ol>
     <div class="rs-graph" id="rs-graph" hidden aria-label="순위 변동 그래프"></div>
+    <div class="rs-flip" id="rs-flip" hidden></div>
     <ol class="rs-players" id="rs-players"></ol>
     <button type="button" class="btn yellow go" id="btn-result-ok">대기실로</button>
   </div>
@@ -389,6 +407,7 @@
 <script src="js/shared/chat.js"></script>
 <script src="js/shared/teams.js"></script>
 <script src="js/shared/rankchart.js"></script>
+<script src="js/shared/flipchart.js"></script>
 <script src="js/avatar.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/intro.js"></script>

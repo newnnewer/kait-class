@@ -43,7 +43,7 @@
 .sb-result li { display: flex; align-items: center; gap: 16px; background: var(--panel-deep); border-radius: 12px; padding: 8px 16px; font-size: 22px; }
 .sb-result li .rk { width: 70px; font-family: var(--pixel); font-size: 20px; color: var(--muted); }
 .sb-result li.first .rk { color: var(--yellow); }
-.sb-result li b { font-family: var(--display); font-weight: 800; font-size: 28px; color: #fff; width: 80px; }
+.sb-result li b { font-family: var(--display); font-weight: 800; font-size: 28px; color: #fff; min-width: 80px; white-space: nowrap; } /* 0.16.0: 긴 팀 이름(다익스트라)이 줄바꿈되지 않게 */
 .sb-result li span { color: var(--soft); font-weight: 700; }
 
 /* 게임 중: 공격 띠 */
@@ -182,3 +182,56 @@
 .sb-chart .rc-text { fill: #fff; font-family: var(--display); font-weight: 800; }
 .sb-chart .rc-mark.r1 .rc-text { fill: #FFE68A; }
 .sb-chart .rc-dot { stroke: var(--panel); stroke-width: 3; }
+
+/* ── 0.16.0 남은 시간 막대 (모든 게임, 게임 중) ── */
+.sb-timebar { height: 16px; flex-shrink: 0; border-radius: 8px; background: var(--panel-deep); box-shadow: inset 0 0 0 2px var(--panel-line); overflow: hidden; margin-top: -8px; }
+.sb-timebar i { display: block; height: 100%; width: 100%; border-radius: 8px; background: linear-gradient(90deg, #2BD99A, #45B1F5); transition: width .25s linear, background .4s; }
+.sb-timebar.warn i { background: linear-gradient(90deg, #FF9F43, #FFC15E); }
+.sb-timebar.low i { background: linear-gradient(90deg, #FF4D6D, #FF7A8A); animation: blink .8s linear infinite; }
+.sb-timebar.paused i { animation: none; opacity: .5; }
+
+/* ── 0.16.0 플립 배틀 전광판 ── */
+.sb-pill.flip { color: #fff; background: linear-gradient(90deg, var(--flip-red) 0 50%, var(--flip-blue) 50% 100%); }
+.sb-tl.flip { border-top: 8px solid; }
+.sb-tl.flip.t1 { border-top-color: var(--flip-red); }
+.sb-tl.flip.t2 { border-top-color: var(--flip-blue); }
+.sb-tl.flip.t1 .sb-tl-head b { color: #FF8A93; }
+.sb-tl.flip.t2 .sb-tl-head b { color: #8DB8FF; }
+.sb-flip { flex-grow: 1; min-height: 0; display: flex; gap: 28px; }
+.sb-fmap-wrap { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; background: var(--panel); border: 2px solid var(--panel-line); border-radius: 24px; padding: 26px; }
+.sb-fmap { display: grid; }
+.sb-fmap i { display: block; border-radius: 6px; background: #2A3A6A; transition: background .25s; }
+.sb-fmap i.r { background: var(--flip-red); box-shadow: inset 0 -4px 0 var(--flip-red-d); }
+.sb-fmap i.b { background: var(--flip-blue); box-shadow: inset 0 -4px 0 var(--flip-blue-d); }
+.sb-fmap i.busy { outline: 3px solid #FFE36E; outline-offset: -3px; animation: flipBusy .8s ease-in-out infinite alternate; }
+.sb-fmap i.pop { animation: flipIn .45s ease-out; }
+.sb-favs { position: absolute; left: 0; top: 0; pointer-events: none; }
+.sb-favs .fav { position: absolute; left: 0; top: 0; transition: transform .45s linear; }
+.sb-favs .fav.t1 svg { filter: drop-shadow(0 0 4px #FF5A62); }
+.sb-favs .fav.t2 svg { filter: drop-shadow(0 0 4px #5A8DFF); }
+.sb-fside { width: 640px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
+.sb-fscore { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.sb-fteam { background: var(--panel); border: 3px solid var(--panel-line); border-radius: 22px; padding: 16px 20px; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: .8; transition: opacity .3s, box-shadow .3s; }
+.sb-fteam .nm { font-family: var(--display); font-weight: 800; font-size: 34px; }
+.sb-fteam .num { font-family: var(--pixel); font-style: normal; font-size: 64px; line-height: 1.15; }
+.sb-fteam .cnt { font-size: 18px; color: var(--muted); }
+.sb-fteam.t1 { border-color: var(--flip-red); } .sb-fteam.t1 .nm, .sb-fteam.t1 .num { color: #FF8A93; }
+.sb-fteam.t2 { border-color: var(--flip-blue); } .sb-fteam.t2 .nm, .sb-fteam.t2 .num { color: #8DB8FF; }
+.sb-fteam.lead { opacity: 1; }
+.sb-fteam.t1.lead { background: rgba(255,70,85,.18); box-shadow: 0 0 30px rgba(255,70,85,.5); }
+.sb-fteam.t2.lead { background: rgba(47,128,255,.18); box-shadow: 0 0 30px rgba(47,128,255,.5); }
+.sb-fbar { position: relative; height: 40px; display: flex; border-radius: 20px; overflow: hidden; background: var(--panel-deep); box-shadow: inset 0 0 0 2px rgba(0,0,0,.35); flex-shrink: 0; }
+.sb-fbar i { display: block; height: 100%; opacity: .6; transition: width .35s ease-out, opacity .3s, filter .3s; }
+.sb-fbar .r { background: var(--flip-red); }
+.sb-fbar .b { background: var(--flip-blue); }
+.sb-fbar.lead1 .r, .sb-fbar.lead2 .b { opacity: 1; filter: brightness(1.12); }
+.sb-fbar:not(.lead1):not(.lead2) i { opacity: .85; }
+.sb-fbar .mid { position: absolute; left: 50%; top: -2px; bottom: -2px; border-left: 3px dashed rgba(255,255,255,.6); }
+.sb-fchart { flex: 1; min-height: 0; background: var(--panel); border: 2px solid var(--panel-line); border-radius: 22px; padding: 16px 16px 6px; display: flex; }
+.sb-fchart svg { width: 100%; height: 100%; }
+.sb-fchart .fc-lab { font-size: 16px; }
+/* 지난 판 결과 목록 (좁은 칸): 이름이 길면 말줄임, 블록 수는 오른쪽 끝 — 겹치지 않게 */
+.sb-wait.has-chart #sb-result-list li { gap: 10px; padding: 8px 12px; }
+.sb-wait.has-chart #sb-result-list li b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sb-wait.has-chart #sb-result-list li > span:last-child { flex: none; margin-left: auto; white-space: nowrap; }
+.sb-wait.has-chart #sb-result-list li .rk { width: auto; flex: none; }

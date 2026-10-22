@@ -159,7 +159,12 @@
   }
   roomsSwitch($('home-rooms'));
 
-  var REASON = { clear: '모든 팀 클리어', time: '시간 종료', stop: '교사가 종료' };
+  var REASON = { clear: '모든 팀 클리어', time: '시간 종료', stop: '교사가 종료', forfeit: '기권' };
+  // 0.16.0: 게임 이름 · 플립 배틀 팀 색 (1 빨강 · 2 파랑)
+  var GAME_NAME = { rush: '블록 러시', flip: '플립 배틀' };
+  var GAME_HELP = { rush: '팀마다 맵을 하나씩 받아 블록을 먼저 다 깨는 팀이 이겨요', flip: '빨강 · 파랑 두 팀이 맵 하나에서 상대 색 블록을 뒤집어요 · 끝났을 때 블록이 많은 팀 승' };
+  var FLIP_COLORS = ['#FF4655', '#2F80FF'];
+  function isFlip(s) { return !!s && s.game === 'flip'; }
   // 방해 기록: 공격 · 맞음 · 막음 (없으면 빈칸)
   function atkText(a) {
     if (!a || !(a.sent || a.got || a.blocked)) return '';
@@ -174,7 +179,7 @@
       if (!res.games.length) { var e = el('div', 'empty'); e.appendChild(el('b', null, '아직 기록이 없어요')); e.appendChild(el('span', null, '공식전을 한 판 끝내면 여기에 남아요')); box.appendChild(e); return; }
       var table = el('table', 'rec-table');
       var head = el('tr');
-      ['날짜', '공식전 코드', '태그', '팀별 순위 (진행률 · 클리어 시간)', '끝난 방식'].forEach(function (h) { head.appendChild(el('th', null, h)); });
+      ['날짜', '공식전 코드', '태그', '팀별 결과 (블록 러시: 진행률 · 클리어 시간 / 플립 배틀: 블록 수)', '끝난 방식'].forEach(function (h) { head.appendChild(el('th', null, h)); });
       var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
       var tb = el('tbody');
       res.games.forEach(function (g) {
@@ -184,6 +189,19 @@
         tr.appendChild(el('td', 'mono', g.code));
         tr.appendChild(el('td', null, (g.settings.tags || []).join(' · ')));
         var td = el('td', 'rec-teams');
+        if (g.result.game === 'flip') { // 0.16.0 플립 배틀: 게임 이름 · 이긴 팀 · 블록 수
+          td.appendChild(el('span', 'rec-game flip', GAME_NAME.flip));
+          (g.result.teams || []).forEach(function (t) {
+            var chip = el('span', 'rec-chip flip t' + t.no + (t.win ? ' first' : ''));
+            chip.appendChild(el('b', null, (t.win ? '승 ' : g.result.winner ? '' : '무 ') + tl(t.no, g.result.names || [])));
+            chip.appendChild(document.createTextNode(' ' + t.blocks + '블록 · ' + t.members.length + '명' + (t.bots ? '(비트 ' + t.bots + ')' : '') + (t.out ? ' · 기권' : '')));
+            td.appendChild(chip);
+          });
+          tr.appendChild(td);
+          tr.appendChild(el('td', 'nowrap', REASON[g.reason] || g.reason));
+          tb.appendChild(tr);
+          return;
+        }
         (g.result.teams || []).forEach(function (t) {
           var chip = el('span', 'rec-chip' + (t.rank === 1 ? ' first' : ''));
           chip.appendChild(el('b', null, t.rank + '위 ' + tl(t.no, g.result.names || [])));
@@ -505,8 +523,28 @@
 
   function renderSettings() {
     var s = sets(), o = OPTIONS || {}, lock = cur.phase !== 'waiting';
+    var flip = isFlip(s);
     $('c-settings').classList.toggle('locked', lock);
     $('c-set-note').textContent = lock ? '게임 중에는 바꿀 수 없어요' : '';
+    // 0.16.0: 게임 고르기 — 블록 러시 / 플립 배틀
+    var gs = $('c-game');
+    gs.innerHTML = '';
+    ['rush', 'flip'].forEach(function (v) {
+      var b = el('button', 'ss-opt', GAME_NAME[v]);
+      b.type = 'button';
+      b.disabled = lock;
+      b.setAttribute('aria-pressed', String(v === (s.game || 'rush')));
+      b.onclick = function () { changeSettings(function (x) { setGame(x, v); }); };
+      gs.appendChild(b);
+    });
+    $('c-gamehelp').textContent = GAME_HELP[flip ? 'flip' : 'rush'];
+    [].forEach.call(document.querySelectorAll('#c-settings .rush-only'), function (x) { x.hidden = flip; });
+    $('c-teams-field').hidden = flip;
+    $('c-teams-flip').hidden = !flip;
+    $('c-lim-field').hidden = flip;
+    $('c-flipmin-field').hidden = !flip;
+    seg('c-flipmin', (o.flipMin || {}).list || [3, 4, 5], s.limitMin, '분', function (x, v) { x.limitMin = v; }, lock);
+    $('c-blk-title').textContent = flip ? '블록 수 (두 팀이 함께 쓰는 맵)' : '블록 수 (팀마다 같음)';
     var tl = $('c-tags');
     tl.innerHTML = '';
     TAG_ORDER.forEach(function (t) {
@@ -526,8 +564,8 @@
       tl.appendChild(b);
     });
     var cnt = countFor(s.tags), info = $('c-taginfo');
-    info.className = 'tag-info' + (s.tags.length && cnt.boss ? '' : ' warn');
-    info.textContent = !s.tags.length ? '태그를 하나 이상 고르세요' : '일반 ' + cnt.normal + '문제 · 보스 ' + cnt.boss + '문제 출제' + (cnt.boss ? '' : ' — 보스가 나오지 않아요');
+    info.className = 'tag-info' + (s.tags.length && (cnt.boss || flip) ? '' : ' warn');
+    info.textContent = !s.tags.length ? '태그를 하나 이상 고르세요' : flip ? '일반 ' + cnt.normal + '문제 출제 (플립 배틀은 보스가 없어요)' : '일반 ' + cnt.normal + '문제 · 보스 ' + cnt.boss + '문제 출제' + (cnt.boss ? '' : ' — 보스가 나오지 않아요');
     $('c-teams').textContent = s.teams;
     $('c-teams-down').disabled = lock || s.teams <= 2;
     $('c-teams-up').disabled = lock || s.teams >= 8;
@@ -551,8 +589,8 @@
       bm.appendChild(b);
     });
     $('c-bosshelp').textContent = typing ? '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시)' : '빈칸 채우기 · 출력 결과 맞히기 (한 번만 제출)';
-    $('c-bosslimit-field').hidden = typing;
-    $('c-bossline-field').hidden = !typing;
+    $('c-bosslimit-field').hidden = typing || flip;
+    $('c-bossline-field').hidden = !typing || flip;
     seg('c-bossline', (o.bossLineSec || {}).list || [5, 7, 10, 12], s.bossLineSec || 7, '초', function (x, v) { x.bossLineSec = v; }, lock);
     seg('c-bossevery', (o.bossEverySec || {}).list || [10, 15, 30, 60], s.bossEverySec, '초', function (x, v) { x.bossEverySec = v; }, lock);
     seg('c-bosswait', (o.bossWaitSec || {}).list || [5, 8, 12, 20], s.bossWaitSec, '초', function (x, v) { x.bossWaitSec = v; }, lock);
@@ -574,9 +612,10 @@
     $('c-auto').setAttribute('aria-pressed', String(auto));
     $('c-auto').disabled = lock;
     $('c-blk').textContent = auto ? '자동' : String(s.blocks);
-    $('c-blk-down').disabled = lock || auto || s.blocks <= 24;
-    $('c-blk-up').disabled = lock || auto || s.blocks >= 144;
-    $('c-blkhelp').textContent = cur.phase === 'playing' && cur.blocks ? '이번 판: 팀마다 ' + cur.blocks + '블록'
+    $('c-blk-down').disabled = lock || auto || s.blocks <= (flip ? 40 : 24);
+    $('c-blk-up').disabled = lock || auto || s.blocks >= (flip ? 320 : 144);
+    $('c-blkhelp').textContent = cur.phase === 'playing' && cur.blocks ? '이번 판: ' + (flip ? '' : '팀마다 ') + cur.blocks + '블록'
+      : flip ? (auto ? '지금 시작하면 ' + cur.blocksNow + '블록' : '40 ~ 320블록, 10블록씩')
       : auto ? '' : '24 ~ 144블록, 12블록씩 (' + (s.blocks / 12) + '줄)';
   }
   $('c-teams-down').onclick = function () { changeSettings(function (s) { s.teams = Math.max(2, s.teams - 1); }); };
@@ -601,9 +640,24 @@
   });
   $('c-teams-up').onclick = function () { changeSettings(function (s) { s.teams = Math.min(8, s.teams + 1); }); };
   $('c-pen').onclick = function () { changeSettings(function (s) { s.penalty = !s.penalty; }); };
-  $('c-auto').onclick = function () { changeSettings(function (s) { s.blocks = s.blocks ? 0 : (cur.blocksNow || 72); }); };
-  $('c-blk-down').onclick = function () { changeSettings(function (s) { s.blocks = Math.max(24, s.blocks - 12); }); };
-  $('c-blk-up').onclick = function () { changeSettings(function (s) { s.blocks = Math.min(144, s.blocks + 12); }); };
+  $('c-blk-down').onclick = function () { changeSettings(function (s) { s.blocks = isFlip(s) ? Math.max(40, s.blocks - 10) : Math.max(24, s.blocks - 12); }); };
+  $('c-blk-up').onclick = function () { changeSettings(function (s) { s.blocks = isFlip(s) ? Math.min(320, s.blocks + 10) : Math.min(144, s.blocks + 12); }); };
+
+  // 0.16.0: 게임 바꾸기 — 플립 배틀은 2팀 · 3 · 4 · 5분 · 블록 40 ~ 320 / 블록 러시로 돌아오면 전에 쓰던 팀 수
+  //   (3팀 이상에 있던 학생은 서버가 빨강 · 파랑 중 사람이 적은 팀으로 넣는다)
+  function setGame(x, v) {
+    if ((x.game || 'rush') === v) return;
+    if (v === 'flip') {
+      x.rushTeams = x.teams;
+      x.teams = 2;
+      if ([3, 4, 5].indexOf(x.limitMin) < 0) x.limitMin = 4;
+    } else {
+      x.teams = x.rushTeams || x.teams || 4;
+    }
+    x.blocks = 0; // 블록 수 범위가 달라서 자동으로
+    x.game = v;
+  }
+  $('c-auto').onclick = function () { changeSettings(function (s) { s.blocks = s.blocks ? 0 : (cur.blocksNow || (isFlip(s) ? 120 : 72)); }); };
 
   // ── 팀 현황 ──
   var STATE = { on: ['접속', 'ok'], off: ['연결 끊김', 'off'], wait: ['참여 대기', 'muted'], play: ['이동 중', 'ok'], typing: ['입력 중', 'hot'], boss: ['보스 공략', 'boss'], bot: ['비트 · 대기', 'muted'] };
@@ -627,7 +681,10 @@
     sel.value = String(no);
     sel.onchange = function () {
       call('class:move', { id: p.id, no: Number(sel.value) }, function (res) { if (!res.ok) toast(res.error || '옮기지 못했어요', 'warn'); });
+      sel.blur(); // 고르면 바로 놓아 준다 → 미뤄 둔 다시 그리기
     };
+    // 0.16.0: 메뉴를 연 동안에는 팀 현황을 다시 그리지 않는다 (다시 그리면 열린 메뉴가 닫혀 버렸음)
+    sel.onblur = function () { if (teamsPending) { teamsPending = false; setTimeout(renderTeams, 0); } };
     row.appendChild(sel);
     if (p.bot) {
       var rb = el('button', 'kick-btn', '빼기');
@@ -649,14 +706,26 @@
     return row;
   }
 
+  var teamsPending = false;
   function renderTeams() {
     var grid = $('c-teams-grid');
+    // 팀 옮기기 메뉴를 누르고 있는 중이면 미뤘다가 메뉴를 놓을 때 그린다 (위쪽 가로 막대는 그대로 갱신)
+    var act = document.activeElement;
+    if (act && act.classList && act.classList.contains('move-sel') && grid.contains(act)) {
+      teamsPending = true;
+      renderFlipBar(isFlip(cur.settings) && cur.phase === 'playing');
+      return;
+    }
+    teamsPending = false;
     grid.innerHTML = '';
     var byNo = {};
     standings.forEach(function (x) { byNo[x.no] = x; });
     var playing = cur.phase === 'playing';
+    var flip = isFlip(cur.settings);
+    renderFlipBar(flip && playing);
     cur.teams.forEach(function (t) {
-      var card = el('div', 'card tteam');
+      var card = el('div', 'card tteam' + (flip ? ' flip t' + t.no : ''));
+      if (flip) card.style.setProperty('--tc', FLIP_COLORS[(t.no - 1) % 2]);
       var head = el('div', 'tt-head');
       var nm = el('b', 'tt-name', tl(t.no));
       nm.title = TEAMS.desc(cur.names, t.no);
@@ -666,7 +735,7 @@
       var x = byNo[t.no];
       if (playing && x) {
         head.appendChild(el('span', 'grow'));
-        head.appendChild(el('span', 'tt-pct' + (x.rank ? ' done' : ''), x.rank ? x.rank + '위 클리어' : x.pct + '%'));
+        head.appendChild(el('span', 'tt-pct' + (x.rank ? ' done' : ''), x.game === 'flip' ? x.blocks + '블록' : x.rank ? x.rank + '위 클리어' : x.pct + '%'));
       }
       card.appendChild(head);
       if (playing && x) {
@@ -713,6 +782,26 @@
     $('btn-botclear').hidden = !cur.bots;
   }
 
+  // 0.16.0 플립 배틀 게임 중: 학생 화면과 같은 빨강 | 파랑 가로 막대 (앞선 팀 쪽 밝게)
+  function renderFlipBar(on) {
+    var bar = $('c-flipbar');
+    bar.hidden = !on;
+    if (!on) return;
+    var c = [0, 0];
+    standings.forEach(function (x) { if (x.no === 1 || x.no === 2) c[x.no - 1] = x.blocks || 0; });
+    var tot = c[0] + c[1] || 1, lead = c[0] > c[1] ? 1 : c[1] > c[0] ? 2 : 0;
+    var sides = bar.querySelectorAll('.fb-side');
+    [0, 1].forEach(function (k) {
+      sides[k].querySelector('.fb-name').textContent = TEAMS.name(cur.names, k + 1);
+      sides[k].querySelector('.fb-num').textContent = c[k];
+      sides[k].classList.toggle('lead', lead === k + 1);
+    });
+    bar.querySelector('.fb-red-fill').style.width = (c[0] / tot * 100) + '%';
+    bar.querySelector('.fb-blue-fill').style.width = (100 - c[0] / tot * 100) + '%';
+    bar.classList.toggle('lead1', lead === 1);
+    bar.classList.toggle('lead2', lead === 2);
+  }
+
   function renderClass() {
     if (!cur) return;
     var playing = cur.phase === 'playing';
@@ -747,7 +836,8 @@
     $('c-summary').hidden = !playing;
     var s = cur.settings;
     var BS = { slow: '느림', normal: '보통', fast: '빠름' };
-    $('c-summary').textContent = '이번 판: ' + s.tags.join(' · ') + ' · 제한 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 ' + (s.bossMode === 'typing' ? '타이핑 · ' : '') + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · ' + (s.bossMode === 'typing' ? '줄마다 ' + (s.bossLineSec || 7) : '풀이 ' + s.bossLimitSec) + '초) · 비트 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
+    if (isFlip(s)) $('c-summary').textContent = '이번 판: 플립 배틀 · ' + s.tags.join(' · ') + ' · 게임 시간 ' + s.limitMin + '분 · ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 비트 ' + (BS[s.botSpeed] || '보통');
+    else $('c-summary').textContent = '이번 판: 블록 러시 · ' + s.tags.join(' · ') + ' · 게임 시간 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 ' + (s.bossMode === 'typing' ? '타이핑 · ' : '') + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · ' + (s.bossMode === 'typing' ? '줄마다 ' + (s.bossLineSec || 7) : '풀이 ' + s.bossLimitSec) + '초) · 비트 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
     $('c-teams-grid').classList.toggle('wide', playing);
     renderSettings();
     renderTeams();
@@ -870,6 +960,8 @@
   socket.on('class:result', function (r) {
     if (!cur || r.code !== cur.code) return;
     lastShown = r.endedAt;
+    $('tr-flip').hidden = true;
+    if (r.game === 'flip') { showFlipResult(r); return; }
     $('tr-kind').textContent = (REASON[r.reason] || '게임 끝') + ' · ' + mmss(r.ms) + ' · 팀마다 ' + r.blocks + '블록';
     $('tr-title').textContent = r.teams.length ? r.teams.filter(function (t) { return t.rank === 1; }).map(function (t) { return tl(t.no, r.names || []); }).join(' · ') + ' 1위!' : '게임 끝';
     var ol = $('tr-teams');
@@ -885,6 +977,32 @@
     setTimeout(function () { $('btn-tr-ok').focus(); }, 50);
   });
   $('btn-tr-ok').onclick = function () { $('t-result').hidden = true; };
+
+  // 0.16.0 플립 배틀 결과 — 이긴 팀(무승부) · 두 팀 블록 수 · 블록 수 변화 그래프
+  function showFlipResult(r) {
+    var names = r.names || [];
+    $('tr-kind').textContent = '플립 배틀 · ' + (REASON[r.reason] || '게임 끝') + ' · ' + mmss(r.ms) + ' · ' + r.blocks + '블록';
+    $('tr-title').textContent = r.winner ? TEAMS.name(names, r.winner) + ' 승리!' : '무승부!';
+    var ol = $('tr-teams');
+    ol.innerHTML = '';
+    [1, 2].forEach(function (no) {
+      var t = r.teams.filter(function (x) { return x.no === no; })[0];
+      if (!t) return;
+      var li = el('li', 'flip t' + no + (t.win ? ' win' : ''));
+      li.appendChild(el('span', 'rt-rank', t.win ? '승' : r.winner ? '패' : '무'));
+      var nb = el('b', null, TEAMS.name(names, no));
+      nb.style.color = FLIP_COLORS[no - 1];
+      li.appendChild(nb);
+      li.appendChild(el('em', null, t.blocks + '블록 · ' + t.members.length + '명' + (t.bots ? '(비트 ' + t.bots + ')' : '') + (t.out ? ' · 기권' : '')));
+      ol.appendChild(li);
+    });
+    var fc = $('tr-flip');
+    fc.innerHTML = '';
+    if (window.CGFlipChart && r.history && r.history.length) fc.appendChild(window.CGFlipChart.svg(r.history, { totalMs: r.limitMs, slotMs: r.snapMs, width: 460, height: 150, labels: true }));
+    fc.hidden = !fc.firstChild;
+    $('t-result').hidden = false;
+    setTimeout(function () { $('btn-tr-ok').focus(); }, 50);
+  }
 
   // ── 인트로 (v0.13.0): 페이지를 열 때마다 (새로고침 포함). 교사 화면은 배경음 없이 키를 누를 때 효과음만 ──
   if (window.CGIntro) {

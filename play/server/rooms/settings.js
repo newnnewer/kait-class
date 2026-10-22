@@ -2,6 +2,7 @@
 // 자유 플레이(레이드 · 팀 배틀) · 공식전 설정 — 고를 수 있는 값과 기본값. 브라우저에서 온 값은 여기서 다시 검사한다.
 
 const { TAGS } = require('../problems/parser');
+const { FLIP } = require('../game/flip');
 
 const OPTIONS = {
   max: { min: 2, max: 16, def: 4 },
@@ -17,6 +18,10 @@ const OPTIONS = {
   roomTeams: { min: 2, max: 4, def: 2 },                   // 학생 팀 배틀: 팀 수 (v0.13.0)
   teamSize: { min: 1, max: 8, def: 4 },                    // 학생 팀 배틀: 팀마다 인원 (v0.13.0)
   botSpeed: { list: ['slow', 'normal', 'fast'], def: 'normal' }, // 비트 속도 (자유 플레이 · 공식전)
+  game: { list: ['rush', 'flip'], def: 'rush' },           // 0.16.0: 게임 — 블록 러시 / 플립 배틀 (레이드는 늘 블록 러시)
+  flipMin: { list: FLIP.times, def: FLIP.defMin },         // 0.16.0: 플립 배틀 게임 시간(분) — 3 · 4 · 5
+  flipBlocks: { min: FLIP.minBlocks, max: FLIP.maxBlocks, step: 10 }, // 0.16.0: 플립 배틀 블록 수 (0 = 자동)
+  flipTeamSize: { min: 1, max: 16, def: 8 },               // 0.16.0: 플립 배틀 팀 배틀 — 팀마다 인원 (팀은 늘 2)
 };
 
 function pickList(v, o) { v = Number(v); return o.list.includes(v) ? v : o.def; }
@@ -59,14 +64,30 @@ function clean(raw) {
     blocks,
     botSpeed: OPTIONS.botSpeed.list.includes(raw.botSpeed) ? raw.botSpeed : OPTIONS.botSpeed.def, // 비트 속도 (자유 플레이 v0.6.4 · 공식전)
   };
+  out.game = 'rush';
   if (mode === 'battle') {
     out.teams = pickRange(raw.teams, OPTIONS.roomTeams);
     out.teamSize = pickRange(raw.teamSize, OPTIONS.teamSize);
-    out.max = out.teams * out.teamSize;
     out.attacks = true; // 팀 배틀은 방해 아이템이 늘 나온다
+    if (raw.game === 'flip') {
+      flipify(out, raw);
+      out.teamSize = pickRange(raw.teamSize, OPTIONS.flipTeamSize);
+    }
+    out.max = out.teams * out.teamSize;
   } else {
-    out.max = pickRange(raw.max, OPTIONS.max);
+    out.max = pickRange(raw.max, OPTIONS.max); // 레이드는 늘 블록 러시
   }
+  return out;
+}
+
+/** 0.16.0: 플립 배틀 설정으로 — 2팀 · 게임 시간 3 · 4 · 5분 · 블록 수 40 ~ 320(10 단위, 0 = 자동) · 보스 · 아이템 없음 */
+function flipify(out, raw) {
+  out.game = 'flip';
+  out.teams = 2;
+  out.limitMin = pickList(raw.limitMin, OPTIONS.flipMin);
+  let b = Math.round(Number(raw.blocks) / 10) * 10;
+  out.blocks = Number.isFinite(b) && b > 0 ? Math.max(OPTIONS.flipBlocks.min, Math.min(OPTIONS.flipBlocks.max, b)) : 0;
+  out.attacks = false;
   return out;
 }
 
@@ -79,8 +100,14 @@ function cleanClass(raw) {
   let teams = Math.round(Number(raw.teams));
   if (!Number.isFinite(teams)) teams = OPTIONS.teams.def;
   c.teams = Math.max(OPTIONS.teams.min, Math.min(OPTIONS.teams.max, teams));
+  if (raw.game === 'flip') {
+    // 블록 러시로 돌아갈 때 쓸 팀 수 — 화면이 보낸 rushTeams(플립 배틀 동안 계속 들고 다님), 없으면 바꾸기 전 teams
+    const rt = Math.round(Number(raw.rushTeams));
+    c.rushTeams = Number.isFinite(rt) && rt >= OPTIONS.teams.min ? Math.min(OPTIONS.teams.max, rt) : c.teams;
+    flipify(c, raw);
+  } // 0.16.0: 플립 배틀 — 팀 2개 고정 (교사 화면은 팀 수를 숨김). 블록 러시로 돌아갈 때 쓸 팀 수는 rushTeams 에 기억
   // 0.14.0: 교사 화면의 스위치를 없앰 — 방해 아이템 · 학생 효과음 · 전광판 배경음은 늘 켬
-  c.attacks = true;
+  c.attacks = c.game !== 'flip';
   c.sfx = true;
   c.bgm = true;
   return c;

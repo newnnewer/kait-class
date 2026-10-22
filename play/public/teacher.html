@@ -191,30 +191,38 @@ for i in range(3):
   <div class="tclass-body">
     <section class="card t-settings" id="c-settings">
       <div class="field-head"><h2>게임 설정</h2><span class="muted small" id="c-set-note"></span></div>
+      <!-- 0.16.0: 게임 — 블록 러시 / 플립 배틀 (판과 판 사이에 바꿀 수 있음) -->
+      <div class="field"><h3>게임</h3>
+        <div class="seg-switch game-switch" id="c-game" role="group" aria-label="게임"></div>
+        <span class="muted small" id="c-gamehelp"></span></div>
+      <div class="field-sep" aria-hidden="true"></div>
       <div class="field">
         <h3>출제 태그 <small class="muted">숫자는 일반·보스 문제 수</small></h3>
         <div class="tag-list" id="c-tags"></div>
         <span class="tag-info" id="c-taginfo"></span>
       </div>
-      <div class="field"><h3>팀 수</h3>
+      <div class="field" id="c-teams-flip" hidden><h3>팀</h3>
+        <div class="flip-teams"><i class="ft-red"></i><span>빨강</span><i class="ft-blue"></i><span>파랑</span><span class="muted">(2팀)</span></div></div>
+      <div class="field" id="c-teams-field"><h3>팀 수</h3>
         <div class="stepper"><button type="button" class="step-btn" id="c-teams-down" aria-label="팀 줄이기">−</button><b id="c-teams">4</b><button type="button" class="step-btn" id="c-teams-up" aria-label="팀 늘리기">+</button><span class="muted">2 ~ 8팀</span></div></div>
-      <div class="field"><h3>게임 시간</h3>
+      <div class="field" id="c-flipmin-field" hidden><h3>게임 시간</h3><div class="seg-row" id="c-flipmin"></div></div>
+      <div class="field" id="c-lim-field"><h3>게임 시간</h3>
         <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>블록 수 (팀마다 같음)</h3>
+      <div class="field"><h3 id="c-blk-title">블록 수 (팀마다 같음)</h3>
         <div class="stepper"><button type="button" class="seg-btn" id="c-auto" aria-pressed="true">자동</button><button type="button" class="step-btn" id="c-blk-down" aria-label="블록 줄이기">−</button><b id="c-blk">자동</b><button type="button" class="step-btn" id="c-blk-up" aria-label="블록 늘리기">+</button></div>
         <span class="muted small" id="c-blkhelp"></span></div>
       <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="c-occ"></div></div>
-      <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>보스 방식</h3><div class="seg-switch" id="c-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="c-bosshelp"></span></div>
-      <div class="field"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div></div>
-      <div class="field"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div></div>
-      <div class="field" id="c-bosslimit-field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
-      <div class="field" id="c-bossline-field" hidden><h3>타이핑 시간 (줄마다)</h3><div class="seg-row" id="c-bossline"></div><span class="muted small">5초 + 줄 수 × 이 시간</span></div>
+      <div class="field-sep rush-only" aria-hidden="true"></div>
+      <div class="field rush-only"><h3>보스 방식</h3><div class="seg-switch" id="c-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="c-bosshelp"></span></div>
+      <div class="field rush-only"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div></div>
+      <div class="field rush-only"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div></div>
+      <div class="field rush-only" id="c-bosslimit-field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
+      <div class="field rush-only" id="c-bossline-field" hidden><h3>타이핑 시간 (줄마다)</h3><div class="seg-row" id="c-bossline"></div><span class="muted small">5초 + 줄 수 × 이 시간</span></div>
       <div class="field-sep" aria-hidden="true"></div>
       <div class="field"><h3>비트 속도</h3><div class="seg-row" id="c-botspeed"></div></div>
-      <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>페널티 아이템</h3>
+      <div class="field-sep rush-only" aria-hidden="true"></div>
+      <div class="field rush-only"><h3>페널티 아이템</h3>
         <div class="row"><button type="button" class="toggle" id="c-pen" aria-pressed="true" aria-label="페널티 아이템"><span></span></button><span class="muted" id="c-pentext"></span></div></div>
       <p class="error" id="c-set-error" role="alert"></p>
     </section>
@@ -231,6 +239,12 @@ for i in range(3):
         <button type="button" class="btn small ghost-btn" id="btn-botclear" hidden>비트 모두 빼기</button>
       </div>
       <div class="wait-alert" id="c-waitalert" role="status" hidden></div>
+      <!-- 0.16.0 플립 배틀 게임 중: 학생 화면과 같은 빨강 | 파랑 가로 막대 -->
+      <div class="flip-bar" id="c-flipbar" hidden>
+        <span class="fb-side fb-red"><b class="fb-name"></b><em class="fb-num">0</em></span>
+        <div class="fb-track"><i class="fb-fill fb-red-fill"></i><i class="fb-fill fb-blue-fill"></i><span class="fb-mid"></span></div>
+        <span class="fb-side fb-blue"><em class="fb-num">0</em><b class="fb-name"></b></span>
+      </div>
       <div class="t-teams" id="c-teams-grid"></div>
       <p class="error" id="c-error" role="alert"></p>
     </section>
@@ -259,6 +273,7 @@ for i in range(3):
     <span class="rs-kind" id="tr-kind">결과</span>
     <b class="rs-title" id="tr-title">순위</b>
     <ol class="rs-teams" id="tr-teams"></ol>
+    <div class="rs-flip" id="tr-flip" hidden></div>
     <button type="button" class="btn yellow go" id="btn-tr-ok">확인</button>
   </div>
 </div>
@@ -274,6 +289,7 @@ for i in range(3):
 <script src="js/sound.js"></script>
 <script src="js/intro.js"></script>
 <script src="js/shared/teams.js"></script>
+<script src="js/shared/flipchart.js"></script>
 <script src="js/teacher.js"></script>
 </body>
 </html>

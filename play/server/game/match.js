@@ -48,6 +48,7 @@ class Match {
     this.bossLineMs = s.bossLineMs || 7000;
     this.penalty = s.penalty !== false;
     this.limitMs = s.limitMs || 10 * 60000;
+    this.totalMs = s.totalMs || this.limitMs; // 0.16.0: 한 판 전체 게임 시간 (화면의 시간 막대 — 늦게 들어온 판은 limitMs 가 남은 시간)
     this.idleMs = s.idleMs || IDLE_MS;
     this.idleWarnMs = s.idleWarnMs || IDLE_WARN_MS;
     this.external = !!s.external;
@@ -139,7 +140,7 @@ class Match {
       deck: forId ? this.deckMsg(forId) : null,
       incoming: this.incoming.filter(x => !x.done).map(x => this.incomingMsg(x)),
       limits: { occ: this.occLimitMs, boss: this.bossLimitMs, bossWait: this.bossWaitMs }, bossMode: this.bossMode,
-      endMs: this.msLeft(this.endAt),
+      endMs: this.msLeft(this.endAt), totalMs: this.totalMs,
       idle: this.idleWarn ? { ms: this.msLeft(this.lastInput + this.idleMs + this.idleWarnMs) } : null,
       paused: !!this.pausedAt && !this.countdownUntil,
       countdownMs: this.countdownUntil ? Math.max(0, this.countdownUntil - Date.now()) : 0,

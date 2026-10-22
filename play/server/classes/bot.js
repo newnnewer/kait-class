@@ -83,4 +83,60 @@ function stepBot(bot, m, speed, taken) {
   b.nextAt = now + STEP_MS + Math.random() * 120;
 }
 
-module.exports = { makeBot, stepBot, SPEED_MS };
+/**
+ * 플립 배틀 (0.16.0): 가까운 상대 색 블록으로 걸어가 점유 → 잠시 '타이핑' → 제출 (가끔 틀림).
+ * 코드는 점유할 때마다 새로 받으므로 m.occ 에서 읽는다. taken: 다른 비트가 노리는 블록
+ */
+function stepFlipBot(bot, m, speed, taken) {
+  const b = bot.brain;
+  const now = Date.now();
+  if (m.ended || m.pausedAt || now < b.nextAt) return;
+  const team = m.teamOf(bot);
+  if (!team) return;
+  const per = SPEED_MS[speed] || SPEED_MS.normal;
+  const cols = m.board.cols;
+  const cells = m.board.cells;
+
+  const mine = m.occBy.get(bot.id);
+  if (mine !== undefined) {
+    if (b.occ !== mine) { b.occ = mine; b.submitAt = now + per * (0.55 + Math.random() * 0.3); }
+    if (now < b.submitAt) return;
+    const code = m.occ.get(mine).code;
+    m.submit(bot, Math.random() < WRONG_RATE ? code + ' x' : code);
+    b.occ = -1; b.target = -1;
+    b.nextAt = now + 400 + Math.random() * 600;
+    return;
+  }
+  b.occ = -1;
+
+  const pos = m.pos.get(bot.id);
+  if (!pos) return;
+  const here = pos.r * cols + pos.c;
+  const free = i => i >= 0 && cells[i] && cells[i].t !== team && !m.occ.has(i) && m.banned.get(bot.id) !== i;
+
+  if (!free(b.target)) {
+    const list = [];
+    cells.forEach((c, i) => {
+      if (!free(i) || taken.has(i)) return;
+      const d = Math.abs(Math.floor(i / cols) - pos.r) + Math.abs((i % cols) - pos.c);
+      list.push({ i, d });
+    });
+    if (!list.length) { b.nextAt = now + 1000; return; }
+    list.sort((x, y) => x.d - y.d);
+    b.target = list[Math.floor(Math.random() * Math.min(3, list.length))].i;
+  }
+  taken.add(b.target);
+
+  if (here === b.target) {
+    const r = m.occupy(bot);
+    if (!r.ok) b.target = -1;
+    b.nextAt = now + 300;
+    return;
+  }
+  const tr = Math.floor(b.target / cols), tc = b.target % cols;
+  const dir = tr !== pos.r ? (tr > pos.r ? 'D' : 'U') : (tc > pos.c ? 'R' : 'L');
+  m.move(bot, { dir, seq: -1 });
+  b.nextAt = now + STEP_MS + Math.random() * 120;
+}
+
+module.exports = { makeBot, stepBot, stepFlipBot, SPEED_MS };

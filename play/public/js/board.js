@@ -125,6 +125,14 @@
     var at = $('sb-attacks');
     at.textContent = '방해 아이템 ' + (b.attacks ? 'ON' : 'OFF');
     at.classList.toggle('off', !b.attacks);
+    // 0.16.0: 게임 이름 · 플립 배틀은 방해 아이템 · 보기 바꾸기 · 전장 소식 없음
+    var flip = b.game === 'flip';
+    $('sb-pill').textContent = flip ? '플립 배틀' : '블록 러시';
+    $('sb-pill').classList.toggle('flip', flip);
+    document.body.classList.toggle('flip', flip);
+    at.hidden = flip;
+    $('sb-view').hidden = flip;
+    document.querySelector('.sb-feed').hidden = flip;
     $('sb-paused').hidden = !b.paused;
     var playing = b.phase === 'playing';
     $('sb-wait').hidden = playing;
@@ -140,7 +148,7 @@
     var list = $('sb-teamlist');
     list.innerHTML = '';
     b.teams.forEach(function (t) {
-      var c = el('div', 'sb-tl');
+      var c = el('div', 'sb-tl' + (b.game === 'flip' ? ' flip t' + t.no : ''));
       var h = el('div', 'sb-tl-head');
       h.appendChild(el('b', null, tl(t.no)));
       var nb = t.members.filter(function (p) { return p.bot; }).length;
@@ -154,6 +162,7 @@
     list.style.gridTemplateColumns = 'repeat(' + (b.teams.length > 4 ? 2 : Math.min(2, b.teams.length)) + ', minmax(0, 1fr))';
     var r = b.result;
     $('sb-result').hidden = !r;
+    if (r && r.game === 'flip') { renderFlipResult(r); return; }
     // v0.12.0: 끝난 판의 순위 변동 그래프 (기록이 있을 때만)
     var withChart = !!(r && r.history && r.history.length > 1);
     $('sb-wait').classList.toggle('has-chart', withChart);
@@ -295,6 +304,11 @@
   var cards = {}; // 팀 번호 → { el, mini, cells }
   function renderPlay(b) {
     $('sb-time-label').textContent = '남은 시간';
+    var flip = b.game === 'flip';
+    $('sb-flip').hidden = !flip;
+    $('sb-band').hidden = flip;
+    if (flip) { $('sb-grid').hidden = true; $('sb-rankview').hidden = true; renderFlipPlay(b); return; }
+    $('sb-band').hidden = false;
     var teams = b.teams.filter(function (t) { return t.cells; });
     teams.sort(function (a, c) {
       if (a.rank && c.rank) return a.rank - c.rank;
@@ -394,6 +408,96 @@
     });
   }
 
+  // ── 0.16.0 플립 배틀 ──
+  var FLIP_COLORS = ['#FF4655', '#2F80FF'];
+  var fmap = { n: 0, cells: '', avs: {} };
+  function renderFlipPlay(b) {
+    var m = b.map;
+    if (!m) return;
+    var box = $('sb-fmap'), wrap = $('sb-fmap-wrap');
+    if (fmap.n !== m.cells.length || fmap.cols !== m.cols) {
+      box.innerHTML = '';
+      for (var i = 0; i < m.cells.length; i++) box.appendChild(document.createElement('i'));
+      fmap.n = m.cells.length; fmap.cols = m.cols; fmap.rows = m.rows; fmap.cells = '';
+      $('sb-favs').innerHTML = ''; fmap.avs = {};
+    }
+    // 칸 크기: 맵 자리에 꼭 맞게 (정사각형)
+    var g = m.cols > 16 ? 5 : 7;
+    var W = wrap.clientWidth, H = wrap.clientHeight;
+    var cs = Math.max(8, Math.floor(Math.min((W - (m.cols - 1) * g) / m.cols, (H - (m.rows - 1) * g) / m.rows)));
+    box.style.gridTemplateColumns = 'repeat(' + m.cols + ', ' + cs + 'px)';
+    box.style.gridAutoRows = cs + 'px';
+    box.style.gap = g + 'px';
+    var CLS = { '1': 'r', '2': 'b', a: 'r busy', b: 'b busy' };
+    for (var j = 0; j < m.cells.length; j++) {
+      var ch = m.cells[j];
+      if (fmap.cells[j] !== ch) {
+        var before = fmap.cells[j];
+        box.children[j].className = CLS[ch] || '';
+        // 색이 바뀐 칸은 한 번 튀게
+        if (before && (before === '1' || before === 'a') !== (ch === '1' || ch === 'a')) { void box.children[j].offsetWidth; box.children[j].classList.add('pop'); }
+      }
+    }
+    fmap.cells = m.cells;
+    // 캐릭터 (맵 위에 작게, 팀 색 빛)
+    var layer = $('sb-favs'), ox = box.offsetLeft, oy = box.offsetTop, seen = {};
+    (b.players || []).forEach(function (p) {
+      if (p.r == null) return;
+      seen[p.id] = 1;
+      var a = fmap.avs[p.id];
+      if (!a) { a = fmap.avs[p.id] = av(p); a.classList.add('fav', 't' + (p.team || 0)); layer.appendChild(a); }
+      var sz = Math.round(cs * 0.62);
+      a.style.width = sz + 'px'; a.style.height = sz + 'px';
+      a.style.transform = 'translate(' + (ox + p.c * (cs + g) + (cs - sz) / 2) + 'px,' + (oy + p.r * (cs + g) - sz * 0.35) + 'px)';
+    });
+    Object.keys(fmap.avs).forEach(function (id) { if (!seen[id]) { fmap.avs[id].remove(); delete fmap.avs[id]; } });
+    // 블록 수 · 막대
+    var c = b.counts || [0, 0], tot = c[0] + c[1] || 1, lead = c[0] > c[1] ? 1 : c[1] > c[0] ? 2 : 0;
+    [1, 2].forEach(function (no) {
+      var e = document.querySelector('.sb-fteam.t' + no);
+      e.querySelector('.nm').textContent = tl(no).replace(/ 팀$/, '');
+      e.querySelector('.num').textContent = c[no - 1];
+      var t = b.teams.filter(function (x) { return x.no === no; })[0];
+      e.querySelector('.cnt').textContent = (t ? t.members.length : 0) + '명';
+      e.classList.toggle('lead', lead === no);
+    });
+    var bar = $('sb-fbar');
+    bar.querySelector('.r').style.width = (c[0] / tot * 100) + '%';
+    bar.querySelector('.b').style.width = (100 - c[0] / tot * 100) + '%';
+    bar.classList.toggle('lead1', lead === 1);
+    bar.classList.toggle('lead2', lead === 2);
+    // 그래프: 5초마다 기록 + 지금 막대(깜빡). 다시 그려도 깜빡임 박자가 끊기지 않게 시계에 맞춘다
+    var hist = (b.history || []).concat([{ t: b.elapsedMs || 0, c: c }]);
+    var fc = $('sb-fchart');
+    fc.innerHTML = '';
+    if (window.CGFlipChart) fc.appendChild(window.CGFlipChart.svg(hist, { totalMs: b.limitMs, slotMs: b.snapMs, width: 600, height: 360, live: !b.paused, labels: true }));
+    var now = fc.querySelector('.fc-now.live');
+    if (now) now.style.animationDelay = -(Date.now() % 1000) + 'ms';
+  }
+
+  // 지난 판 결과 (플립 배틀): 승 · 패 · 무 + 블록 수 + 그래프
+  function renderFlipResult(r) {
+    $('sb-result-title').textContent = '지난 판 결과 · 플립 배틀';
+    var ol = $('sb-result-list');
+    ol.innerHTML = '';
+    var withChart = !!(r.history && r.history.length);
+    $('sb-wait').classList.toggle('has-chart', withChart);
+    $('sb-result-chart').hidden = !withChart;
+    [1, 2].forEach(function (no) {
+      var t = r.teams.filter(function (x) { return x.no === no; })[0];
+      if (!t) return;
+      var li = el('li', t.win ? 'first' : '');
+      li.appendChild(el('span', 'rk', t.win ? '승' : r.winner ? '패' : '무'));
+      var sw = el('i', 'sb-sw'); sw.style.background = FLIP_COLORS[no - 1]; li.appendChild(sw);
+      li.appendChild(el('b', null, tl(no, r.names).replace(/ 팀$/, '')));
+      li.appendChild(el('span', null, t.blocks + '블록' + (t.out ? ' · 기권' : '')));
+      ol.appendChild(li);
+    });
+    var box = $('sb-result-chart');
+    box.innerHTML = '';
+    if (withChart && window.CGFlipChart) box.appendChild(window.CGFlipChart.svg(r.history, { totalMs: r.limitMs, slotMs: r.snapMs, width: 560, height: 260, labels: true }));
+  }
+
   function tick() {
     if (!B) return;
     var left = B.phase === 'playing' ? (B.paused ? B.remainMs : B.remainMs - (Date.now() - gotAt)) : B.limitMs;
@@ -406,6 +510,15 @@
     }
     t.classList.toggle('low', B.phase === 'playing' && !B.paused && left < 30000);
     t.classList.toggle('paused', !!B.paused);
+    // 0.16.0: 남은 시간 막대 (게임 중에만)
+    var tb = $('sb-timebar');
+    tb.hidden = B.phase !== 'playing';
+    if (!tb.hidden) {
+      tb.firstChild.style.width = Math.max(0, Math.min(100, left / (B.limitMs || 1) * 100)) + '%';
+      tb.classList.toggle('warn', left <= 60000 && left > 30000);
+      tb.classList.toggle('low', left <= 30000);
+      tb.classList.toggle('paused', !!B.paused);
+    }
     // 마지막 10초 카운트다운
     var sec = Math.ceil(left / 1000);
     if (B.phase === 'playing' && !B.paused && sec >= 1 && sec <= 10 && sec !== lastTick) { lastTick = sec; play(sec <= 3 ? 'tickLast' : 'tick'); }

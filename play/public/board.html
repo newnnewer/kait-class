@@ -25,7 +25,7 @@
 <div class="stage" id="stage">
   <header class="sb-head">
     <span class="logo sb-logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
-    <span class="pill blue sb-pill">블록 점령전</span>
+    <span class="pill blue sb-pill" id="sb-pill">블록 러시</span>
     <span class="sb-join" id="sb-join"></span>
     <span class="grow"></span>
     <button type="button" class="sb-sound" id="sb-view" title="맵 모양 / 순위 변동 그래프로 바꿔 보기 (B)">📈 순위 그래프로 보기</button>
@@ -33,6 +33,9 @@
     <span class="sb-attacks" id="sb-attacks">방해 아이템 ON</span>
     <div class="sb-time"><span id="sb-time-label">남은 시간</span><b id="sb-time">--:--</b></div>
   </header>
+
+  <!-- 0.16.0: 남은 시간 막대 (게임 중, 모든 게임) -->
+  <div class="sb-timebar" id="sb-timebar" hidden><i></i></div>
 
   <!-- 게임 전 · 한 판이 끝난 뒤 -->
   <section class="sb-wait" id="sb-wait" hidden>
@@ -56,6 +59,18 @@
   <section class="sb-play" id="sb-play" hidden>
     <div class="sb-band" id="sb-band"><span class="sb-band-kind" id="sb-band-kind">BATTLE</span><b id="sb-band-main">보스를 잡아 아이템을 얻으세요!</b><span id="sb-band-sub"></span></div>
     <div class="sb-grid" id="sb-grid"></div>
+    <!-- 0.16.0 플립 배틀: 큰 맵 + 블록 수 + 세로 100% 막대 그래프 -->
+    <div class="sb-flip" id="sb-flip" hidden>
+      <div class="sb-fmap-wrap" id="sb-fmap-wrap"><div class="sb-fmap" id="sb-fmap"></div><div class="sb-favs" id="sb-favs"></div></div>
+      <aside class="sb-fside">
+        <div class="sb-fscore">
+          <div class="sb-fteam t1"><b class="nm"></b><em class="num">0</em><span class="cnt"></span></div>
+          <div class="sb-fteam t2"><b class="nm"></b><em class="num">0</em><span class="cnt"></span></div>
+        </div>
+        <div class="sb-fbar" id="sb-fbar"><i class="r"></i><i class="b"></i><span class="mid"></span></div>
+        <div class="sb-fchart" id="sb-fchart" role="img" aria-label="블록 수 변화 (5초마다)"></div>
+      </aside>
+    </div>
     <div class="sb-rankview" id="sb-rankview" hidden>
       <div class="sb-chart" id="sb-chart" role="img" aria-label="팀별 순위 변동 그래프 (10초마다)"></div>
       <div class="sb-bars" id="sb-bars" role="list" aria-label="지금 순위"></div>
@@ -74,6 +89,7 @@
 <script src="js/sound.js"></script>
 <script src="js/shared/teams.js"></script>
 <script src="js/shared/rankchart.js"></script>
+<script src="js/shared/flipchart.js"></script>
 <script src="js/board.js"></script>
 </body>
 </html>

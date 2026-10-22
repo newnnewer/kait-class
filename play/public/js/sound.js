@@ -71,6 +71,7 @@
     type: function () { tone(1100 + Math.random() * 300, 0.035, 'square', 0.45); noise(0.02, 0.25, 0, 5000); },
     correct: function () { seq([N.C6, N.E6, N.G6], 0.06, 'square', 0.4); },
     wrong: function () { tone([N.A3, N.E3], 0.22, 'sawtooth', 0.35); },
+    flipped: function () { tone([N.E5, N.B4], 0.09, 'triangle', 0.22); }, // 0.16.0 플립 배틀: 우리 블록을 빼앗김 (작게)
     bossAppear: function () { tone(N.A5, 0.12, 'square', 0.4); tone(N.A5, 0.12, 'square', 0.4, 0.18); },
     bossWin: function () { seq([N.C5, N.E5, N.G5, N.C6, 0, N.G5, N.C6], 0.07, 'square', 0.45); },
     // 자동완성으로 채워질 때: 위로 쓸려 올라가는 '슈욱' + 반짝

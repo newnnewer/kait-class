@@ -198,3 +198,21 @@ body.teacher .stepper b, body.teacher .step-num input { font-family: var(--body)
 @keyframes waitPulse { from { box-shadow: 0 0 0 0 rgba(232,162,0,.0); } to { box-shadow: 0 0 0 4px rgba(232,162,0,.35); } }
 
 body.teacher .seg-switch .ss-opt[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+/* ── 0.16.0 플립 배틀 (밝은 화면) ── */
+.teacher .flip-bar { margin: 0 0 12px; }
+.teacher .fb-side.fb-red { color: #D61F30; }
+.teacher .fb-side.fb-blue { color: #1D5FD6; }
+.teacher .fb-side.lead { text-shadow: none; }
+.teacher .fb-track { background: #E4EBF6; box-shadow: inset 0 0 0 2px rgba(0,0,0,.06); }
+.tteam.flip { border-top: 6px solid var(--tc); }
+.tteam.flip .tt-name { color: var(--tc); }
+.tteam.flip .tt-bar b { background: var(--tc); }
+.flip-teams span { color: var(--text); }
+.teacher .flip-teams .muted { font-weight: 400; font-size: 14px; color: var(--muted); }
+.rec-game { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; margin-right: 6px; color: #fff; }
+.rec-game.flip { background: linear-gradient(90deg, var(--flip-red) 0 50%, var(--flip-blue) 50% 100%); }
+.rec-chip.flip.t1 b { color: #D61F30; }
+.rec-chip.flip.t2 b { color: #1D5FD6; }
+.t-result .rs-teams li.flip.win { box-shadow: inset 0 0 0 2px currentColor; }
+.t-result .rs-flip { background: var(--panel-deep); }
