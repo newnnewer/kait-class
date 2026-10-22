@@ -47,6 +47,7 @@ body.teacher {
 .btn.mid { height: 44px; padding: 0 18px; font-size: 15px; border-radius: 12px; border-width: 2px; }
 .btn.mid.on { color: var(--ink); background: var(--yellow); border-color: var(--yellow); }
 .danger { color: #FF7AA2 !important; border-color: #7A1238 !important; }
+.danger.armed { background: #C8104A !important; color: #fff !important; border-color: #C8104A !important; overflow: hidden; white-space: nowrap; } /* 두 번 눌러야 하는 단추의 '한 번 더' 상태 (1.0.0) */
 .start-btn { height: 50px; padding: 0 28px; font-family: var(--display); font-weight: 800; font-size: 21px; }
 .timer.paused { color: #C25E00; animation: blink 1s linear infinite; }
 .join-help { font-size: 14px; color: var(--soft); background: var(--panel-deep); border: 1px dashed var(--line); border-radius: 12px; padding: 10px 16px; }

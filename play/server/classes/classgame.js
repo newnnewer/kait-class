@@ -77,7 +77,7 @@ class ClassGame {
       waiting: this.teamMembers(0).length,
       teamLock: this.teamLock,
       names: this.names,
-      settings: { tags: s.tags, limitMin: s.limitMin, game: s.game || 'rush' },
+      settings: { tags: s.tags, limitMin: s.limitMin, game: s.game || 'rush', bossMode: s.bossMode || 'quiz' }, // 1.0.0: 학생 대기실 '방 설정' 표
       sfx: s.sfx !== false,
       remainMs: this.remainMs(),
       chat: this.chatLog,

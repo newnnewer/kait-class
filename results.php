@@ -45,6 +45,20 @@ if ($fProb !== '')    { $where[] = "CAST(p.prob_no AS TEXT) = :pn"; $args[':pn']
 if ($fVerdict !== '') { $where[] = "s.verdict = :vd";         $args[':vd'] = $fVerdict; }
 if ($fLang !== '')    { $where[] = "s.lang = :lg";            $args[':lg'] = $fLang; }
 
+/* 페이지 나누기 (1.12.0) — 예전에는 최근 200건만 보였다. 50 · 100 · 200개씩 고르고 쪽을 넘긴다 */
+$perList = [50, 100, 200];
+$per     = (int)($_GET['n'] ?? 50);
+if (!in_array($per, $perList, true)) $per = 50;
+$whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$total = (int)col("SELECT COUNT(*)
+                   FROM submissions s
+                   JOIN problems p ON p.id = s.problem_id
+                   JOIN users us ON us.id = s.user_id
+                   $whereSql", $args);
+$pages = max(1, (int)ceil($total / $per));
+$page  = min($pages, max(1, (int)($_GET['p'] ?? 1)));
+$offset = ($page - 1) * $per;
+
 $rows = all("SELECT s.id, s.lang, s.state, s.verdict, s.passed_count, s.total_count,
                     s.max_time, s.max_memory, s.created_at, s.user_id, s.set_id,
                     p.prob_no, p.title, p.active, us.login_id, us.name AS uname,
@@ -53,8 +67,12 @@ $rows = all("SELECT s.id, s.lang, s.state, s.verdict, s.passed_count, s.total_co
              JOIN problems p ON p.id = s.problem_id
              JOIN users us ON us.id = s.user_id
              LEFT JOIN sets st ON st.id = s.set_id
-             " . ($where ? 'WHERE ' . implode(' AND ', $where) : '') . "
-             ORDER BY s.id DESC LIMIT 200", $args);
+             $whereSql
+             ORDER BY s.id DESC LIMIT $per OFFSET $offset", $args);
+
+/* 코드 보기를 닫으면 보던 쪽 · 조건 그대로 */
+$backQ = $_GET; unset($backQ['id']);
+$backUrl = 'results.php' . ($backQ ? '?' . http_build_query($backQ) : '');
 
 page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'results']);
 ?>
@@ -62,7 +80,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
 
   <div class="phead">
     <h1>채점 결과</h1>
-    <span class="sub">최근 <?= count($rows) ?>건</span>
+    <span class="sub">전체 <?= number_format($total) ?>건<?= $pages > 1 ? ' · ' . $page . ' / ' . number_format($pages) . '쪽' : '' ?></span>
   </div>
 
   <?php if ($detail): ?>
@@ -88,7 +106,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
             <button class="btn sm" type="submit">재채점</button>
           </form>
         <?php endif; ?>
-        <a class="btn sm" href="results.php">닫기</a>
+        <a class="btn sm" href="<?= h($backUrl) ?>">닫기</a>
       </div>
       <?php if ($canSeeCode): ?>
         <pre class="codeview"><?= h($detail['source_code']) ?></pre>
@@ -127,12 +145,29 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
     <?php if ($u): ?>
       <label class="chk"><input type="checkbox" name="mine" value="1" <?= $mineOnly ? 'checked' : '' ?>> 내 것만</label>
     <?php endif; ?>
+    <?php if ($per !== 50): ?><input type="hidden" name="n" value="<?= $per ?>"><?php endif; /* 찾아도 몇 개씩은 그대로 */ ?>
     <button class="btn" type="submit">찾기</button>
   </form>
 
   <?php if (!$rows): ?>
     <div class="empty">조건에 맞는 제출이 없습니다.</div>
   <?php else: ?>
+    <?php /* 쪽 단추 줄: 가운데 쪽 단추, 오른쪽 끝 몇 개씩 (1.12.0) — 몇 개씩은 찾기 조건과 따로.
+             바꾸면 지금 조건은 그대로 두고 1쪽부터 (쪽 번호 · 코드 보기는 뺌) */ ?>
+    <div class="list-bar">
+      <?= pager($page, $pages) ?>
+      <form class="per-pick" method="get">
+        <?php foreach ($_GET as $k => $v): if (in_array($k, ['n', 'p', 'id'], true) || !is_string($v)) continue; ?>
+          <input type="hidden" name="<?= h((string)$k) ?>" value="<?= h($v) ?>">
+        <?php endforeach; ?>
+        <select name="n" onchange="this.form.submit()" title="한 쪽에 보일 개수" aria-label="한 쪽에 보일 개수">
+          <?php foreach ($perList as $k): ?>
+            <option value="<?= $k ?>" <?= $per === $k ? 'selected' : '' ?>><?= $k ?>개씩</option>
+          <?php endforeach; ?>
+        </select>
+        <noscript><button class="btn sm" type="submit">보기</button></noscript>
+      </form>
+    </div>
     <table class="list">
       <thead>
         <tr>
@@ -173,6 +208,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
       <?php endforeach; ?>
       </tbody>
     </table>
+    <?= pager($page, $pages) ?>
   <?php endif; ?>
 
 </div>

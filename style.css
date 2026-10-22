@@ -570,6 +570,11 @@ table.list tr.isadmin td{background:var(--b25)}
 .pager .btn.on{background:var(--b600); border-color:var(--b600); color:#fff; cursor:default}
 .pager .btn[aria-disabled]{opacity:.4; cursor:default}
 .pager .gap{color:var(--ink-3); padding:0 2px}
+.list-bar{position:relative; display:flex; justify-content:center; align-items:center; min-height:34px; margin:0 0 14px}   /* 채점 결과: 표 위 쪽 단추 + 몇 개씩 (1.12.0) */
+.list-bar .pager{margin:0}
+.list-bar .per-pick{position:absolute; right:0; top:50%; transform:translateY(-50%); margin:0}
+.list-bar .per-pick select{width:auto; padding:5px 30px 5px 10px; font-size:13px; height:auto}
+@media (max-width:720px){ .list-bar{flex-direction:column; gap:8px} .list-bar .per-pick{position:static; transform:none; align-self:flex-end} }
 .sepline{width:1px; height:20px; background:var(--b200); margin:0 4px}
 
 /* ═══ 공지사항 ═══════════════════════════════ */

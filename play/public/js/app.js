@@ -377,44 +377,74 @@
     pageToast('선생님이 팀을 다시 정하고 있어요. 잠시 기다려 주세요', 'warn');
   });
 
+  // 공식전 대기실 (1.0.0: 팀 배틀 대기실과 같은 모양 — 팀 칸마다 한 줄 카드 · 오른쪽 상태 · 방 설정)
   function renderTeam() {
     if (!cls) return;
     var mine = myTeam();
-    $('t-code').textContent = cls.code;
-    if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
-    $('t-picked').textContent = mine ? tl(mine) + ' 선택' : cls.phase === 'playing' ? '팀 배정을 기다리는 중' : '팀을 골라 주세요';
-    $('t-picked').classList.toggle('none', !mine);
-    // 0.15.0: 게임 중에는 학생이 팀을 고를 수 없다 — 선생님이 정해 줌
+    var s = cls.settings || {};
+    var clsFlip = s.game === 'flip';
     var playingNow = cls.phase === 'playing';
-    var noPick = cls.teamLock || playingNow;
-    $('t-teaminfo').textContent = playingNow ? '⏳ 게임 중에는 선생님이 팀을 정해 줘요' : cls.teamLock ? '🔒 선생님이 팀 선택을 잠갔어요 — 정해진 팀으로 참여해요' : '팀마다 들어온 사람 수가 보여요 · 선생님이 팀을 옮길 수도 있어요';
+    var noPick = cls.teamLock || playingNow; // 0.15.0: 게임 중에는 선생님이 팀을 정해 줌
+    $('t-code').textContent = cls.code;
+    var total = cls.teams.reduce(function (n, t) { return n + t.members.length; }, 0) + (cls.waiting || 0);
+    $('t-count').textContent = total + '명';
+    $('t-game').textContent = GAME_NAME[clsFlip ? 'flip' : 'rush'] + ' · ' + (clsFlip ? '빨강 · 파랑' : cls.teams.length + '팀');
+    $('t-game').classList.toggle('flip', clsFlip);
+    // 오른쪽: 나 · 상태 · 안내
+    if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
+    $('t-picked').textContent = mine ? tl(mine) + ' 선택' : playingNow ? '팀 배정을 기다리는 중' : '팀을 골라 주세요';
+    $('t-picked').classList.toggle('none', !mine);
+    $('t-teaminfo').textContent = playingNow ? '⏳ 게임 중에는 선생님이 팀을 정해 줘요' : cls.teamLock ? '🔒 선생님이 팀 선택을 잠갔어요 — 정해진 팀으로 참여해요' : mine ? '다른 팀으로 옮기려면 그 팀의 [이 팀으로] 단추' : '팀 칸 아래 [이 팀으로] 단추를 눌러 팀을 골라요';
     $('t-teaminfo').classList.toggle('locked', noPick);
+    var st = $('t-status'), txt = st.querySelector('span');
+    st.classList.toggle('playing', playingNow);
+    st.classList.toggle('pick', !mine && !playingNow);
+    txt.textContent = playingNow ? '게임이 진행 중이에요 · 선생님이 팀을 정해 주면 바로 들어가요' : mine ? '선생님이 게임을 시작하기를 기다리는 중' : '먼저 팀을 골라 주세요';
+    // 방 설정
+    var sum = [['게임', GAME_NAME[clsFlip ? 'flip' : 'rush']], ['태그', (s.tags || []).join(' · ')], ['팀', clsFlip ? '빨강 · 파랑' : cls.teams.length + '팀'], ['게임 시간', s.limitMin + '분']];
+    if (!clsFlip) sum.push(['보스', BOSS_MODE[s.bossMode] || '문제 풀이']);
+    fillSummary($('t-summary'), sum);
+    // 팀 칸 (팀 배틀 대기실과 같은 .wteams · .wteam · .wt-slots)
     var box = $('t-teams');
     box.innerHTML = '';
-    var clsFlip = cls.settings && cls.settings.game === 'flip'; // 0.16.0: 플립 배틀 — 빨강 · 파랑
-    box.classList.toggle('flip', clsFlip);
-    $('t-game').textContent = GAME_NAME[clsFlip ? 'flip' : 'rush'];
-    $('t-game').classList.toggle('flip', clsFlip);
+    var n = cls.teams.length;
+    box.className = 'wteams class-teams n' + Math.min(4, n) + (n > 4 ? ' many' : '');
     cls.teams.forEach(function (t) {
-      var b = el('button', 'team-btn' + (clsFlip ? ' flip t' + t.no : ''));
-      if (clsFlip) b.style.setProperty('--tc', FLIP_COLORS[(t.no - 1) % 2]);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(t.no === mine));
-      if (noPick && t.no !== mine) b.classList.add('locked');
-      b.appendChild(el('b', null, tl(t.no)));
-      b.appendChild(el('small', 'team-desc', TEAMS.desc(cls.names, t.no)));
-      var av = el('span', 'team-avs');
-      t.members.slice(0, 6).forEach(function (p) { av.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av')); });
-      if (t.members.length > 6) av.appendChild(el('em', null, '+' + (t.members.length - 6)));
-      b.appendChild(av);
-      b.appendChild(el('span', 'team-count', t.members.length + '명'));
-      b.onclick = function (e) { pickClassTeam(t.no); };
-      box.appendChild(b);
+      var col = el('section', 'wteam' + (t.no === mine ? ' mine' : ''));
+      col.style.setProperty('--tc', teamColor(t.no, clsFlip));
+      var hd = el('div', 'wt-head');
+      var tn = el('b', null, tl(t.no)); // 내 팀 ★ 은 CSS(.wteam.mine)가 붙인다
+      tn.title = TEAMS.desc(cls.names, t.no);
+      hd.appendChild(tn);
+      hd.appendChild(el('span', 'wt-count', t.members.length + '명'));
+      col.appendChild(hd);
+      col.appendChild(el('small', 'wt-desc', TEAMS.desc(cls.names, t.no)));
+      var g = el('div', 'wt-slots');
+      t.members.forEach(function (p) {
+        var d = el('div', 'slot' + (ME && p.id === ME.id ? ' me' : '') + (p.bot ? ' bot' : '') + (p.online ? '' : ' off'));
+        d.setAttribute('data-pid', p.id);
+        var said = chat.say[p.id];
+        if (said && said.until > Date.now()) d.appendChild(el('span', 'say', said.text));
+        if (p.bot) d.appendChild(el('span', 'bot-badge big', '비트'));
+        else if (!p.online) d.appendChild(el('span', 'ready-badge off-badge', '끊김'));
+        d.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av'));
+        var nm = el('b', 'nick', p.nick);
+        nm.title = p.nick;
+        d.appendChild(nm);
+        g.appendChild(d);
+      });
+      if (!t.members.length) g.appendChild(el('div', 'slot empty', '아직 아무도 없어요'));
+      col.appendChild(g);
+      if (t.no !== mine) {
+        var jb = el('button', 'wt-join', '＋ 이 팀으로');
+        jb.type = 'button';
+        jb.disabled = noPick;
+        jb.title = playingNow ? '게임 중에는 선생님이 팀을 정해 줘요' : cls.teamLock ? '선생님이 팀 선택을 잠갔어요' : tl(t.no) + '으로 가기';
+        jb.onclick = function () { pickClassTeam(t.no); };
+        col.appendChild(jb);
+      }
+      box.appendChild(col);
     });
-    var st = $('t-status'), txt = st.querySelector('span');
-    st.classList.toggle('playing', cls.phase === 'playing');
-    if (cls.phase === 'playing') txt.textContent = '게임이 진행 중이에요. 선생님이 팀을 정해 주면 바로 들어가요';
-    else txt.textContent = mine ? '선생님이 게임을 시작하기를 기다리는 중' : '먼저 팀을 골라 주세요';
     renderChat();
     renderSoundBtns();
   }
@@ -1122,14 +1152,16 @@
     c.log.push(m);
     if (c.log.length > 8) c.log.shift();
     chat.say[m.pid] = { text: m.text, until: Date.now() + 3000 };
+    if (current === 'team') { renderTeam(); } // 1.0.0: 공식전 대기실 카드에 말풍선 (3초 뒤 다시 그려 지움)
+    if (current === 'team') setTimeout(function () { if (current === 'team') renderTeam(); }, 3050);
     if (current === 'wait') {
-      var slot = document.querySelector('#w-slots [data-pid="' + m.pid + '"]');
+      var slot = document.querySelector('#screen-wait [data-pid="' + m.pid + '"]'); // 1.0.0: 팀 배틀 팀 칸에도
       if (slot) {
         var old = slot.querySelector('.say'); if (old) old.remove();
         slot.appendChild(el('span', 'say', m.text));
         // 3초 뒤 지운다 — 그 사이 대기실이 다시 그려져도 사람 id 로 찾아서
         setTimeout(function () {
-          document.querySelectorAll('#w-slots .say').forEach(function (x) {
+          document.querySelectorAll('#screen-wait .say').forEach(function (x) {
             var said = chat.say[x.parentNode.getAttribute('data-pid')];
             if (!said || said.until <= Date.now() + 50) x.remove();
           });

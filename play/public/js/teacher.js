@@ -877,24 +877,28 @@
   $('btn-pause').onclick = function () {
     call('class:pause', { on: !cur.paused }, function (res) { if (!res.ok) toast(res.error || '안 됐어요', 'warn'); });
   };
-  function armed(btn, label, fn) {
+  // 두 번 눌러야 하는 단추: 첫 번째에 짧은 문구 + 빨강으로 채움. 폭은 원래 크기로 고정해 위쪽 줄이 흔들리지 않게 (1.0.0)
+  function armed(btn, label, again, fn) {
     var t = 0;
+    function reset() { btn.textContent = label; btn.classList.remove('armed'); btn.style.width = ''; }
     btn.onclick = function () {
       if (Date.now() - t > 3000) {
         t = Date.now();
-        btn.textContent = '한 번 더 누르면 ' + label;
-        setTimeout(function () { if (Date.now() - t >= 3000) btn.textContent = label; }, 3050);
+        btn.style.width = btn.getBoundingClientRect().width + 'px';
+        btn.textContent = again;
+        btn.classList.add('armed');
+        setTimeout(function () { if (Date.now() - t >= 3000) reset(); }, 3050);
         return;
       }
       t = 0;
-      btn.textContent = label;
+      reset();
       fn();
     };
   }
-  armed($('btn-stop'), '게임 종료', function () {
+  armed($('btn-stop'), '게임 종료', '정말 종료?', function () {
     call('class:stop', {}, function (res) { if (!res.ok) toast(res.error || '안 됐어요', 'warn'); });
   });
-  armed($('btn-close'), '공식전 끝내기', function () {
+  armed($('btn-close'), '공식전 끝내기', '정말 끝내기?', function () {
     call('class:close', {}, function (res) { if (res.ok) { toast('공식전을 끝냈어요'); showHome(); } });
   });
   $('btn-autoassign').onclick = function () { call('class:autoassign', {}, function () {}); };

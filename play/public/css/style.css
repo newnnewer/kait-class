@@ -1090,3 +1090,30 @@ button.me-chip:hover { border-color: #4B58A8; }
 .team-btn.flip { border-top: 8px solid var(--tc); }
 .team-btn.flip b { color: var(--tc); filter: brightness(1.25); }
 .team-btn.flip[aria-pressed="true"] { border-color: var(--yellow); border-top-color: var(--tc); background: color-mix(in srgb, var(--tc) 22%, #101C3E); }
+
+/* ── 1.0.0 공식전 대기실 = 팀 배틀 대기실과 같은 모양 ── */
+.class-teams.many { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* 5~8팀: 4칸씩 두 줄 */
+.class-teams .wt-slots { grid-template-columns: minmax(0, 1fr); padding-top: 2px; } /* 안쪽 스크롤 없음 — 말풍선이 잘리지 않게 (사람이 많으면 페이지가 길어짐) */
+.wteams.n2.class-teams .wt-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.class-teams .wteam { gap: 6px; }
+.class-teams .wt-head .wt-count { margin-left: auto; font-size: 13px; font-weight: 800; color: var(--soft); }
+.class-teams .wt-desc { font-size: 12px; color: var(--muted); padding: 0 4px 2px; line-height: 1.35; word-break: keep-all; }
+.class-teams .slot.empty { height: 44px; font-size: 12px; }
+.class-teams .wt-join { align-self: stretch; margin-top: 2px; flex: none; }
+.class-teams .wt-join:disabled { opacity: .45; cursor: not-allowed; }
+#t-game.flip { background: linear-gradient(90deg, var(--flip-red) 0 50%, var(--flip-blue) 50% 100%); }
+.team-info { margin: 0; font-size: 13px; color: var(--soft); text-align: center; line-height: 1.5; }
+.team-info.locked { color: #FFD9A0; }
+#t-status.pick { border-color: var(--yellow); color: #FFE9A6; }
+#t-status.pick .dot { background: var(--yellow); }
+.t-me { flex-direction: row; align-items: center; gap: 12px; padding: 12px 16px; }
+.t-me .av { width: 48px; height: 48px; flex: none; }
+.t-me-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.t-me-text b { font-family: var(--display); font-weight: 800; font-size: 17px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+@media (max-width: 1100px) {
+  #screen-team .wait-side { order: -1; }
+  .class-teams.many { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+#screen-team .waiting-box { height: auto; min-height: 72px; padding: 12px 16px; font-size: 17px; text-align: center; line-height: 1.4; }
+.class-teams .wt-join { height: 40px; border-radius: 12px; border: 2px dashed var(--tc); background: transparent; color: #fff; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+.class-teams .wt-join:hover:not(:disabled), .class-teams .wt-join:focus-visible { background: color-mix(in srgb, var(--tc) 25%, transparent); border-style: solid; outline: none; }
