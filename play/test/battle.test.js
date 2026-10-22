@@ -241,3 +241,20 @@ test('0.14.0: 준비 재촉 — 준비 안 한 채 기다린 시간(waitMs)을 �
   assert.ok(m(c.id).waitMs < 1000);
   cleanup(room);
 });
+
+test('0.15.1: 방은 1분에 하나 — 만들면 gapMs, 너무 빨리 다시 만들면 waitMs (화면이 남은 초를 셈)', () => {
+  const { Lobby } = require('../server/rooms/lobby');
+  const io = { to: () => ({ emit() {} }), sockets: { sockets: new Map() } };
+  const lobby = new Lobby({ io, store: { bank: () => ({ normal: [], boss: [] }) }, createGapMs: 60000, waitCloseMs: 600000, idleMs: 60000, idleWarnMs: 15000 });
+  clearInterval(lobby.timer);
+  const sock = { join() {}, leave() {}, emit() {} };
+  const p = { id: 'a', token: 'ta', nick: '가', kind: 'cat', color: '#FFD23F', online: true };
+  const r1 = lobby.create(p, sock, { tags: ['출력'] });
+  assert.strictEqual(r1.ok, true);
+  assert.strictEqual(r1.gapMs, 60000);
+  for (const r of lobby.rooms.values()) { r.closed = true; if (r.timer) clearInterval(r.timer); }
+  p.room = null;
+  const r2 = lobby.create(p, sock, { tags: ['출력'] });
+  assert.strictEqual(r2.ok, false);
+  assert.ok(r2.waitMs > 59000 && r2.waitMs <= 60000);
+});

@@ -59,6 +59,7 @@
     screens.forEach(function (s) { $('screen-' + s).hidden = s !== name; });
     document.body.classList.toggle('in-game', name === 'game');
     if (name !== 'game') { $('idle').hidden = true; }
+    if (name !== 'wait' && seatMenu) seatMenu.close(); // 0.15.1: 대기실 방장 메뉴
     if (name === 'game') { if (document.activeElement) document.activeElement.blur(); layout(); }
   }
 
@@ -549,6 +550,25 @@
     $('btn-open').disabled = false;
     show('create');
     renderCreate();
+    createTick();
+  }
+
+  // 0.15.1: 방은 1분에 하나 — 남은 시간을 1초마다 세어 보여 주고, 그동안 [방 열기]를 흐리게
+  var createWaitUntil = 0, createTimer = null;
+  function createTick() {
+    var left = Math.ceil((createWaitUntil - Date.now()) / 1000);
+    if (left > 0) {
+      $('cr-error').textContent = '방은 1분에 하나만 만들 수 있어요 (' + left + '초 뒤에 다시)';
+      $('btn-open').disabled = true;
+      if (!createTimer) createTimer = setInterval(createTick, 250);
+      return;
+    }
+    if (createTimer) { clearInterval(createTimer); createTimer = null; }
+    if (createWaitUntil) {
+      createWaitUntil = 0;
+      $('cr-error').textContent = '';
+      $('btn-open').disabled = false;
+    }
   }
   $('btn-create-back').onclick = function () { show('lobby'); renderLobby(); };
 
@@ -690,7 +710,13 @@
       botSpeed: cr.botSpeed, bossMode: cr.bossMode
     };
     socket.emit('room:create', { settings: settings }, function (res) {
-      if (!res || !res.ok) { $('btn-open').disabled = false; $('cr-error').textContent = (res && res.error) || '방을 열지 못했어요'; return; }
+      if (!res || !res.ok) {
+        $('btn-open').disabled = false;
+        $('cr-error').textContent = (res && res.error) || '방을 열지 못했어요';
+        if (res && res.waitMs) { createWaitUntil = Date.now() + res.waitMs; createTick(); }
+        return;
+      }
+      if (res.gapMs) createWaitUntil = Date.now() + res.gapMs;
       openWait(res.room);
     });
   };
@@ -731,45 +757,116 @@
   });
 
   // 대기실 사람 카드 하나 (레이드 슬롯 · 팀 배틀 팀 칸 공용)
+  // 0.15.1: 캐릭터 + 닉네임 한 줄 (아래 작은 글씨 줄은 없앰) · 방장 관리는 카드를 누르면 뜨는 메뉴로
   function personSlot(p, opt) {
-    var meId = ME && ME.id, amHost = room.hostId === meId, s = room.settings;
+    var meId = ME && ME.id, amHost = room.hostId === meId;
     var d = el('div', 'slot' + (p.id === meId ? ' me' : '') + (p.bot ? ' bot' : '') + (p.online ? '' : ' off') + (p.ready ? ' ready' : ''));
     d.setAttribute('data-pid', p.id);
     var said = chat.say[p.id];
     if (said && said.until > Date.now()) d.appendChild(el('span', 'say', said.text));
     if (p.id === room.hostId) d.appendChild(el('span', 'host-badge', '방장'));
-    else if (p.bot) d.appendChild(el('span', 'bot-badge big', '🤖 비트'));
+    else if (p.bot) d.appendChild(el('span', 'bot-badge big', '비트'));
+    else if (!p.online) d.appendChild(el('span', 'ready-badge off-badge', '끊김'));
     else d.appendChild(el('span', 'ready-badge' + (p.ready ? ' on' : ''), p.ready ? '✔ 준비' : '준비 전'));
     d.appendChild(avatarSpan(p.kind, p.color, p.bot ? 'av bot-av' : 'av'));
-    d.appendChild(el('b', null, (p.bot ? '🤖 ' : '') + p.nick));
-    d.appendChild(el('small', null, p.bot ? '비트 · ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통') : p.id === meId ? '나' : (p.online ? (p.id === room.hostId ? '방장' : p.ready ? '준비 완료' : '준비 전') : '연결 끊김')));
-    // 방장 관리 (마우스): 팀 옮기기 · 내보내기 / 비트 빼기
+    var nm = el('b', 'nick', p.nick);
+    nm.title = p.nick;
+    d.appendChild(nm);
+    // 방장 관리 (마우스): 카드를 누르면 팀 옮기기 · 내보내기 / 비트 빼기 메뉴
     if (amHost && p.id !== meId && room.phase === 'waiting') {
-      var tools = el('span', 'slot-tools');
-      if (room.mode === 'battle') {
-        var sel = el('select', 'team-sel');
-        sel.setAttribute('aria-label', p.nick + ' 팀 옮기기');
-        room.teams.forEach(function (t) {
-          var o = el('option', null, TEAMS.name(room.names, t.no));
-          o.value = t.no;
-          if (t.no === opt.team) o.selected = true;
-          sel.appendChild(o);
-        });
-        sel.onchange = function () { roomAct('move', { id: p.id, no: Number(sel.value) }); };
-        tools.appendChild(sel);
-      }
-      var kb = el('button', 'btn small ghost-btn bot-out', p.bot ? '빼기' : '내보내기');
-      kb.type = 'button';
-      kb.onclick = function () {
-        if (p.bot) { roomBot({ op: 'remove', id: p.id }); return; }
-        if (Date.now() - (kb._arm || 0) > 3000) { kb._arm = Date.now(); kb.textContent = '한 번 더!'; setTimeout(function () { kb.textContent = '내보내기'; }, 3000); return; }
-        roomAct('kick', { id: p.id });
-      };
-      tools.appendChild(kb);
-      d.appendChild(tools);
+      d.classList.add('pickable');
+      d.tabIndex = 0;
+      d.setAttribute('role', 'button');
+      d.setAttribute('aria-label', p.nick + ' — 팀 옮기기 · ' + (p.bot ? '빼기' : '내보내기'));
+      d.onclick = function (ev) { ev.stopPropagation(); seatMenu.open(p.id, opt.team || 0); };
+      d.onkeydown = function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.stopPropagation(); seatMenu.open(p.id, opt.team || 0); } };
     }
     return d;
   }
+
+  // 0.15.1: 방장 메뉴 — 대기실은 자주 다시 그려지므로 카드 밖(body)에 하나만 두고, 다시 그릴 때마다 자리를 맞춘다
+  var seatMenu = (function () {
+    var box = null, pid = null, armAt = 0;
+    function close() { if (box) box.hidden = true; pid = null; armAt = 0; }
+    function find(id) {
+      var who = null;
+      (room && room.members || []).forEach(function (x) { if (x.id === id) who = x; });
+      return who;
+    }
+    function teamOf(id) {
+      var no = 0;
+      (room && room.teams || []).forEach(function (t) { if (t.members.some(function (x) { return x.id === id; })) no = t.no; });
+      return no;
+    }
+    function place() {
+      if (!box || box.hidden || !pid) return;
+      var card = document.querySelector('#screen-wait .slot[data-pid="' + pid + '"]');
+      if (!card) { close(); return; }
+      var r = card.getBoundingClientRect(), w = box.offsetWidth, h = box.offsetHeight;
+      var x = Math.min(window.innerWidth - w - 8, Math.max(8, r.left));
+      var y = r.bottom + 6;
+      if (y + h > window.innerHeight - 8) y = Math.max(8, r.top - h - 6);
+      box.style.left = x + 'px';
+      box.style.top = y + 'px';
+    }
+    function build() {
+      var p = find(pid);
+      if (!p || !room || room.phase !== 'waiting' || !ME || room.hostId !== ME.id) { close(); return; }
+      box.innerHTML = '';
+      box.appendChild(el('b', 'sm-title', p.nick));
+      if (room.mode === 'battle') {
+        var cur = teamOf(p.id);
+        box.appendChild(el('span', 'sm-label', '팀 옮기기'));
+        room.teams.forEach(function (t) {
+          var b = el('button', 'sm-item sm-team' + (t.no === cur ? ' cur' : ''));
+          b.type = 'button';
+          b.style.setProperty('--tc', TEAM_COLORS[(t.no - 1) % TEAM_COLORS.length]);
+          b.appendChild(el('i'));
+          b.appendChild(document.createTextNode(TEAMS.name(room.names, t.no) + (t.no === cur ? ' · 지금 팀' : '')));
+          b.disabled = t.no === cur;
+          b.onclick = function () { roomAct('move', { id: p.id, no: t.no }); close(); };
+          box.appendChild(b);
+        });
+      }
+      var k = el('button', 'sm-item sm-out', p.bot ? '빼기' : (armAt && Date.now() - armAt < 3000 ? '한 번 더 누르면 내보내요' : '내보내기'));
+      k.type = 'button';
+      k.onclick = function () {
+        if (p.bot) { roomBot({ op: 'remove', id: p.id }); close(); return; }
+        if (!armAt || Date.now() - armAt > 3000) {
+          armAt = Date.now();
+          k.textContent = '한 번 더 누르면 내보내요';
+          setTimeout(function () { if (box && !box.hidden && Date.now() - armAt >= 3000) build(); }, 3000);
+          return;
+        }
+        roomAct('kick', { id: p.id });
+        close();
+      };
+      box.appendChild(k);
+      place();
+    }
+    function open(id) {
+      if (!box) {
+        box = el('div', 'seat-menu');
+        box.setAttribute('role', 'menu');
+        box.hidden = true;
+        box.onclick = function (ev) { ev.stopPropagation(); };
+        document.body.appendChild(box);
+        document.addEventListener('click', function () { close(); });
+        document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && box && !box.hidden) { ev.stopPropagation(); close(); } }, true);
+        window.addEventListener('resize', place);
+        window.addEventListener('scroll', place, true);
+      }
+      if (pid === id && !box.hidden) { close(); return; }
+      pid = id; armAt = 0;
+      box.hidden = false;
+      build();
+      var first = box.querySelector('button:not(:disabled)');
+      if (first) first.focus();
+    }
+    /** 대기실을 다시 그린 뒤 — 메뉴가 열려 있으면 내용 · 자리를 맞춘다 (나간 사람이면 닫음) */
+    function refresh() { if (box && !box.hidden && pid) build(); }
+    return { open: open, close: close, refresh: refresh };
+  })();
   function emptySlot(team) {
     var meId = ME && ME.id, amHost = room.hostId === meId, s = room.settings;
     if (amHost && !emptySlot.botShown[team || 0]) {
@@ -777,8 +874,7 @@
       var ab = el('button', 'slot empty add-bot');
       ab.type = 'button';
       ab.appendChild(el('i', null, '+'));
-      ab.appendChild(el('span', null, '비트 부르기'));
-      ab.appendChild(el('small', null, '비트 속도: ' + (BOT_SPEED_SHORT[s.botSpeed] || '보통')));
+      ab.appendChild(el('span', null, '비트 부르기')); // 0.15.1: 비트 속도는 오른쪽 방 설정 표에만
       ab.onclick = function () { roomBot({ op: 'add', no: team || 0 }); };
       return ab;
     }
@@ -892,6 +988,7 @@
     tickClocks();
     renderChat();
     renderSoundBtns();
+    seatMenu.refresh(); // 0.15.1: 열린 방장 메뉴를 새 카드 자리에 맞춤
   }
   var TEAM_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
 

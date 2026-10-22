@@ -60,14 +60,17 @@ class Lobby {
     const last = this.lastCreate.get(p.token) || 0;
     if (now - last < this.createGapMs) {
       const sec = Math.ceil((this.createGapMs - (now - last)) / 1000);
-      return { ok: false, error: `방은 1분에 하나만 만들 수 있어요 (${sec}초 뒤에 다시)` };
+      // 0.15.1: waitMs — 화면이 남은 시간을 1초마다 세어 보여 준다
+      return { ok: false, error: `방은 1분에 하나만 만들 수 있어요 (${sec}초 뒤에 다시)`, waitMs: this.createGapMs - (now - last) };
     }
     let id;
     do { id = crypto.randomBytes(3).toString('hex'); } while (this.rooms.has(id));
     const room = new Room({ lobby: this, id, host: p, settings });
     this.rooms.set(id, room);
     this.lastCreate.set(p.token, now);
-    return room.join(p, socket);
+    const res = room.join(p, socket);
+    if (res && res.ok) res.gapMs = this.createGapMs; // 0.15.1: 다음 방을 만들 수 있기까지 (화면이 셈)
+    return res;
   }
 
   join(p, socket, id) {

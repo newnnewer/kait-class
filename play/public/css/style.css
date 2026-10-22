@@ -15,6 +15,8 @@
   --blue: #45B1F5;
   --blue-dark: #1C79C0;
   --green: #3DDC97;
+  --bit: #B8BEC9;      /* 0.15.1: 비트(가상 팀원) — 무채색 */
+  --bit-soft: #D3D7DE;
   --orange: #FF9F43;
   --red: #FF5C8A;
   --ink: #0F1832;
@@ -631,7 +633,7 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 .slot.empty { background: transparent; border-style: dashed; color: var(--muted); font-size: 14px; }
 .slot.empty i { font-family: var(--pixel); font-style: normal; font-size: 26px; color: var(--line); animation: blink 1s linear infinite; }
 .slot .av { width: 84px; height: 84px; animation: bob 1.3s ease-in-out infinite; }
-.slot b { font-family: var(--display); font-weight: 800; font-size: 19px; color: #fff; text-align: center; }
+.slot b { font-family: var(--display); font-weight: 800; font-size: 19px; color: #fff; text-align: center; max-width: 100%; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* 0.15.1: 닉네임은 한 줄 */
 .slot small { font-size: 13px; color: var(--muted); }
 .slot.off { opacity: .5; }
 /* 대기실 채팅 (v0.7.3) */
@@ -661,20 +663,19 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 .chat-log li b { color: #fff; font-weight: 800; white-space: nowrap; }
 .chat-log li.me b { color: var(--yellow); }
 .chat-log li.empty { color: var(--muted); }
-/* 학생 방 봇 (v0.6.4) */
-.slot.add-bot { cursor: pointer; font: inherit; color: var(--green); border-color: rgba(61,220,151,.55); }
-.slot.add-bot i { color: var(--green); animation: none; }
+/* 학생 방 봇 (v0.6.4) — 0.15.1: 비트는 무채색 (초록이 다익스트라 팀 색과 헷갈려서) */
+.slot.add-bot { cursor: pointer; font: inherit; color: var(--bit-soft); border-color: rgba(184,190,201,.45); }
+.slot.add-bot i { color: var(--bit-soft); animation: none; }
 .slot.add-bot span { font-weight: 800; font-size: 16px; }
-.slot.add-bot:hover { background: rgba(61,220,151,.08); border-color: var(--green); }
-/* v0.11.0: 봇이 한눈에 보이게 — 대기실은 크게 (점선 · 줄무늬 · 🤖), 게임 중은 작게 (🤖 꼬리표) */
+.slot.add-bot:hover { background: rgba(184,190,201,.08); border-color: var(--bit); color: #fff; }
+/* v0.11.0: 봇이 한눈에 보이게 — 대기실은 크게 (점선 · 줄무늬 · 비트 표시), 게임 중은 작게 (🤖 꼬리표) */
 .slot.bot {
-  border: 3px dashed var(--green);
-  background: repeating-linear-gradient(135deg, rgba(61,220,151,.13) 0 12px, rgba(61,220,151,.04) 12px 24px), var(--panel);
+  border: 3px dashed var(--bit);
+  background: repeating-linear-gradient(135deg, rgba(184,190,201,.10) 0 12px, rgba(184,190,201,.03) 12px 24px), var(--panel);
 }
-.slot.bot b { color: var(--green); }
-.slot.bot small { color: var(--green); font-weight: 700; }
+.slot.bot b { color: var(--bit-soft); }
 .slot.bot .av { animation: none; filter: saturate(.55); }
-.bot-badge { font-size: 12px; font-weight: 800; color: #062A1B; background: var(--green); padding: 2px 10px; border-radius: 999px; }
+.bot-badge { font-size: 12px; font-weight: 800; color: #1B1E25; background: var(--bit); padding: 2px 10px; border-radius: 999px; }
 .bot-badge.big { position: absolute; top: 10px; right: 10px; font-size: 15px; padding: 4px 12px; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
 .slots.many .bot-badge.big { top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; }
 /* 작은 아바타 옆 🤖 (조 선택 화면) */
@@ -683,11 +684,10 @@ body, input, button { font-variant-ligatures: none; } /* 어디서든 >= 가 ≥
 /* 게임 판 위 봇 캐릭터: 머리 위 작은 🤖 · 살짝 흐리게 */
 .avatar.bot { opacity: .85; }
 .avatar.bot::after { content: '🤖'; position: absolute; left: 50%; top: -42%; transform: translateX(-50%); font-size: calc(var(--ch) * .2); line-height: 1; filter: drop-shadow(0 1px 0 #000); }
-.members li.bot b { color: var(--green); }
+.members li.bot b { color: var(--bit-soft); }
 /* 시작 버튼의 단축키 표시 (v0.11.0) */
 .start-kbd { font-family: var(--mono); font-size: 12px; font-weight: 800; margin-left: 10px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.18); color: inherit; white-space: nowrap; }
 .snd-big { height: 34px; padding: 0 12px; font-size: 13px; }
-.slot .bot-out { margin-top: 2px; height: 28px; padding: 0 12px; font-size: 12px; }
 .host-badge { font-size: 12px; font-weight: 800; color: #1A1400; background: var(--yellow); padding: 2px 10px; border-radius: 999px; }
 .slots.many { grid-template-columns: repeat(8, minmax(0, 1fr)); }
 .slots.many .slot { height: 130px; }
@@ -877,8 +877,6 @@ button.me-chip:hover { border-color: #4B58A8; }
 .auto-box { margin: 0; padding: 12px 14px; border-radius: 14px; background: rgba(61,220,151,.12); border: 2px solid var(--green); color: var(--green); font-weight: 800; font-size: 16px; text-align: center; animation: blink 1s linear infinite; }
 .check-box { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--panel-deep); border: 2px solid var(--orange); color: #FFB066; font-weight: 700; font-size: 14px; text-align: center; }
 .check-box.warn { border-style: dashed; }
-.slot-tools { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
-.team-sel { height: 28px; border-radius: 8px; background: var(--panel-deep); color: var(--text); border: 1px solid var(--line); font: inherit; font-size: 12px; font-weight: 700; padding: 0 6px; cursor: pointer; }
 .slot.empty.movable { cursor: pointer; font: inherit; color: var(--soft); }
 .slot.empty.movable:hover { border-color: var(--yellow); color: #fff; }
 .slot.empty.movable small { font-family: var(--mono); font-size: 11px; }
@@ -894,20 +892,35 @@ button.me-chip:hover { border-color: #4B58A8; }
 .wt-head .pixel { font-size: 11px; color: var(--soft); }
 .wt-head em { margin-left: auto; font-style: normal; font-size: 12px; font-weight: 800; color: #1A1400; background: var(--yellow); padding: 2px 9px; border-radius: 999px; }
 .wt-head kbd { margin-left: auto; }
-.wt-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+/* 0.15.1: 팀 칸의 사람 카드 = 한 줄 (캐릭터 · 닉네임 · 오른쪽 끝 표시) */
+.wt-slots { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .wteams.n2 .wt-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.wteams.n2.big .wt-slots { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.wteams.n3 .wt-slots, .wteams.n4 .wt-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.wt-slots .slot { height: 128px; border-radius: 14px; gap: 4px; padding: 6px; }
-.wt-slots .slot .av { width: 48px; height: 48px; }
-.wt-slots .slot b { font-size: 13px; }
-.wt-slots .slot small { font-size: 11px; }
-.wt-slots .slot .host-badge, .wt-slots .slot .ready-badge, .wt-slots .bot-badge.big { top: 5px; right: 5px; font-size: 10px; padding: 1px 6px; }
-.wt-slots .slot.empty i { font-size: 18px; }
-.wt-slots .slot.empty span { font-size: 12px; text-align: center; }
+.wt-slots .slot { height: 50px; border-radius: 12px; flex-direction: row; justify-content: flex-start; gap: 6px; padding: 0 6px 0 5px; border-width: 2px; }
+.wt-slots .slot.bot { border-width: 2px; }
+.wt-slots .slot .av { width: 32px; height: 32px; flex: none; }
+.wt-slots .slot b { flex: 1; min-width: 0; padding: 0; font-size: 14px; letter-spacing: -.02em; text-align: left; }
+.wt-slots .slot .host-badge, .wt-slots .slot .ready-badge, .wt-slots .bot-badge.big { position: static; order: 2; flex: none; font-size: 10px; padding: 1px 5px; box-shadow: none; letter-spacing: -.02em; }
+.wt-slots .slot.empty { gap: 6px; justify-content: center; }
+.wt-slots .slot.empty i { font-size: 14px; }
+.wt-slots .slot.empty span { font-size: 12px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt-slots .slot.add-bot span { font-size: 13px; }
 .wt-slots .slot .say { font-size: 12px; }
-.wt-slots .slot-tools .btn.small { height: 24px; padding: 0 8px; font-size: 11px; }
-.wt-slots .team-sel { height: 24px; font-size: 11px; }
+.wt-slots .slot.slow::before { top: -10px; left: -8px; font-size: 20px; }
+/* 방장: 카드를 누르면 메뉴 */
+.slot.pickable { cursor: pointer; }
+.slot.pickable:hover, .slot.pickable:focus-visible { outline: 2px solid var(--soft); outline-offset: 2px; }
+.ready-badge.off-badge { color: var(--muted); border-style: dashed; }
+/* 0.15.1: 4팀은 좁은 화면(1440px 아래)에서 두 줄로 — 닉네임이 잘리지 않게 */
+@media (max-width: 1440px) { .wteams.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.seat-menu { position: fixed; z-index: 60; min-width: 200px; max-width: 260px; display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 14px; background: #0B1433; border: 2px solid var(--line); box-shadow: 0 12px 30px rgba(0,0,0,.55); }
+.seat-menu[hidden] { display: none; }
+.seat-menu .sm-title { font-family: var(--display); font-weight: 800; font-size: 15px; color: #fff; padding: 0 4px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat-menu .sm-label { font-size: 11px; font-weight: 700; color: var(--muted); padding: 4px 4px 0; }
+.seat-menu .sm-item { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 9px; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; font-weight: 700; text-align: left; cursor: pointer; }
+.seat-menu .sm-item:hover:not(:disabled), .seat-menu .sm-item:focus-visible { background: var(--panel); outline: none; }
+.seat-menu .sm-item:disabled { color: var(--muted); cursor: default; }
+.seat-menu .sm-team i { width: 12px; height: 12px; border-radius: 50%; background: var(--tc); flex: none; }
+.seat-menu .sm-out { margin-top: 4px; border-top: 1px solid var(--panel-line); border-radius: 0 0 9px 9px; color: var(--red); }
 
 
 
@@ -926,7 +939,6 @@ button.me-chip:hover { border-color: #4B58A8; }
   .wteams.n3, .wteams.n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 #screen-wait .wait-body, #screen-team .team-body { flex-shrink: 0; }
-.slot-tools .btn { white-space: nowrap; }
 .linklike.exit { white-space: nowrap; }
 @media (max-width: 1100px) {
   #screen-wait .wait-side { order: -1; } /* 좁은 화면: 준비 · 시작 단추를 위로 */
