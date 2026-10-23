@@ -849,8 +849,7 @@ button.me-chip:hover { border-color: #4B58A8; }
 .lcol { padding: 0; gap: 0; overflow: hidden; min-height: 360px; }
 .lc-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px 4px; }
 .lc-head h2 { margin: 0; font-family: var(--display); font-size: 26px; font-weight: 800; color: #fff; }
-#lob-battle .lc-head h2::before { content: '⚔️ '; }
-#lob-coop .lc-head h2::before { content: '🐉 '; }
+/* 1.1.0: 로비 두 칸 = 게임별 — 아이콘 · 포스터는 css/titlecard.css */
 .lc-desc { margin: 0; padding: 0 18px 10px; }
 .lc-open { display: inline-flex; align-items: center; gap: 8px; margin: 0 18px 10px; align-self: flex-start; font-size: 14px; font-weight: 700; color: var(--soft); cursor: pointer; user-select: none; }
 .lc-open input { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
@@ -981,8 +980,6 @@ button.me-chip:hover { border-color: #4B58A8; }
 
 /* 0.14.0: 게임 화면 위쪽 줄 — 팀 이름이 길어져도 글자가 줄바꿈되지 않게 (모자라면 태그부터 가림) */
 .top-bar > * { white-space: nowrap; flex-shrink: 0; }
-.top-bar > .tags { flex-shrink: 1; min-width: 0; overflow: hidden; flex-wrap: nowrap; }
-.top-bar > .tags > * { flex-shrink: 0; }
 @media (max-width: 1599px) { .top-bar .conn > span { display: none; } }
 
 /* 0.14.0: 팀 배틀 대기실 — 인원 · '우리 팀' 표시를 빼고 내 팀 칸을 도드라지게 */
@@ -999,6 +996,7 @@ button.me-chip:hover { border-color: #4B58A8; }
   height: 34px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent;
   font-size: 15px; font-weight: 700; color: var(--soft); cursor: pointer; transition: background .15s, color .15s;
 }
+.seg-switch .ss-opt { min-width: 56px; } /* 1.1.0: 팀 · 비트 속도 · (교사) 점유 · 보스 시간도 이 모양 — 여러 개 고르는 태그만 따로 */
 .seg-switch .ss-opt:disabled { cursor: default; }
 .seg-switch .ss-opt[aria-pressed="true"] { background: var(--blue); color: #062041; }
 
@@ -1006,6 +1004,7 @@ button.me-chip:hover { border-color: #4B58A8; }
 :root { --flip-red: #FF4655; --flip-blue: #2F80FF; --flip-red-d: #C2202E; --flip-blue-d: #1652C9; } /* 맑은 빨강 · 파랑 — 같은 밝기 */
 .lr-game { flex: none; font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); color: var(--soft); white-space: nowrap; }
 .lr-game.flip { color: #fff; border: 0; background: linear-gradient(90deg, var(--flip-red) 0 50%, var(--flip-blue) 50% 100%); }
+.lr-game.coop { color: var(--green); border-color: currentColor; } /* 1.1.0: 블록 러시 협동 방 */
 .flip-teams { display: inline-flex; align-items: center; gap: 5px; }
 .flip-teams i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; }
 .flip-teams .ft-red { background: var(--flip-red); }
@@ -1035,6 +1034,13 @@ button.me-chip:hover { border-color: #4B58A8; }
 .board.flip .cell code { display: none; }
 .board.flip .cell.t1 { background: var(--flip-red); box-shadow: inset 0 -4px 0 var(--flip-red-d), 0 2px 0 #05081C; }
 .board.flip .cell.t2 { background: var(--flip-blue); box-shadow: inset 0 -4px 0 var(--flip-blue-d), 0 2px 0 #05081C; }
+/* 1.1.0 아이템 블록: 회색 + 반짝임 + 선물 표시 — 두 팀 누구나 뒤집어 아이템을 얻는다 */
+.board.flip .cell.item { background: linear-gradient(135deg, #E9EDF8 0%, #B9C2DA 45%, #F4F6FC 55%, #AEB8D2 100%); background-size: 220% 220%; box-shadow: inset 0 -4px 0 #7D88A8, 0 0 0 2px #FFE27A, 0 0 14px rgba(255,226,122,.85), 0 2px 0 #05081C; animation: itemShine 1.6s ease-in-out infinite; }
+.board.flip .cell.item::after { content: ''; position: absolute; inset: 14%; background: var(--gift) center / contain no-repeat; pointer-events: none; } /* 선물 상자 그림 (titlecard.css --gift) */
+.board.flip .cell.item.occ-mine, .board.flip .cell.item.occ-other { animation: none; }
+@keyframes itemShine { 0%, 100% { background-position: 0% 0%; } 50% { background-position: 100% 100%; } }
+.board.flip .cell.fx-flip-item { animation: itemPop .6s cubic-bezier(.2, 1.6, .4, 1); z-index: 3; }
+@keyframes itemPop { 0% { transform: scale(.4); } 100% { transform: scale(1); } }
 /* 방금 놓은 블록 (다른 블록을 뒤집기 전까지 다시 못 잡음) — 빗금 */
 .board.flip .cell.banned { background-image: repeating-linear-gradient(135deg, rgba(10,16,48,.45) 0 4px, transparent 4px 9px); }
 .board.flip .cell.occ-mine { filter: none; background: var(--yellow); box-shadow: inset 0 -4px 0 var(--yellow-dark), 0 0 0 3px #FFF3B8, 0 2px 0 #05081C; }
@@ -1117,3 +1123,16 @@ button.me-chip:hover { border-color: #4B58A8; }
 #screen-team .waiting-box { height: auto; min-height: 72px; padding: 12px 16px; font-size: 17px; text-align: center; line-height: 1.4; }
 .class-teams .wt-join { height: 40px; border-radius: 12px; border: 2px dashed var(--tc); background: transparent; color: #fff; font: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
 .class-teams .wt-join:hover:not(:disabled), .class-teams .wt-join:focus-visible { background: color-mix(in srgb, var(--tc) 25%, transparent); border-style: solid; outline: none; }
+
+/* 1.1.0: 플립 배틀 카운트다운 2초 전 — 뒤집을 블록(상대 색) 둘레가 1.5초 금빛 반짝 (블록은 그대로) */
+.board.flip .cell.hint { animation: flipGlow .5s ease-in-out 3 both; z-index: 2; }
+@keyframes flipGlow {
+  0%, 100% { box-shadow: inset 0 -4px 0 rgba(0,0,0,.22), 0 0 0 2px rgba(255,210,63,.35), 0 0 6px rgba(255,210,63,.25); }
+  50% { box-shadow: inset 0 -4px 0 rgba(0,0,0,.22), 0 0 0 4px #FFE066, 0 0 24px 8px rgba(255,196,40,.95); }
+}
+.board.flip .cell.hint::after { content: "✦"; position: absolute; top: 3px; right: 4px; font-size: 16px; line-height: 1; color: #FFF3A8;
+  text-shadow: 0 0 6px #FFC21A, 0 0 12px #FFC21A; animation: flipTwinkle .5s ease-in-out 3 both; animation-delay: inherit; pointer-events: none; }
+@keyframes flipTwinkle { 0%, 100% { opacity: 0; transform: scale(.3) rotate(0); } 50% { opacity: 1; transform: scale(1.15) rotate(45deg); } }
+.board-cover.countdown { transition: background .25s; }
+.board-cover.countdown.hinting { background: rgba(7,10,32,.2); }
+@media (prefers-reduced-motion: reduce) { .board.flip .cell.hint { animation: none; box-shadow: 0 0 0 3px #FFD23F; } .board.flip .cell.hint::after { animation: none; opacity: 1; } }

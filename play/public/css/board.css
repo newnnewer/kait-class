@@ -203,6 +203,10 @@
 .sb-fmap i { display: block; border-radius: 6px; background: #2A3A6A; transition: background .25s; }
 .sb-fmap i.r { background: var(--flip-red); box-shadow: inset 0 -4px 0 var(--flip-red-d); }
 .sb-fmap i.b { background: var(--flip-blue); box-shadow: inset 0 -4px 0 var(--flip-blue-d); }
+/* 1.1.0 아이템 블록 — 회색 + 노란 빛 + 🎁 */
+.sb-fmap i.it { position: relative; background: linear-gradient(135deg, #E9EDF8, #AEB8D2); box-shadow: inset 0 -4px 0 #7D88A8, 0 0 0 2px #FFE27A, 0 0 16px rgba(255,226,122,.9); animation: sbItem 1.2s ease-in-out infinite alternate; }
+.sb-fmap i.it::after { content: ''; position: absolute; inset: 14%; background: var(--gift) center / contain no-repeat; } /* 선물 상자 그림 (titlecard.css --gift) */
+@keyframes sbItem { from { filter: brightness(1); } to { filter: brightness(1.25); } }
 .sb-fmap i.busy { outline: 3px solid #FFE36E; outline-offset: -3px; animation: flipBusy .8s ease-in-out infinite alternate; }
 .sb-fmap i.pop { animation: flipIn .45s ease-out; }
 .sb-favs { position: absolute; left: 0; top: 0; pointer-events: none; }

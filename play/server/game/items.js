@@ -79,7 +79,26 @@ function sample(arr, n) {
   return a.slice(0, n);
 }
 
+// ── 플립 배틀 아이템 (1.1.0, 사용자 결정 2026-10-23) ──
+//   회색 '아이템 블록'을 뒤집으면 1개 → 내 아이템(5칸). 페널티 · 방패 없음. 공격 대상은 늘 상대 팀
+//   확률: 폭탄 40% · 자동완성 30% · 얼음 30%
+const FLIP_ITEMS = [
+  { id: 'bomb', name: '폭탄', desc: '내 상하좌우 4블록을 우리 색으로 뒤집어요', kind: 'good', rate: 0.4 },
+  { id: 'auto', name: '자동완성', desc: '10초 동안 앞부분을 치고 Tab 을 누르면 완성!', kind: 'good', rate: 0.3 },
+  { id: 'ice', name: '얼음', desc: '상대 팀 전원 5초 동안 입력 금지', kind: 'attack', rate: 0.3 },
+];
+const FLIP_ITEM_MS = { auto: 10000, ice: 5000 };
+
+/** 플립 배틀 아이템 하나 — force: 시험용 아이템 id */
+function rollFlipItem({ rng, force } = {}) {
+  const f = force && FLIP_ITEMS.find(x => x.id === force);
+  if (f) return { id: f.id, name: f.name, desc: f.desc, kind: f.kind };
+  let r = (rng || Math.random)(), it = FLIP_ITEMS[FLIP_ITEMS.length - 1];
+  for (const x of FLIP_ITEMS) { if (r < x.rate) { it = x; break; } r -= x.rate; }
+  return { id: it.id, name: it.name, desc: it.desc, kind: it.kind };
+}
+
 const DECK_SIZE = 5;      // 개인 덱 칸 수 (Ctrl+Shift+1~5)
 const DEFEND_MS = 2000;   // 공격이 들어오기까지 막을 수 있는 시간 (Ctrl+Shift+9)
 
-module.exports = { RATE, GOOD, BAD, ATTACK, SHIELD, MAX_SHIELD, DECK_SIZE, DEFEND_MS, EFFECT_MS, ITEM_MS, FX_OF, POWER, rollItem, rollHelp, sample };
+module.exports = { RATE, GOOD, BAD, ATTACK, SHIELD, MAX_SHIELD, DECK_SIZE, DEFEND_MS, EFFECT_MS, ITEM_MS, FX_OF, POWER, rollItem, rollHelp, sample, FLIP_ITEMS, FLIP_ITEM_MS, rollFlipItem };

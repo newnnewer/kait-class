@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/intro.css">
+<link rel="stylesheet" href="css/titlecard.css">
 </head>
 <body>
 <!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
@@ -33,7 +34,7 @@
   <header class="top">
     <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
     <span class="grow"></span>
-    <span class="pill ghost">공식전 · 팀 배틀 · 레이드</span>
+    <span class="pill ghost">공식전 · 블록 러시 · 플립 배틀</span>
     <button type="button" class="snd-btn" id="e-sfx" tabindex="-1" aria-pressed="true" title="배경음 · 효과음 켜기/끄기 (Ctrl+S, 이 브라우저에 기억)">배경음 켬 · Ctrl+S</button>
     <a class="snd-btn t-link" href="teacher" tabindex="-1" title="선생님 화면 — 공식전 열기 · 관리 (비밀번호 필요)">선생님</a>
   </header>
@@ -79,7 +80,7 @@
   </footer>
 </main>
 
-<!-- 로비 (v0.13.0): 큰 메뉴 넷(캐릭터 바꾸기 · 공식전 · 팀 배틀 · 레이드)을 Tab 으로, 메뉴 안은 방향키로 -->
+<!-- 로비 (1.1.0): 위 공식전 코드 · 아래 게임별 두 칸(블록 러시 | 플립 배틀) — 예전 팀 배틀 | 레이드 -->
 <main id="screen-lobby" class="screen page" hidden>
   <header class="top">
     <span class="logo" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
@@ -103,17 +104,22 @@
   </form>
   <p class="rooms-off" id="rooms-off" hidden>지금은 선생님이 자유 플레이를 꺼 두었어요 · 공식전에만 들어갈 수 있어요</p>
   <div class="lobby-cols">
-    <section class="card lcol" id="lob-battle" aria-label="팀 배틀">
-      <div class="lc-head"><h2>팀 배틀</h2><span class="muted lc-count"></span><span class="grow"></span>
-        <button type="button" class="btn yellow small lc-create" data-mode="battle">＋ 방 만들기</button></div>
-      <p class="muted small lc-desc">팀끼리 겨뤄요 · 블록 러시(먼저 맵 클리어 · 방해 아이템) / 플립 배틀(맵 하나에서 블록 뒤집기)</p>
+    <!-- 1.1.0 꾸미기 (시안 A): 칸 위쪽 포스터 — 움직이는 작은 맵(titlecard.js) · 로고 · 이름 · 이기는 방법, 아래 특징 태그(점선 = 방 만들 때 고를 수 있음) -->
+    <section class="card lcol" id="lob-rush" aria-label="블록 러시">
+      <div class="poster rush"><div class="mini rush" id="mini-rush" aria-hidden="true"></div>
+        <div class="ptxt"><span class="glogo rush">BLOCK RUSH</span><h2 class="pname">블록 러시</h2><span class="win">맵을 먼저 다 깨는 팀이 이겨요</span></div></div>
+      <div class="lc-head"><span class="muted lc-count"></span><span class="grow"></span>
+        <button type="button" class="btn yellow small lc-create" data-game="rush">＋ 방 만들기</button></div>
+      <div class="lc-tags"><span class="chip">협동 · 2 ~ 4팀</span><span class="chip opt">보스 · 아이템</span><span class="chip opt">문제 풀이 · 타이핑</span></div>
       <label class="lc-open"><input type="checkbox" class="lc-open-cb"> 모집중인 방만 보기</label>
       <ul class="lc-rooms"></ul>
     </section>
-    <section class="card lcol" id="lob-coop" aria-label="레이드">
-      <div class="lc-head"><h2>레이드</h2><span class="muted lc-count"></span><span class="grow"></span>
-        <button type="button" class="btn yellow small lc-create" data-mode="coop">＋ 방 만들기</button></div>
-      <p class="muted small lc-desc">혼자서도, 친구와 함께도 · 모두가 맵 하나를 같이 깨요</p>
+    <section class="card lcol" id="lob-flip" aria-label="플립 배틀">
+      <div class="poster flip"><div class="mini flip" id="mini-flip" aria-hidden="true"></div>
+        <div class="ptxt"><span class="glogo flip">FLIP BATTLE</span><h2 class="pname">플립 배틀</h2><span class="win">끝났을 때 우리 색 블록이 많은 팀이 이겨요</span></div></div>
+      <div class="lc-head"><span class="muted lc-count"></span><span class="grow"></span>
+        <button type="button" class="btn yellow small lc-create" data-game="flip">＋ 방 만들기</button></div>
+      <div class="lc-tags"><span class="chip">빨강 vs 파랑 · 최대 16 : 16</span><span class="chip opt">🎁 아이템 블록</span></div>
       <label class="lc-open"><input type="checkbox" class="lc-open-cb"> 모집중인 방만 보기</label>
       <ul class="lc-rooms"></ul>
     </section>
@@ -134,30 +140,24 @@
   </header>
   <div class="create-body">
     <section class="card create-form">
-      <!-- 0.16.0: 게임 고르기 (팀 배틀만) — 블록 러시 / 플립 배틀 -->
-      <div class="field" id="cr-game-field" hidden>
-        <div class="field-head"><h2>게임</h2></div>
-        <div class="seg-switch game-switch" id="cr-game" role="group" aria-label="게임"></div>
-        <span class="muted small" id="cr-gamehelp"></span>
-      </div>
       <div class="field">
         <div class="field-head"><h2>문제 태그</h2><span class="muted">여러 개 고를 수 있어요 · 숫자는 일반·보스 문제 수</span></div>
         <div class="tag-list" id="cr-tags"></div>
         <span class="tag-info" id="cr-taginfo"></span>
       </div>
-      <!-- 설정 (v0.13.0): 인원(협동) 또는 팀 수 × 팀 인원(대전) · 제한 시간 / 블록 수 / 비트 속도. 점유 20초 · 보스 15 · 8 · 30초 · 페널티 있음은 고정 -->
+      <!-- 설정: 팀(블록 러시 협동 · 2 · 3 · 4팀 / 플립 배틀 빨강 · 파랑) · 팀 인원 또는 최대 인원(협동) · 게임 시간 / 블록 수 / 비트 속도. 점유 20초 · 보스 15 · 8 · 30초 · 페널티 있음은 고정 -->
+      <!-- 1.1.0: 게임은 로비에서 누른 칸으로 정해짐 (게임 스위치 없앰) · 블록 러시 '협동' = 예전 레이드 -->
       <div class="field-grid">
-        <div class="field" id="cr-ppl-field"><h3>최대 인원</h3>
+        <div class="field" id="cr-team-field"><h3>팀</h3>
+          <div class="seg-switch" id="cr-tmseg" role="group" aria-label="팀 수"></div>
+          <span id="cr-tm-flip" class="flip-teams" hidden><i class="ft-red"></i><span>빨강</span><i class="ft-blue"></i><span>파랑</span></span>
+          <span class="muted small" id="cr-team-help"></span></div>
+        <div class="field" id="cr-ts-field"><h3>팀 인원</h3>
+          <div class="stepper"><button type="button" class="step-btn" id="cr-ts-down" aria-label="팀 인원 줄이기">−</button><b id="cr-ts">4명</b><button type="button" class="step-btn" id="cr-ts-up" aria-label="팀 인원 늘리기">+</button><span class="muted" id="cr-ts-range">1 ~ 8명</span></div></div>
+        <div class="field" id="cr-ppl-field" hidden><h3>최대 인원</h3>
           <div class="stepper"><button type="button" class="step-btn" id="cr-ppl-down" aria-label="인원 줄이기">−</button><b id="cr-ppl">4</b><button type="button" class="step-btn" id="cr-ppl-up" aria-label="인원 늘리기">+</button><span class="muted">2 ~ 16명</span></div></div>
-        <div class="field" id="cr-team-field" hidden><h3>팀 수 · 팀 인원</h3>
-          <div class="stepper"><span class="stepper" id="cr-tm-wrap"><button type="button" class="step-btn" id="cr-tm-down" aria-label="팀 수 줄이기">−</button><b id="cr-tm">2팀</b><button type="button" class="step-btn" id="cr-tm-up" aria-label="팀 수 늘리기">+</button></span>
-            <span id="cr-tm-flip" class="flip-teams" hidden><i class="ft-red"></i><span>빨강</span><i class="ft-blue"></i><span>파랑</span></span>
-            <span class="muted">×</span>
-            <button type="button" class="step-btn" id="cr-ts-down" aria-label="팀 인원 줄이기">−</button><b id="cr-ts">4명</b><button type="button" class="step-btn" id="cr-ts-up" aria-label="팀 인원 늘리기">+</button></div>
-          <span class="muted small" id="cr-team-help">2 ~ 4팀 · 팀마다 1 ~ 8명 (1:1 도 돼요)</span></div>
-        <div class="field" id="cr-flipmin-field" hidden><h3>게임 시간</h3><div class="seg-row" id="cr-flipmin"></div></div>
         <div class="field" id="cr-lim-field"><h3>게임 시간</h3>
-          <div class="stepper"><button type="button" class="step-btn" id="cr-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="cr-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="cr-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
+          <div class="stepper"><button type="button" class="step-btn" id="cr-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="cr-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="cr-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 10분</span></div></div>
       </div>
       <div class="field-grid sep">
         <div class="field"><h3>블록 수</h3>
@@ -165,10 +165,10 @@
           <span class="muted small" id="cr-blkhelp"></span></div>
       </div>
       <div class="field-grid sep">
-        <div class="field" id="cr-boss-field"><h3>보스</h3><div class="seg-switch" id="cr-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="cr-bosshelp"></span></div>
+        <div class="field" id="cr-boss-field"><h3 id="cr-boss-title">보스</h3><div class="seg-switch" id="cr-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="cr-bosshelp"></span></div>
       </div>
       <div class="field-grid sep">
-        <div class="field"><h3>비트 속도</h3><div class="seg-row" id="cr-botspeed"></div><span class="muted small" id="cr-bothelp">대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)</span></div>
+        <div class="field"><h3>비트 속도</h3><div class="seg-switch" id="cr-botspeed" role="group" aria-label="비트 속도"></div><span class="muted small" id="cr-bothelp">대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)</span></div>
       </div>
     </section>
     <aside class="create-side">
@@ -190,7 +190,7 @@
   <header class="top">
     <button type="button" class="linklike exit" id="btn-wait-leave" title="Alt + Q 두 번">방 나가기 · Alt+Q</button>
     <h1 class="page-title white" id="w-name"></h1>
-    <span class="pill green" id="w-mode">레이드</span>
+    <span class="pill green" id="w-mode">블록 러시</span>
     <b class="pixel" id="w-count"></b>
     <span class="grow"></span>
     <span class="muted">시작하지 않으면 <b class="pixel orange" id="w-close">10:00</b> 뒤에 방이 닫혀요</span>
@@ -296,7 +296,7 @@
       <ol class="stand" id="g-stand"></ol>
     </section>
     <section class="card" id="g-progress-card">
-      <span class="label" id="g-room">레이드</span>
+      <span class="label" id="g-room">블록 러시</span>
       <div class="progress-num"><b id="g-pct">0%</b><span id="g-left">남은 블록 0</span></div>
       <div class="bar"><div id="g-bar"></div></div>
       <span class="hint">블록 위에서 Enter 로 점유하고 코드를 똑같이 입력! 보라색 보스가 나오면 옆 자리에서 Delete · Backspace 로 잡아 아이템을 얻으세요.</span>
@@ -314,8 +314,7 @@
   <div class="main-col">
     <header class="card top-bar">
       <span class="logo small" aria-label="KAIT-PLAY"><svg class="lg-icon" aria-hidden="true"><use href="#kp-icon"/></svg><span class="lg-w">KAIT<i class="lg-dash"></i><span class="lg-p">PLAY</span></span></span>
-      <span class="pill green" id="g-mode">레이드</span>
-      <span class="tags" id="g-tags"></span>
+      <span class="pill green" id="g-mode">블록 러시</span>
       <span class="grow"></span>
       <b class="timer" id="g-timer">10:00</b>
       <span class="fx" id="fx"></span>
@@ -369,7 +368,9 @@
 <div class="overlay" id="overlay-result" hidden>
   <div class="result">
     <span class="rs-kind" id="rs-kind">결과</span>
+    <b class="rs-big" id="rs-big" hidden></b>
     <b class="rs-title" id="rs-title"></b>
+    <div class="rs-hero" id="rs-hero" hidden></div>
     <div class="rs-stats" id="rs-stats"></div>
     <ol class="rs-teams" id="rs-teams" hidden></ol>
     <div class="rs-graph" id="rs-graph" hidden aria-label="순위 변동 그래프"></div>
@@ -408,6 +409,8 @@
 <script src="js/avatar.js"></script>
 <script src="js/sound.js"></script>
 <script src="js/intro.js"></script>
+<script src="js/titlecard.js"></script>
+<script src="js/shared/hero.js"></script>
 <script src="js/app.js"></script>
 <div class="nudge-flash" id="nudge-flash" aria-hidden="true"></div>
 <div class="fx-flash" id="fx-flash" aria-hidden="true"></div>

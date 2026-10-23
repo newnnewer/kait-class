@@ -1,7 +1,8 @@
 'use strict';
 // 자유 플레이 하나 — 대기실(모집 중) ↔ 경기(진행 중)
-//   레이드(coop): 모두가 판 하나를 함께 채운다 (예전 자유 플레이)
-//   팀 배틀(battle, v0.13.0): 2~4팀 × 팀마다 1~8명. 팀마다 같은 판으로 겨룬다 (공식전과 같은 TeamRound)
+//   협동(coop, 예전 레이드): 모두가 판 하나를 함께 채운다 — 1.1.0 부터 화면에서는 '블록 러시 · 협동'
+//   팀 방(battle, v0.13.0 예전 팀 배틀): 2~4팀 × 팀마다 1~8명. 팀마다 같은 판으로 겨룬다 (공식전과 같은 TeamRound)
+//   · 1.1.0: 화면 이름 '팀 배틀' · '레이드'는 없앰 — 로비는 게임별(블록 러시 | 플립 배틀), 프로그램 안 이름(mode)은 그대로
 //
 //   · 방장만 시작 · 방장이 나가거나 10초 넘게 연결이 끊기면 다음 사람이 방장 · 사람이 모두 나가면 방이 없어진다
 //   · 준비(v0.13.0): 방장 말고 모두 '준비'해야 시작 가능 (비트는 늘 준비). 모두 준비되면 15초 뒤 자동 시작
@@ -95,7 +96,7 @@ class Room {
     const s = this.settings;
     const out = {
       id: this.id, name: this.name, phase: this.phase, mode: s.mode,
-      count: this.members.size, max: s.max, tags: s.tags, limitMin: s.limitMin, bossMode: s.bossMode, game: s.game || 'rush',
+      count: this.members.size, max: s.max, tags: s.tags, limitMin: s.limitMin, bossMode: s.bossMode, game: s.game || 'rush', items: s.items !== false,
       members: [...this.members.values()].slice(0, 8).map(p => ({ kind: p.kind, color: p.color })),
       pct: this.progress(),
     };
@@ -262,9 +263,16 @@ class Room {
     return { ok: true, ready: this.ready.has(p.id) };
   }
 
+  /** 1.1.0: 결과 창을 닫고 대기실로 돌아왔다 — 준비 재촉(20초)을 지금부터 다시 센다 (결과를 보는 동안은 재촉하지 않게) */
+  backFromResult(p) {
+    if (this.phase !== 'waiting' || !this.members.has(p.id)) return { ok: false };
+    if (!this.isReady(p)) { this.waitSince.set(p.id, Date.now()); this.changed(); }
+    return { ok: true };
+  }
+
   /** 팀 옮기기 — 학생 스스로(pickTeam) 또는 방장이(moveTo). { ok, moved } */
   setTeam(p, no) {
-    if (!this.battle) return { ok: false, error: '팀 배틀에서만 팀을 고를 수 있어요' };
+    if (!this.battle) return { ok: false, error: '협동 방에서는 팀을 고르지 않아요' };
     if (this.phase !== 'waiting') return { ok: false, error: '게임 중에는 팀을 바꿀 수 없어요' };
     no = Math.round(Number(no));
     if (!(no >= 1 && no <= this.settings.teams)) return { ok: false, error: '없는 팀이에요' };
@@ -364,7 +372,7 @@ class Room {
   fillBots(p) {
     const why = this.hostOnly(p);
     if (why) return { ok: false, error: why };
-    if (!this.battle) return { ok: false, error: '팀 배틀에서만 쓸 수 있어요' };
+    if (!this.battle) return { ok: false, error: '팀이 있는 방에서만 쓸 수 있어요' };
     const target = Math.max(1, this.biggestTeam());
     let added = 0;
     for (let no = 1; no <= this.settings.teams; no++) {

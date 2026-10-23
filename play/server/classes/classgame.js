@@ -77,7 +77,7 @@ class ClassGame {
       waiting: this.teamMembers(0).length,
       teamLock: this.teamLock,
       names: this.names,
-      settings: { tags: s.tags, limitMin: s.limitMin, game: s.game || 'rush', bossMode: s.bossMode || 'quiz' }, // 1.0.0: 학생 대기실 '방 설정' 표
+      settings: { tags: s.tags, limitMin: s.limitMin, game: s.game || 'rush', bossMode: s.bossMode || 'quiz', items: s.items !== false }, // 1.0.0: 학생 대기실 '방 설정' 표
       sfx: s.sfx !== false,
       remainMs: this.remainMs(),
       chat: this.chatLog,
@@ -460,6 +460,8 @@ class ClassGame {
     if (e.type === 'boss') { text = `${this.tl(no)} ${e.nick} 보스 격파!`; kind = 'boss'; }
     else if (e.type === 'gather') { text = `${this.tl(no)} 모두 잡았다! (집결 보스)`; kind = 'good'; }
     else if (e.type === 'item') { text = `${this.tl(no)} ${e.item.kind === 'bad' ? '페널티' : '아이템'} ${e.item.name}`; kind = e.item.kind === 'bad' ? 'bad' : 'good'; }
+    else if (e.type === 'spawn') { text = '🎁 아이템 블록 등장!'; kind = 'good'; } // 1.1.0 플립 배틀
+    else if (e.type === 'get') { text = `${this.tl(no)} ${e.nick} 아이템 블록 → ${e.item.name}`; kind = 'good'; } // 1.1.0 플립 배틀
     if (text) board.emit('board:feed', { text, kind });
   }
 
@@ -500,7 +502,7 @@ class ClassGame {
       limitMs: r ? r.limitMs : s.limitMin * 60000, attacks: s.attacks !== false, bgm: s.bgm !== false,
       teams, waiting: this.teamMembers(0).length, result: this.phase === 'waiting' ? this.lastResult : null,
       history: r ? r.history : null, elapsedMs: r ? Math.round(this.elapsed()) : 0,
-      names: this.names,
+      names: this.names, noBoss: s.bossMode === 'none', // 1.1.0
     };
   }
 
@@ -519,7 +521,8 @@ class ClassGame {
     };
     if (r) {
       const m = r.match;
-      out.map = { cols: m.board.cols, rows: m.board.rows, cells: m.board.cells.map((c, i) => (m.occ.has(i) ? (c.t === 1 ? 'a' : 'b') : String(c.t))).join('') };
+      // 칸 글자: 1 빨강 · 2 파랑 · 0 아이템 블록(1.1.0) / 누가 치는 중이면 a · b · c
+      out.map = { cols: m.board.cols, rows: m.board.rows, cells: m.board.cells.map((c, i) => (m.occ.has(i) ? (c.t === 1 ? 'a' : c.t === 2 ? 'b' : 'c') : String(c.t))).join('') };
       out.counts = m.counts();
       out.players = [...m.members.values()].map(p => ({ ...this.pubOf(p), ...m.pos.get(p.id), team: m.teamOf(p) }));
     }

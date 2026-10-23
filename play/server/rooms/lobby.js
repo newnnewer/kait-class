@@ -104,6 +104,7 @@ class Lobby {
     if (op === 'team') return r.pickTeam(p, msg.no);
     if (op === 'move') return r.moveTo(p, msg.id, msg.no);
     if (op === 'kick') return r.kick(p, msg.id);
+    if (op === 'back') return r.backFromResult(p);
     return { ok: false, error: '잘못된 요청' };
   }
 

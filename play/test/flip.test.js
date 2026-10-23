@@ -42,6 +42,8 @@ test('블록 수 = 인원 × (3 · 4 · 5분 → 5 · 6 · 7), 40 ~ 320 · 맵�
   assert.strictEqual(flipBlocks(30, 5), 210);
   assert.strictEqual(flipBlocks(2, 4), 40);    // 가장 작은 맵
   assert.strictEqual(flipBlocks(80, 5), 320);  // 가장 큰 맵
+  assert.strictEqual(flipBlocks(30, 1), 90);   // 1.1.0: 1 ~ 10분 → 인원 × (분 + 2)
+  assert.strictEqual(flipBlocks(20, 10), 240);
   assert.deepStrictEqual(flipShape(180), { cols: 18, rows: 10, total: 180 });
   const sh = flipShape(97);
   assert.ok(sh.total >= 97 && sh.cols > sh.rows);
@@ -165,9 +167,11 @@ test('비트: 가까운 상대 색 블록으로 가서 점유 → 제출해 뒤�
   assert.strictEqual(m.board.cells[opp].t, 1);
 });
 
-test('설정: 플립 배틀은 팀 배틀에서만 · 2팀 · 팀마다 1~16명 · 게임 시간 3 · 4 · 5분 · 블록 40 ~ 320', () => {
+test('설정: 플립 배틀은 팀 방에서만 · 2팀 · 팀마다 1~16명 · 게임 시간 1 ~ 10분(블록 러시와 같음) · 블록 40 ~ 320', () => {
   const s = cleanRoom({ tags: ['출력'], mode: 'battle', game: 'flip', teams: 4, teamSize: 20, limitMin: 7, blocks: 999 });
-  assert.deepStrictEqual([s.game, s.teams, s.teamSize, s.max, s.limitMin, s.blocks], ['flip', 2, 16, 32, 4, 320]);
+  assert.deepStrictEqual([s.game, s.teams, s.teamSize, s.max, s.limitMin, s.blocks], ['flip', 2, 16, 32, 7, 320]);
+  assert.strictEqual(cleanRoom({ tags: ['출력'], mode: 'battle', game: 'flip', limitMin: 15 }).limitMin, 10);
+  assert.strictEqual(cleanRoom({ tags: ['출력'], mode: 'battle', game: 'flip' }).limitMin, 3);
   assert.strictEqual(cleanRoom({ tags: ['출력'], mode: 'battle', game: 'flip', limitMin: 3 }).limitMin, 3);
   assert.strictEqual(clean({ tags: ['출력'], game: 'flip' }).game, 'rush');           // 레이드는 늘 블록 러시
   const r = cleanRoom({ tags: ['출력'], mode: 'battle', teams: 3, teamSize: 20 });     // 블록 러시 팀 배틀은 그대로
@@ -284,4 +288,147 @@ test('놓은 블록(Esc · 오답 · 시간 초과)은 다른 블록을 뒤집�
   m.submit(a, m.occupy(a).code);
   m.pos.set(a.id, at(m, y));
   assert.ok(m.occupy(a).ok);
+});
+
+// ── 1.1.0 아이템: 아이템 블록 · 폭탄 · 자동완성 · 얼음 ──
+function chanIo() {
+  const log = [];
+  return { log, to: ch => ({ emit: (ev, data) => log.push({ ch, ev, data }) }), sent: (ch, ev) => log.filter(x => x.ev === ev && (x.ch === ch || (Array.isArray(x.ch) && x.ch.includes(ch)))) };
+}
+function itemMatch(opts) {
+  const io = chanIo();
+  const team = new Map();
+  const m = new FlipMatch({
+    io, channels: ['red', 'blue'], codes: ['print(1)', 'a = 1'], seed: 3,
+    s: { blocks: 40, occMs: 20000, limitMs: 60000, ...(opts || {}) },
+    teamOf: p => team.get(p.id) || 0, onEnd: () => {}, teamLabel: no => (no === 1 ? '튜링' : '호퍼'),
+  });
+  clearInterval(m.sweeper);
+  const add = (no, extra) => { const p = person(extra); team.set(p.id, no); m.add(p); return p; };
+  return { m, io, add };
+}
+function take(m, p, i) { m.pos.set(p.id, at(m, i)); const r = m.occupy(p); return r.ok ? m.submit(p, r.code) : r; }
+
+test('아이템 블록: 앞선 팀의 블록 하나가 회색(t 0)으로 — 어느 팀에도 세지 않고, 뒤집기 30번마다 나오되 맵에 가득하면 건너뜀 · 없음이면 안 나옴', () => {
+  const { m, add } = itemMatch();
+  m.board.cells.forEach((c, i) => { c.t = i < 25 ? 1 : 2; }); // 빨강 25 : 파랑 15 → 빨강에서 나옴
+  const i = m.spawnItem();
+  assert.strictEqual(m.board.cells[i].t, 0);
+  assert.ok(i < 25);
+  assert.deepStrictEqual(m.counts(), [24, 15]);
+  assert.strictEqual(m.itemMax, 1);                 // 40블록 → 1개
+  assert.strictEqual(itemMatch({ blocks: 320 }).m.itemMax, 3);
+  // 뒤집기 30번마다: 이미 1개 있으면 30번째에 건너뜀, 가져간 뒤 60번째에 다시
+  const red = add(1), blue = add(2);
+  let k = 0;
+  const flipOnce = () => { const p = k++ % 2 ? red : blue; const j = m.board.cells.findIndex(c => c.t !== 0 && c.t !== m.teamOf(p)); m.flip(j, p); };
+  for (let n = 0; n < 30; n++) flipOnce();
+  assert.strictEqual(m.itemBlocks(), 1);
+  assert.strictEqual(m.nextItemAt, 60);
+  m.flip(i, red);                                    // 아이템 블록을 가져감 (31번째 뒤집기)
+  assert.strictEqual(m.itemBlocks(), 0);
+  for (let n = 0; n < 28; n++) flipOnce();
+  assert.strictEqual(m.itemBlocks(), 0);             // 59번
+  flipOnce();
+  assert.strictEqual(m.itemBlocks(), 1);             // 60번 → 나옴
+  // 없음
+  const off = itemMatch({ items: false });
+  const r2 = off.add(1), b2 = off.add(2);
+  for (let n = 0; n < 40; n++) { const p = n % 2 ? r2 : b2; off.m.flip(off.m.board.cells.findIndex(c => c.t !== off.m.teamOf(p)), p); }
+  assert.strictEqual(off.m.itemBlocks(), 0);
+});
+
+test('아이템 블록은 두 팀 누구나 — 뒤집으면 우리 색 + 내 아이템, 가득 차면 사라짐 · 비트는 잡지 않음', () => {
+  const { m, io, add } = itemMatch();
+  const red = add(1), blue = add(2);
+  const i = m.spawnItem();
+  process.env.FORCE_ITEM = 'bomb';
+  try {
+    assert.strictEqual(take(m, blue, i).correct, true);
+    assert.strictEqual(m.board.cells[i].t, 2);
+    assert.strictEqual(m.deckOf(blue.id)[0].id, 'bomb');
+    assert.strictEqual(io.log.filter(x => x.ev === 'item' && x.data.kind === 'get').length, 1);
+    // 가득 차면 사라짐
+    for (let k = 1; k < 5; k++) m.deckOf(blue.id)[k] = { id: 'auto', name: '자동완성', kind: 'good' };
+    const j = m.spawnItem();
+    take(m, blue, j);
+    assert.strictEqual(io.log.filter(x => x.ev === 'item' && x.data.lost).length, 1);
+  } finally { delete process.env.FORCE_ITEM; }
+  // 비트: 아이템 블록만 남아도 가지 않음
+  const bot = makeBot('비트');
+  m.members.set(bot.id, bot); m.pos.set(bot.id, { r: 0, c: 0 });
+  const tm = new Map([[bot.id, 1]]);
+  const teamOf = m.teamOf; m.teamOf = p => tm.get(p.id) || teamOf(p);
+  m.board.cells.forEach(c => { c.t = 1; });
+  m.board.cells[5].t = 0;
+  bot.brain.nextAt = 0;
+  stepFlipBot(bot, m, 'fast', new Set());
+  assert.strictEqual(bot.brain.target === 5, false);
+  assert.ok(red);
+});
+
+test('폭탄: 내 상하좌우 4블록 중 상대 색만 우리 색으로 (회색 아이템 블록 · 대각선은 그대로) · 치던 사람은 풀림 · 뒤집기 수에는 안 셈', () => {
+  const { m, io, add } = itemMatch();
+  const red = add(1), blue = add(2);
+  const cols = m.board.cols;
+  m.board.cells.forEach(c => { c.t = 2; });
+  const center = cols + 1;                       // (1, 1)
+  m.board.cells[1].t = 1;                         // 위: 이미 우리 색
+  m.board.cells[cols + 2].t = 0;                  // 오른쪽: 아이템 블록
+  const red2 = add(1);                            // 같은 팀 친구가 둘레의 파랑 블록을 치는 중
+  m.pos.set(red2.id, at(m, cols));
+  assert.ok(m.occupy(red2).ok);
+  m.deckOf(red.id)[0] = { id: 'bomb', name: '폭탄', desc: '', kind: 'good' };
+  m.pos.set(red.id, at(m, center));
+  const r = m.useItem(red, 1);
+  assert.ok(r.ok);
+  assert.strictEqual(r.item.n, 2);                 // 4 - 우리 색 1 - 아이템 블록 1 (왼쪽 · 아래)
+  assert.strictEqual(m.board.cells[cols + 2].t, 0);
+  assert.strictEqual(m.board.cells[0].t, 2);        // 대각선은 그대로
+  assert.strictEqual(m.board.cells[cols].t, 1);
+  assert.ok(!m.occBy.has(red2.id));                 // 치던 친구는 풀림 (블록이 이미 우리 색)
+  assert.ok(blue);
+  assert.ok(io.log.some(x => x.ev === 'released' || (x.ev === 'occ' && x.data.why === 'item')));
+  assert.strictEqual(m.stat(red).solved, 0);
+  assert.strictEqual(m.deckOf(red.id)[0], null);
+  assert.strictEqual(m.useItem(red, 1).why, 'empty');
+});
+
+test('얼음: 상대 팀만 5초 동안 이동 · 잡기 · 제출 · 아이템 금지 (알림도 그 팀에만) · 자동완성은 우리 팀에만', () => {
+  const { m, io, add } = itemMatch();
+  const red = add(1), blue = add(2), red2 = add(1);
+  m.deckOf(red.id)[0] = { id: 'ice', name: '얼음', desc: '', kind: 'attack' };
+  m.deckOf(red.id)[1] = { id: 'auto', name: '자동완성', desc: '', kind: 'good' };
+  m.deckOf(blue.id)[0] = { id: 'auto', name: '자동완성', desc: '', kind: 'good' };
+  const r = m.useItem(red, 1);
+  assert.deepStrictEqual([r.ok, r.item.to], [true, 2]);
+  assert.ok(m.frozen(blue) && !m.frozen(red) && !m.frozen(red2));
+  assert.strictEqual(io.sent('blue', 'effect')[0].data.type, 'freeze');
+  assert.strictEqual(io.sent('red', 'effect').length, 0);
+  assert.strictEqual(io.sent('blue', 'item')[0].data.kind, 'hit');
+  assert.strictEqual(io.sent('red', 'item')[0].data.kind, 'attack');
+  const opp = cellOf(m, 1);
+  m.pos.set(blue.id, at(m, opp));
+  assert.strictEqual(m.occupy(blue).why, 'frozen');
+  assert.strictEqual(m.useItem(blue, 1).why, 'frozen');
+  const before = { ...m.pos.get(blue.id) };
+  m.move(blue, { dir: 'R', seq: 1 });
+  assert.deepStrictEqual(m.pos.get(blue.id), before);
+  m.fxT[2].freeze = Date.now() - 1;              // 5초 지남
+  assert.ok(!m.frozen(blue) && m.occupy(blue).ok);
+  // 자동완성: 우리 팀(빨강)에만
+  m.useItem(red, 2);
+  assert.ok(m.fxT[1].auto > Date.now() && !m.fxT[2].auto);
+  assert.strictEqual(io.sent('red', 'effect').slice(-1)[0].data.type, 'auto');
+  assert.ok(m.snapshot(red.id).fx.auto > 0 && m.snapshot(blue.id).fx.auto === 0);
+  assert.strictEqual(m.snapshot(red.id).deck.slots.filter(Boolean).length, 0);
+});
+
+test('설정: 플립 배틀 아이템 블록 나옴 / 없음 (처음 값 나옴) · 블록 러시 보스 없음', () => {
+  assert.strictEqual(cleanRoom({ tags: ['출력'], mode: 'battle', game: 'flip' }).items, true);
+  assert.strictEqual(cleanRoom({ tags: ['출력'], mode: 'battle', game: 'flip', items: false }).items, false);
+  assert.strictEqual(cleanClass({ tags: ['출력'], game: 'flip', items: false }).items, false);
+  assert.strictEqual(cleanRoom({ tags: ['출력'], mode: 'battle', bossMode: 'none' }).bossMode, 'none');
+  assert.strictEqual(cleanClass({ tags: ['출력'], bossMode: 'none' }).bossMode, 'none');
+  assert.strictEqual(cleanClass({ tags: ['출력'], bossMode: 'zzz' }).bossMode, 'quiz');
 });

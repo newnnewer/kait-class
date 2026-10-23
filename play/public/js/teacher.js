@@ -339,7 +339,7 @@
       loadBank();
     });
   };
-  armed($('btn-bk-del'), '이 문제 지우기', function () {
+  armed($('btn-bk-del'), '이 문제 지우기', '정말 지우기?', function () { // 1.1.0: 두 번째 문구가 빠져 있던 것
     call('bank:remove', { id: bk.editing.id }, function (res) {
       if (!res.ok) { $('bk-edit-error').textContent = res.error || '지우지 못했어요'; return; }
       $('bk-edit').hidden = true;
@@ -442,7 +442,7 @@
   // ── 공식전 만들기 · 열기 ──
   function defaults() {
     function d(k, v) { return OPTIONS && OPTIONS[k] && OPTIONS[k].def != null ? OPTIONS[k].def : v; }
-    return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 5), occSec: d('occSec', 20), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), bossMode: 'quiz', bossLineSec: d('bossLineSec', 7), penalty: true, blocks: 0 };
+    return { botSpeed: 'normal', tags: ['출력', '입력', '변수'], teams: d('teams', 4), limitMin: d('limitMin', 3), occSec: d('occSec', 20), bossLimitSec: d('bossLimitSec', 30), bossEverySec: d('bossEverySec', 15), bossWaitSec: d('bossWaitSec', 8), bossMode: 'quiz', bossLineSec: d('bossLineSec', 7), penalty: true, blocks: 0, items: true };
   }
   $('btn-new-class').onclick = function () {
     var last = null;
@@ -512,7 +512,7 @@
     var box = $(id);
     box.innerHTML = '';
     list.forEach(function (v) {
-      var b = el('button', 'seg-btn', v + unit);
+      var b = el('button', 'ss-opt', v + unit); // 1.1.0: 하나만 고르는 것은 스위치 모양 (.seg-switch)
       b.type = 'button';
       b.disabled = disabled;
       b.setAttribute('aria-pressed', String(v === value));
@@ -539,11 +539,9 @@
     });
     $('c-gamehelp').textContent = GAME_HELP[flip ? 'flip' : 'rush'];
     [].forEach.call(document.querySelectorAll('#c-settings .rush-only'), function (x) { x.hidden = flip; });
+    [].forEach.call(document.querySelectorAll('#c-settings .flip-only'), function (x) { x.hidden = !flip; }); // 1.1.0
     $('c-teams-field').hidden = flip;
     $('c-teams-flip').hidden = !flip;
-    $('c-lim-field').hidden = flip;
-    $('c-flipmin-field').hidden = !flip;
-    seg('c-flipmin', (o.flipMin || {}).list || [3, 4, 5], s.limitMin, '분', function (x, v) { x.limitMin = v; }, lock);
     $('c-blk-title').textContent = flip ? '블록 수 (두 팀이 함께 쓰는 맵)' : '블록 수 (팀마다 같음)';
     var tl = $('c-tags');
     tl.innerHTML = '';
@@ -569,7 +567,7 @@
     $('c-teams').textContent = s.teams;
     $('c-teams-down').disabled = lock || s.teams <= 2;
     $('c-teams-up').disabled = lock || s.teams >= 8;
-    var lim = (o.limitMin || {}), limMin = lim.min || 1, limMax = lim.max || 30;
+    var lim = (o.limitMin || {}), limMin = lim.min || 1, limMax = lim.max || 10;
     if (document.activeElement !== $('c-lim')) $('c-lim').value = s.limitMin;
     $('c-lim').disabled = lock;
     $('c-lim-down').disabled = lock || s.limitMin <= limMin;
@@ -580,7 +578,7 @@
     var typing = s.bossMode === 'typing';
     var bm = $('c-bossmode');
     bm.innerHTML = '';
-    [['quiz', '문제 풀이'], ['typing', '타이핑']].forEach(function (x) {
+    [['quiz', '문제 풀이'], ['typing', '타이핑'], ['none', '없음']].forEach(function (x) { // 1.1.0: 없음
       var b = el('button', 'ss-opt', x[1]);
       b.type = 'button';
       b.disabled = lock;
@@ -588,9 +586,23 @@
       b.onclick = function () { changeSettings(function (y) { y.bossMode = x[0]; }); };
       bm.appendChild(b);
     });
-    $('c-bosshelp').textContent = typing ? '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시)' : '빈칸 채우기 · 출력 결과 맞히기 (한 번만 제출)';
-    $('c-bosslimit-field').hidden = typing || flip;
-    $('c-bossline-field').hidden = !typing || flip;
+    var noBoss = s.bossMode === 'none';
+    $('c-bosshelp').textContent = noBoss ? '보스 · 아이템 없이 타이핑 속도로만 겨뤄요' : typing ? '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시)' : '빈칸 채우기 · 출력 결과 맞히기 (한 번만 제출)';
+    [].forEach.call(document.querySelectorAll('#c-settings .boss-more'), function (x) { x.hidden = flip || noBoss; }); // 보스가 없으면 보스 시간 · 페널티 숨김
+    $('c-bosslimit-field').hidden = typing || flip || noBoss;
+    $('c-bossline-field').hidden = !typing || flip || noBoss;
+    // 1.1.0 플립 배틀 아이템 블록: 나옴 / 없음
+    var ib = $('c-items');
+    ib.innerHTML = '';
+    [[true, '나옴'], [false, '없음']].forEach(function (x) {
+      var b = el('button', 'ss-opt', x[1]);
+      b.type = 'button';
+      b.disabled = lock;
+      b.setAttribute('aria-pressed', String(x[0] === (s.items !== false)));
+      b.onclick = function () { changeSettings(function (y) { y.items = x[0]; }); };
+      ib.appendChild(b);
+    });
+    $('c-itemshelp').textContent = s.items !== false ? '두 팀이 뒤집기를 30번 할 때마다 🎁 아이템 블록 (폭탄 · 자동완성 · 얼음)' : '아이템 블록이 나오지 않아요';
     seg('c-bossline', (o.bossLineSec || {}).list || [5, 7, 10, 12], s.bossLineSec || 7, '초', function (x, v) { x.bossLineSec = v; }, lock);
     seg('c-bossevery', (o.bossEverySec || {}).list || [10, 15, 30, 60], s.bossEverySec, '초', function (x, v) { x.bossEverySec = v; }, lock);
     seg('c-bosswait', (o.bossWaitSec || {}).list || [5, 8, 12, 20], s.bossWaitSec, '초', function (x, v) { x.bossWaitSec = v; }, lock);
@@ -598,7 +610,7 @@
     var sb = $('c-botspeed');
     sb.innerHTML = '';
     ((o.botSpeed || {}).list || ['slow', 'normal', 'fast']).forEach(function (v) {
-      var b = el('button', 'seg-btn', SPEED[v] || v);
+      var b = el('button', 'ss-opt', SPEED[v] || v);
       b.type = 'button';
       b.disabled = lock;
       b.setAttribute('aria-pressed', String(v === (s.botSpeed || 'normal')));
@@ -619,9 +631,9 @@
       : auto ? '' : '24 ~ 144블록, 12블록씩 (' + (s.blocks / 12) + '줄)';
   }
   $('c-teams-down').onclick = function () { changeSettings(function (s) { s.teams = Math.max(2, s.teams - 1); }); };
-  // 제한 시간: − / + 또는 숫자 직접 입력 (1 ~ 30분)
+  // 게임 시간: − / + 또는 숫자 직접 입력 (1.1.0: 두 게임 모두 1 ~ 10분)
   function setLimit(v) {
-    var o = (OPTIONS && OPTIONS.limitMin) || {}, lo = o.min || 1, hi = o.max || 30;
+    var o = (OPTIONS && OPTIONS.limitMin) || {}, lo = o.min || 1, hi = o.max || 10;
     var empty = String(v).trim() === ''; // 빈칸이면 이전 값 그대로
     v = Math.round(Number(v));
     if (empty || !Number.isFinite(v)) { if (cur) $('c-lim').value = cur.settings.limitMin; return; }
@@ -643,14 +655,13 @@
   $('c-blk-down').onclick = function () { changeSettings(function (s) { s.blocks = isFlip(s) ? Math.max(40, s.blocks - 10) : Math.max(24, s.blocks - 12); }); };
   $('c-blk-up').onclick = function () { changeSettings(function (s) { s.blocks = isFlip(s) ? Math.min(320, s.blocks + 10) : Math.min(144, s.blocks + 12); }); };
 
-  // 0.16.0: 게임 바꾸기 — 플립 배틀은 2팀 · 3 · 4 · 5분 · 블록 40 ~ 320 / 블록 러시로 돌아오면 전에 쓰던 팀 수
+  // 0.16.0: 게임 바꾸기 — 플립 배틀은 2팀 · 블록 40 ~ 320 / 블록 러시로 돌아오면 전에 쓰던 팀 수 (게임 시간은 1.1.0 부터 그대로)
   //   (3팀 이상에 있던 학생은 서버가 빨강 · 파랑 중 사람이 적은 팀으로 넣는다)
   function setGame(x, v) {
     if ((x.game || 'rush') === v) return;
     if (v === 'flip') {
       x.rushTeams = x.teams;
       x.teams = 2;
-      if ([3, 4, 5].indexOf(x.limitMin) < 0) x.limitMin = 4;
     } else {
       x.teams = x.rushTeams || x.teams || 4;
     }
@@ -836,7 +847,8 @@
     $('c-summary').hidden = !playing;
     var s = cur.settings;
     var BS = { slow: '느림', normal: '보통', fast: '빠름' };
-    if (isFlip(s)) $('c-summary').textContent = '이번 판: 플립 배틀 · ' + s.tags.join(' · ') + ' · 게임 시간 ' + s.limitMin + '분 · ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 비트 ' + (BS[s.botSpeed] || '보통');
+    if (isFlip(s)) $('c-summary').textContent = '이번 판: 플립 배틀 · ' + s.tags.join(' · ') + ' · 게임 시간 ' + s.limitMin + '분 · ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 아이템 블록 ' + (s.items === false ? '없음' : '나옴') + ' · 비트 ' + (BS[s.botSpeed] || '보통');
+    else if (s.bossMode === 'none') $('c-summary').textContent = '이번 판: 블록 러시 · ' + s.tags.join(' · ') + ' · 게임 시간 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 없음 · 비트 ' + (BS[s.botSpeed] || '보통');
     else $('c-summary').textContent = '이번 판: 블록 러시 · ' + s.tags.join(' · ') + ' · 게임 시간 ' + s.limitMin + '분 · 팀마다 ' + (cur.blocks || cur.blocksNow) + '블록 · 점유 ' + s.occSec + '초 · 보스 ' + (s.bossMode === 'typing' ? '타이핑 · ' : '') + s.bossEverySec + '초마다(잔류 ' + s.bossWaitSec + '초 · ' + (s.bossMode === 'typing' ? '줄마다 ' + (s.bossLineSec || 7) : '풀이 ' + s.bossLimitSec) + '초) · 비트 ' + (BS[s.botSpeed] || '보통') + ' · 페널티 ' + (s.penalty ? '있음' : '없음');
     $('c-teams-grid').classList.toggle('wide', playing);
     renderSettings();
@@ -912,7 +924,7 @@
       toast(res.added ? '비트 ' + res.added + '명을 넣었어요' : '이미 인원이 같아요');
     });
   };
-  armed($('btn-botclear'), '비트 모두 빼기', function () { call('class:bot:clear', {}, function () {}); });
+  armed($('btn-botclear'), '비트 모두 빼기', '정말 빼기?', function () { call('class:bot:clear', {}, function () {}); }); // 1.1.0: 두 번째 문구가 빠져 코드가 글자로 보이던 것
   $('btn-teamlock').onclick = function () {
     var on = !(cur && cur.teamLock);
     call('class:teamlock', { on: on }, function (res) {
@@ -1008,14 +1020,5 @@
     setTimeout(function () { $('btn-tr-ok').focus(); }, 50);
   }
 
-  // ── 인트로 (v0.13.0): 페이지를 열 때마다 (새로고침 포함). 교사 화면은 배경음 없이 키를 누를 때 효과음만 ──
-  if (window.CGIntro) {
-    window.CGIntro.play({
-      onPress: function () {
-        var S = window.CGSound;
-        if (!S) return;
-        S.unlock(); S.setVolume(1); S.play('intro');
-      }
-    });
-  }
+  // 1.1.0: 교사 화면에는 인트로를 띄우지 않는다 (학생 입장 화면의 '선생님' 링크로 들어오므로 — 사용자 결정 2026-10-23)
 })();

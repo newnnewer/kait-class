@@ -112,7 +112,8 @@ function stepFlipBot(bot, m, speed, taken) {
   const pos = m.pos.get(bot.id);
   if (!pos) return;
   const here = pos.r * cols + pos.c;
-  const free = i => i >= 0 && cells[i] && cells[i].t !== team && !m.occ.has(i) && m.banned.get(bot.id) !== i;
+  // 1.1.0: 회색 아이템 블록(t = 0)은 잡지 않는다 (사람만의 몫 — 블록 러시에서 보스를 안 잡는 것처럼)
+  const free = i => i >= 0 && cells[i] && cells[i].t !== team && cells[i].t !== 0 && !m.occ.has(i) && m.banned.get(bot.id) !== i;
 
   if (!free(b.target)) {
     const list = [];

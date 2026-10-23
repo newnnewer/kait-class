@@ -119,3 +119,14 @@ test('문제 풀이 방식은 그대로 (한 번 틀리면 끝)', () => {
   assert.strictEqual(r.correct, false);
   assert.strictEqual(room.boss, null);
 });
+
+test('보스 방식 없음 (1.1.0): 보스 · 집결 보스가 나오지 않는다 (시간이 돼도)', () => {
+  const { room, add } = makeRoom({ bossMode: 'none' });
+  add('a', 0, 0); add('b', 0, 1); add('c', 0, 2);
+  assert.strictEqual(room.bossMode, 'none');
+  assert.strictEqual(room.spawnBoss(), false);
+  room.nextBossAt = Date.now() - 1;
+  room.sweep();
+  assert.strictEqual(room.boss, null);
+  assert.strictEqual(makeRoom({ bossMode: 'quiz' }).room.spawnBoss(), true);
+});

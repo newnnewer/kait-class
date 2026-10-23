@@ -44,7 +44,7 @@ class Match {
     this.bossEveryMs = s.bossEveryMs || 15000;
     this.bossWaitMs = s.bossWaitMs || 8000;
     this.bossLimitMs = s.bossLimitMs || 30000;
-    this.bossMode = s.bossMode === 'typing' ? 'typing' : 'quiz'; // 0.15.0: 문제 풀이 / 타이핑
+    this.bossMode = s.bossMode === 'typing' ? 'typing' : s.bossMode === 'none' ? 'none' : 'quiz'; // 0.15.0: 문제 풀이 / 타이핑 · 1.1.0: 없음
     this.bossLineMs = s.bossLineMs || 7000;
     this.penalty = s.penalty !== false;
     this.limitMs = s.limitMs || 10 * 60000;
@@ -568,7 +568,7 @@ class Match {
   /** q: 공식전은 모든 팀에 같은 문제를 넘겨준다 (없으면 이 판의 순서대로)
    *  gather: 공식전이 정한 집결 보스 차례 ({ r, side }) — 조건이 안 되면 보통 보스 */
   spawnBoss(q, gather) {
-    if (this.boss || this.ended) return false;
+    if (this.boss || this.ended || this.bossMode === 'none') return false; // 1.1.0: 보스 없음 (집결 보스도) — 아이템도 안 나옴
     // 자유 플레이: 보스 차례 4번에 1번은 집결 보스 (레이더로 자리를 미리 보여 준 차례는 보통 보스)
     if (!this.external) {
       this.bossTurn += 1;

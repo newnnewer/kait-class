@@ -8,7 +8,6 @@
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/teacher.css">
-<link rel="stylesheet" href="css/intro.css">
 </head>
 <body class="teacher">
 <!-- KAIT-PLAY 로고 아이콘 (v0.8.0) — 한 번만 두고 <use href="#kp-icon"> 로 씀 (숨기면 그라데이션이 안 보여서 크기 0 으로) -->
@@ -57,7 +56,7 @@
     </div>
     <span class="grow"></span>
     <div class="switch-row">
-      <span><b>자유 플레이 허용</b><small class="muted">끄면 학생이 팀 배틀 · 레이드 방을 새로 만들 수 없어요</small></span>
+      <span><b>자유 플레이 허용</b><small class="muted">끄면 학생이 블록 러시 · 플립 배틀 방을 새로 만들 수 없어요</small></span>
       <button type="button" class="toggle" id="home-rooms" aria-pressed="true" aria-label="자유 플레이 허용"><span></span></button>
     </div>
     <a class="btn small ghost-btn" href="sounds.html" target="_blank" rel="noopener" style="text-decoration:none">소리 미리듣기</a>
@@ -205,24 +204,26 @@ for i in range(3):
         <div class="flip-teams"><i class="ft-red"></i><span>빨강</span><i class="ft-blue"></i><span>파랑</span><span class="muted">(2팀)</span></div></div>
       <div class="field" id="c-teams-field"><h3>팀 수</h3>
         <div class="stepper"><button type="button" class="step-btn" id="c-teams-down" aria-label="팀 줄이기">−</button><b id="c-teams">4</b><button type="button" class="step-btn" id="c-teams-up" aria-label="팀 늘리기">+</button><span class="muted">2 ~ 8팀</span></div></div>
-      <div class="field" id="c-flipmin-field" hidden><h3>게임 시간</h3><div class="seg-row" id="c-flipmin"></div></div>
       <div class="field" id="c-lim-field"><h3>게임 시간</h3>
-        <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 30분</span></div></div>
+        <div class="stepper"><button type="button" class="step-btn" id="c-lim-down" aria-label="게임 시간 줄이기">−</button><label class="step-num"><input id="c-lim" type="text" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="게임 시간(분)"><span>분</span></label><button type="button" class="step-btn" id="c-lim-up" aria-label="게임 시간 늘리기">+</button><span class="muted">1 ~ 10분</span></div></div>
       <div class="field-sep" aria-hidden="true"></div>
       <div class="field"><h3 id="c-blk-title">블록 수 (팀마다 같음)</h3>
         <div class="stepper"><button type="button" class="seg-btn" id="c-auto" aria-pressed="true">자동</button><button type="button" class="step-btn" id="c-blk-down" aria-label="블록 줄이기">−</button><b id="c-blk">자동</b><button type="button" class="step-btn" id="c-blk-up" aria-label="블록 늘리기">+</button></div>
         <span class="muted small" id="c-blkhelp"></span></div>
-      <div class="field"><h3>블록 점유 시간</h3><div class="seg-row" id="c-occ"></div></div>
+      <div class="field"><h3>블록 점유 시간</h3><div class="seg-switch" id="c-occ" role="group" aria-label="블록 점유 시간"></div></div>
       <div class="field-sep rush-only" aria-hidden="true"></div>
       <div class="field rush-only"><h3>보스 방식</h3><div class="seg-switch" id="c-bossmode" role="group" aria-label="보스 방식"></div><span class="muted small" id="c-bosshelp"></span></div>
-      <div class="field rush-only"><h3>보스 등장 간격</h3><div class="seg-row" id="c-bossevery"></div></div>
-      <div class="field rush-only"><h3>보스 잔류 시간</h3><div class="seg-row" id="c-bosswait"></div></div>
-      <div class="field rush-only" id="c-bosslimit-field"><h3>보스 풀이 시간</h3><div class="seg-row" id="c-bosslimit"></div></div>
-      <div class="field rush-only" id="c-bossline-field" hidden><h3>타이핑 시간 (줄마다)</h3><div class="seg-row" id="c-bossline"></div><span class="muted small">5초 + 줄 수 × 이 시간</span></div>
+      <div class="field rush-only boss-more"><h3>보스 등장 간격</h3><div class="seg-switch" id="c-bossevery" role="group" aria-label="보스 등장 간격"></div></div>
+      <div class="field rush-only boss-more"><h3>보스 잔류 시간</h3><div class="seg-switch" id="c-bosswait" role="group" aria-label="보스 잔류 시간"></div></div>
+      <div class="field rush-only boss-more" id="c-bosslimit-field"><h3>보스 풀이 시간</h3><div class="seg-switch" id="c-bosslimit" role="group" aria-label="보스 풀이 시간"></div></div>
+      <div class="field rush-only boss-more" id="c-bossline-field" hidden><h3>타이핑 시간 (줄마다)</h3><div class="seg-switch" id="c-bossline" role="group" aria-label="타이핑 시간"></div><span class="muted small">5초 + 줄 수 × 이 시간</span></div>
+      <!-- 1.1.0: 플립 배틀 아이템 블록 나옴 / 없음 -->
+      <div class="field-sep flip-only" aria-hidden="true" hidden></div>
+      <div class="field flip-only" hidden><h3>아이템 블록</h3><div class="seg-switch" id="c-items" role="group" aria-label="아이템 블록"></div><span class="muted small" id="c-itemshelp"></span></div>
       <div class="field-sep" aria-hidden="true"></div>
-      <div class="field"><h3>비트 속도</h3><div class="seg-row" id="c-botspeed"></div></div>
-      <div class="field-sep rush-only" aria-hidden="true"></div>
-      <div class="field rush-only"><h3>페널티 아이템</h3>
+      <div class="field"><h3>비트 속도</h3><div class="seg-switch" id="c-botspeed" role="group" aria-label="비트 속도"></div></div>
+      <div class="field-sep rush-only boss-more" aria-hidden="true"></div>
+      <div class="field rush-only boss-more"><h3>페널티 아이템</h3>
         <div class="row"><button type="button" class="toggle" id="c-pen" aria-pressed="true" aria-label="페널티 아이템"><span></span></button><span class="muted" id="c-pentext"></span></div></div>
       <p class="error" id="c-set-error" role="alert"></p>
     </section>
@@ -287,7 +288,6 @@ for i in range(3):
 <script src="socket.io/socket.io.min.js"></script>
 <script src="js/avatar.js"></script>
 <script src="js/sound.js"></script>
-<script src="js/intro.js"></script>
 <script src="js/shared/teams.js"></script>
 <script src="js/shared/flipchart.js"></script>
 <script src="js/teacher.js"></script>

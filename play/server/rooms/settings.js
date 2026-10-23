@@ -6,12 +6,12 @@ const { FLIP } = require('../game/flip');
 
 const OPTIONS = {
   max: { min: 2, max: 16, def: 4 },
-  limitMin: { min: 1, max: 30, def: 5 },                   // 제한 시간(분, 1분 단위 직접 입력)
+  limitMin: { min: 1, max: 10, def: 3 },                   // 게임 시간(분, 1분 단위 직접 입력) — 1.1.0: 두 게임 모두 1 ~ 10분 · 처음 값 3분
   occSec: { list: [10, 15, 20, 30], def: 20 },            // 블록 점유 시간 (v0.12.0: 10~30초, 기본 20초)
   bossEverySec: { list: [10, 15, 30, 60], def: 15 },      // 보스 등장 간격
   bossWaitSec: { list: [5, 8, 12, 20], def: 8 },          // 보스 잔류 시간
   bossLimitSec: { list: [20, 30, 45, 60], def: 30 },      // 보스 풀이 시간 (문제 풀이 보스)
-  bossMode: { list: ['quiz', 'typing'], def: 'quiz' },     // 0.15.0: 보스 방식 — 문제 풀이 / 타이핑
+  bossMode: { list: ['quiz', 'typing', 'none'], def: 'quiz' }, // 0.15.0: 보스 방식 — 문제 풀이 / 타이핑 · 1.1.0: 없음(보스 · 아이템 없이 타이핑만)
   bossLineSec: { list: [5, 7, 10, 12], def: 7 },          // 0.15.0: 타이핑 보스 줄마다 시간 (+ 기본 5초)
   blocks: { min: 24, max: 144, step: 12 },                 // 0 = 자동
   teams: { min: 2, max: 8, def: 4 },                       // 공식전: 팀 수
@@ -19,7 +19,6 @@ const OPTIONS = {
   teamSize: { min: 1, max: 8, def: 4 },                    // 학생 팀 배틀: 팀마다 인원 (v0.13.0)
   botSpeed: { list: ['slow', 'normal', 'fast'], def: 'normal' }, // 비트 속도 (자유 플레이 · 공식전)
   game: { list: ['rush', 'flip'], def: 'rush' },           // 0.16.0: 게임 — 블록 러시 / 플립 배틀 (레이드는 늘 블록 러시)
-  flipMin: { list: FLIP.times, def: FLIP.defMin },         // 0.16.0: 플립 배틀 게임 시간(분) — 3 · 4 · 5
   flipBlocks: { min: FLIP.minBlocks, max: FLIP.maxBlocks, step: 10 }, // 0.16.0: 플립 배틀 블록 수 (0 = 자동)
   flipTeamSize: { min: 1, max: 16, def: 8 },               // 0.16.0: 플립 배틀 팀 배틀 — 팀마다 인원 (팀은 늘 2)
 };
@@ -80,14 +79,14 @@ function clean(raw) {
   return out;
 }
 
-/** 0.16.0: 플립 배틀 설정으로 — 2팀 · 게임 시간 3 · 4 · 5분 · 블록 수 40 ~ 320(10 단위, 0 = 자동) · 보스 · 아이템 없음 */
+/** 0.16.0: 플립 배틀 설정으로 — 2팀 · 블록 수 40 ~ 320(10 단위, 0 = 자동) · 보스 없음 · 아이템은 아이템 블록에서(1.1.0) (게임 시간은 1.1.0 부터 블록 러시와 같이 1 ~ 10분) */
 function flipify(out, raw) {
   out.game = 'flip';
   out.teams = 2;
-  out.limitMin = pickList(raw.limitMin, OPTIONS.flipMin);
   let b = Math.round(Number(raw.blocks) / 10) * 10;
   out.blocks = Number.isFinite(b) && b > 0 ? Math.max(OPTIONS.flipBlocks.min, Math.min(OPTIONS.flipBlocks.max, b)) : 0;
   out.attacks = false;
+  out.items = raw.items !== false; // 1.1.0: 아이템 블록 나옴 / 없음 (처음 값 나옴)
   return out;
 }
 
@@ -107,7 +106,7 @@ function cleanClass(raw) {
     flipify(c, raw);
   } // 0.16.0: 플립 배틀 — 팀 2개 고정 (교사 화면은 팀 수를 숨김). 블록 러시로 돌아갈 때 쓸 팀 수는 rushTeams 에 기억
   // 0.14.0: 교사 화면의 스위치를 없앰 — 방해 아이템 · 학생 효과음 · 전광판 배경음은 늘 켬
-  c.attacks = c.game !== 'flip';
+  c.attacks = c.game !== 'flip' && c.bossMode !== 'none'; // 1.1.0: 보스가 없으면 아이템도 없다
   c.sfx = true;
   c.bgm = true;
   return c;

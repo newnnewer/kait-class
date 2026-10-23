@@ -248,7 +248,7 @@ io.on('connection', (socket) => {
     ok(cb, me.room.say(me, msg && msg.id));
   });
   // v0.13.0: 준비 · 팀 고르기 · (방장) 학생 옮기기 · 내보내기
-  for (const op of ['ready', 'team', 'move', 'kick']) {
+  for (const op of ['ready', 'team', 'move', 'kick', 'back']) { // 1.1.0 back: 결과 창을 닫고 대기실로 돌아옴
     socket.on('room:' + op, (msg, cb) => {
       if (!allow() || !me) return;
       ok(cb, lobby.roomAct(me, op, msg));

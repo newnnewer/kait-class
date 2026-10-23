@@ -56,7 +56,7 @@
   function syncBgm() {
     if (!B) return;
     var left = B.remainMs - (Date.now() - gotAt);
-    SND.bgm(soundOn && B.bgm && B.phase === 'playing' && !B.paused, left < 30000);
+    SND.bgm(soundOn && B.bgm && B.phase === 'playing' && !B.paused && !(B.countdownMs > 0 && Date.now() - gotAt < B.countdownMs), left < 30000, B.game === 'flip' ? 'flip' : 'rush'); // 1.1.0: 게임마다 다른 곡
   }
   setInterval(syncBgm, 1000);
 
@@ -93,8 +93,10 @@
     $('sb-band-main').textContent = main;
     $('sb-band-sub').textContent = sub || '';
     clearTimeout(bandTimer);
-    if (ms) bandTimer = setTimeout(function () { band('', 'BATTLE', '보스를 잡아 아이템을 얻으세요!', ''); }, ms);
+    if (ms) bandTimer = setTimeout(function () { band('', 'BATTLE', idleBand(), ''); }, ms);
   }
+  // 1.1.0: 보스 없는 판은 기본 띠 문구가 다르다
+  function idleBand() { return B && B.noBoss ? '맵을 먼저 다 깨는 팀이 이겨요!' : '보스를 잡아 아이템을 얻으세요!'; }
   socket.on('board:attack', function (a) {
     play(a.blocked ? 'shield' : 'hit');
     if (a.blocked) {
@@ -109,13 +111,86 @@
     if (f.kind === 'clear') { band('clear', 'CLEAR', f.text, '', 4500); play('clear'); }
   });
 
+  // ── 1.1.0 판이 끝나면 화면 가득 축하: 이긴 팀 캐릭터 만세 포즈 + MVP (약 9초, 아무 키 · 클릭이면 닫힘) ──
+  var heroBox = null, heroTimer = null;
+  function closeHero() {
+    clearTimeout(heroTimer);
+    if (heroBox) { heroBox.remove(); heroBox = null; }
+    document.removeEventListener('keydown', heroKey, true);
+    document.removeEventListener('mousedown', heroKey, true);
+  }
+  function heroKey(e) { e.preventDefault(); e.stopPropagation(); closeHero(); }
+  function celebrate(r) {
+    var H = window.CGHero;
+    if (!H || !r || !r.teams || !r.teams.length) return;
+    closeHero();
+    var flip = r.game === 'flip', draw = flip && !r.winner, members, big, sub, team = 0;
+    if (flip) {
+      team = r.winner || 0;
+      members = draw ? r.teams.reduce(function (a, t) { return a.concat(t.members || []); }, []) : ((r.teams.filter(function (t) { return t.no === r.winner; })[0] || {}).members || []);
+      big = draw ? 'DRAW' : 'VICTORY!';
+      sub = draw ? '무승부!' : TEAMS.josa(tl(r.winner, r.names), '이/가') + ' 이겼어요!';
+    } else {
+      var tops = r.teams.filter(function (t) { return t.rank === 1; });
+      var w = tops[0] || r.teams[0];
+      team = w.no;
+      if (tops.length > 1) { // 공동 1위 — 무승부 포즈
+        draw = true;
+        members = tops.reduce(function (a, t) { return a.concat(t.members || []); }, []);
+        big = 'DRAW';
+        sub = '공동 1위! ' + tops.map(function (t) { return tl(t.no, r.names); }).join(' · ');
+      } else {
+        members = w.members || [];
+        big = 'VICTORY!';
+        sub = tl(w.no, r.names) + ' 1위!' + (w.clear ? ' · ' + mmss(w.ms) : '');
+      }
+    }
+    var pose = draw ? 'draw' : 'win';
+    var mvp = draw ? null : H.mvp(members, flip ? 'flip' : 'rush', team);
+    heroBox = el('div', 'bhero ' + pose);
+    if (!draw) H.confetti(heroBox, 60);
+    heroBox.appendChild(el('div', 'bh-big', big));
+    heroBox.appendChild(el('div', 'bh-sub', sub));
+    var n = members.length, size = n <= 4 ? 150 : n <= 8 ? 115 : n <= 12 ? 92 : 74;
+    var row = el('div', 'bh-team');
+    members.slice(0, 24).forEach(function (p) {
+      var d = el('div', 'bh-p');
+      d.appendChild(H.avatar(p, pose, size));
+      if (mvp && mvp.nick === p.nick) d.appendChild(el('span', 'hcrown', '👑'));
+      d.appendChild(el('span', null, p.nick));
+      row.appendChild(d);
+    });
+    heroBox.appendChild(row);
+    if (mvp) {
+      var mb = el('div', 'bh-mvp');
+      mb.appendChild(el('span', 'mvp-badge', 'MVP'));
+      mb.appendChild(H.avatar(mvp, 'win', 90));
+      var tx = el('div');
+      tx.appendChild(el('div', 't1', '🏆 ' + mvp.title));
+      tx.appendChild(el('div', 't2', mvp.nick + ' · ' + mvp.why));
+      mb.appendChild(tx);
+      heroBox.appendChild(mb);
+    }
+    heroBox.appendChild(el('div', 'hint', '아무 키나 누르면 닫혀요'));
+    document.body.appendChild(heroBox);
+    document.addEventListener('keydown', heroKey, true);
+    document.addEventListener('mousedown', heroKey, true);
+    heroTimer = setTimeout(function () { if (heroBox) heroBox.classList.add('out'); heroTimer = setTimeout(closeHero, 400); }, 9000);
+  }
+
   // ── 화면 그리기 ──
   function update(b) {
     var before = B && B.phase;
     B = b; gotAt = Date.now();
     if (before && before !== b.phase) play(b.phase === 'playing' ? 'start' : 'end');
+    if (before === 'playing' && b.phase === 'waiting' && b.result) celebrate(b.result); // 1.1.0
+    if (b.phase === 'playing') closeHero();
     // v0.12.0: 새 판이 시작되면 지난 판의 전장 소식을 비운다
-    if (b.phase === 'playing' && before !== 'playing') { feed = []; $('sb-feed').innerHTML = ''; }
+    if (b.phase === 'playing' && before !== 'playing') {
+      feed = []; $('sb-feed').innerHTML = ''; band('', 'BATTLE', idleBand(), '');
+      // 1.1.0: 게임 시작 장면 (새 판이 막 시작됐을 때만 — 전광판을 늦게 연 경우는 빼고)
+      if (before && b.countdownMs > 3000 && window.CGTitle) { window.CGTitle.play(b.game === 'flip' ? 'flip' : 'rush', { names: [tl(1), tl(2)] }); setTimeout(function () { play(b.game === 'flip' ? 'titleFlip' : 'titleRush'); }, 450); }
+    }
     syncBgm();
     $('sb-join').innerHTML = '';
     $('sb-join').appendChild(document.createTextNode('접속 '));
@@ -125,14 +200,13 @@
     var at = $('sb-attacks');
     at.textContent = '방해 아이템 ' + (b.attacks ? 'ON' : 'OFF');
     at.classList.toggle('off', !b.attacks);
-    // 0.16.0: 게임 이름 · 플립 배틀은 방해 아이템 · 보기 바꾸기 · 전장 소식 없음
+    // 0.16.0: 게임 이름 · 플립 배틀은 방해 아이템 표시 · 보기 바꾸기 없음 (1.1.0: 전장 소식은 보임 — 아이템 소식)
     var flip = b.game === 'flip';
-    $('sb-pill').textContent = flip ? '플립 배틀' : '블록 러시';
-    $('sb-pill').classList.toggle('flip', flip);
+    if (window.CGTitle) window.CGTitle.pill($('sb-pill'), flip ? 'flip' : 'rush', flip ? '플립 배틀' : '블록 러시'); // 1.1.0: 게임 이름표
+    else { $('sb-pill').textContent = flip ? '플립 배틀' : '블록 러시'; $('sb-pill').classList.toggle('flip', flip); }
     document.body.classList.toggle('flip', flip);
     at.hidden = flip;
     $('sb-view').hidden = flip;
-    document.querySelector('.sb-feed').hidden = flip;
     $('sb-paused').hidden = !b.paused;
     var playing = b.phase === 'playing';
     $('sb-wait').hidden = playing;
@@ -428,7 +502,8 @@
     box.style.gridTemplateColumns = 'repeat(' + m.cols + ', ' + cs + 'px)';
     box.style.gridAutoRows = cs + 'px';
     box.style.gap = g + 'px';
-    var CLS = { '1': 'r', '2': 'b', a: 'r busy', b: 'b busy' };
+    box.style.setProperty('--cs', cs + 'px'); // 1.1.0: 아이템 블록 🎁 크기
+    var CLS = { '1': 'r', '2': 'b', '0': 'it', a: 'r busy', b: 'b busy', c: 'it busy' }; // 1.1.0: 0 · c = 아이템 블록
     for (var j = 0; j < m.cells.length; j++) {
       var ch = m.cells[j];
       if (fmap.cells[j] !== ch) {

@@ -200,10 +200,17 @@
     });
   };
 
-  // ── 로비 (v0.13.0): 위 공식전 코드 · 아래 두 칸(팀 배틀 | 레이드) ──
+  // ── 로비 (1.1.0): 위 공식전 코드 · 아래 게임별 두 칸(블록 러시 | 플립 배틀) — 예전 팀 배틀 | 레이드 ──
+  //   블록 러시 칸에는 협동 방(프로그램 안 이름 coop, 예전 레이드)과 팀 방(battle)이 함께 나온다
   var lobby = { rooms: [], allowRooms: true, openOnly: { 2: false, 3: false } }; // 칸마다 '모집중인 방만 보기'
   var TAG_ORDER = ['출력', '입력', '변수', '연산자', '조건문', '반복문', '리스트', '함수'];
-  var LCOL = { 2: { id: 'lob-battle', mode: 'battle', name: '팀 배틀' }, 3: { id: 'lob-coop', mode: 'coop', name: '레이드' } };
+  var LCOL = { 2: { id: 'lob-rush', game: 'rush', name: '블록 러시' }, 3: { id: 'lob-flip', game: 'flip', name: '플립 배틀' } };
+  function gameOf(r) { return r.game === 'flip' ? 'flip' : 'rush'; }
+  // 1.1.0 꾸미기: 로비 포스터의 움직이는 작은 맵 (로비가 보일 때만 움직임)
+  if (window.CGTitle) {
+    window.CGTitle.mini($('mini-rush'), 'rush', function () { return current === 'lobby'; });
+    window.CGTitle.mini($('mini-flip'), 'flip', function () { return current === 'lobby'; });
+  }
 
   function avatarSpan(kind, color, cls) {
     var s = document.createElement('span');
@@ -231,28 +238,31 @@
   });
 
   function roomsOf(z) {
-    var mode = LCOL[z].mode;
+    var g = LCOL[z].game;
     var list = lobby.rooms.filter(function (r) {
-      if ((r.mode || 'coop') !== mode) return false;
+      if (gameOf(r) !== g) return false;
       return !lobby.openOnly[z] || r.phase === 'waiting';
     });
     list.sort(function (a, b) { return (a.phase === 'waiting' ? 0 : 1) - (b.phase === 'waiting' ? 0 : 1); }); // 모집 중인 방을 앞에
     return list;
   }
 
-  /** 방 한 줄: [모집중] 2팀 · 5/8명 · #조건문 · 5분 — 이름 (팀 배틀은 팀별 자리) */
+  /** 방 한 줄: [모집중] 2팀(또는 협동) · 5/8명 · #조건문 · 5분 — 이름 (팀 방은 팀별 자리) */
   function roomRow(r) {
     var playing = r.phase !== 'waiting';
     var li = el('li', 'lroom' + (playing ? ' playing' : ''));
     li.setAttribute('role', 'button');
     li.appendChild(el('span', 'badge' + (playing ? ' play' : ''), playing ? '진행중' : (r.count >= r.max ? '꽉 참' : '모집중')));
     var info = [];
-    if (r.mode === 'battle') li.appendChild(el('span', 'lr-game ' + (r.game || 'rush'), GAME_NAME[r.game || 'rush'])); // 0.16.0
-    if (r.mode === 'battle') info.push(r.teams + '팀');
+    // 1.1.0: 게임은 칸으로 나뉘므로 게임 띠 대신 팀 방식 (협동 · N팀). 플립 배틀은 아래 팀 자리에 빨강 · 파랑
+    if (r.mode !== 'battle') li.appendChild(el('span', 'lr-game coop', '협동'));
+    else if (r.game !== 'flip') li.appendChild(el('span', 'lr-game', r.teams + '팀'));
     info.push(playing ? r.count + '명' : r.count + '/' + r.max + '명');
     if (playing && r.game !== 'flip') info.push(r.pct + '%'); // 플립 배틀은 진행률이 없다
     else info.push(r.tags.map(function (t) { return '#' + t; }).join(' '), r.limitMin + '분');
-    if (!playing && r.bossMode === 'typing') info.push('타이핑 보스');
+    if (!playing && r.game !== 'flip' && r.bossMode === 'typing') info.push('타이핑 보스');
+    if (!playing && r.game !== 'flip' && r.bossMode === 'none') info.push('보스 없음'); // 1.1.0
+    if (!playing && r.game === 'flip' && r.items === false) info.push('아이템 없음');
     li.appendChild(el('span', 'lr-info', info.join(' · ')));
     li.appendChild(el('b', 'lr-name', r.name));
     if (r.mode === 'battle' && !playing && r.teamCounts) {
@@ -290,13 +300,13 @@
     }
     $('rooms-off').hidden = lobby.allowRooms;
     [2, 3].forEach(function (z) {
-      var col = $(LCOL[z].id), mode = LCOL[z].mode;
-      var all = lobby.rooms.filter(function (r) { return (r.mode || 'coop') === mode; });
+      var col = $(LCOL[z].id), g = LCOL[z].game;
+      var all = lobby.rooms.filter(function (r) { return gameOf(r) === g; });
       var open = all.filter(function (r) { return r.phase === 'waiting'; }).length;
       col.querySelector('.lc-count').textContent = '모집중 ' + open + ' · 진행중 ' + (all.length - open);
       var cb = col.querySelector('.lc-create');
       cb.disabled = !lobby.allowRooms;
-      cb.onclick = function () { openCreate(mode); };
+      cb.onclick = function () { openCreate(g); };
       var cbx = col.querySelector('.lc-open-cb');
       cbx.checked = lobby.openOnly[z];
       cbx.onchange = function () { lobby.openOnly[z] = cbx.checked; renderLobby(); };
@@ -305,7 +315,7 @@
       var list = roomsOf(z);
       if (!list.length) {
         var e = el('li', 'lempty');
-        e.appendChild(el('b', null, all.length ? '지금 모집중인 방이 없어요' : '아직 열린 ' + LCOL[z].name + '이 없어요'));
+        e.appendChild(el('b', null, all.length ? '지금 모집중인 방이 없어요' : '아직 열린 ' + LCOL[z].name + ' 방이 없어요'));
         e.appendChild(el('span', null, lobby.allowRooms ? '＋ 방 만들기로 첫 방을 열어 보세요' : '선생님이 자유 플레이를 꺼 두었어요'));
         ul.appendChild(e);
       }
@@ -384,12 +394,14 @@
     var s = cls.settings || {};
     var clsFlip = s.game === 'flip';
     var playingNow = cls.phase === 'playing';
+    [].forEach.call(document.querySelectorAll('#screen-team .rush-only'), function (x) { x.hidden = clsFlip || s.bossMode === 'none'; }); // 1.1.0: 보스 키 안내
     var noPick = cls.teamLock || playingNow; // 0.15.0: 게임 중에는 선생님이 팀을 정해 줌
     $('t-code').textContent = cls.code;
     var total = cls.teams.reduce(function (n, t) { return n + t.members.length; }, 0) + (cls.waiting || 0);
     $('t-count').textContent = total + '명';
-    $('t-game').textContent = GAME_NAME[clsFlip ? 'flip' : 'rush'] + ' · ' + (clsFlip ? '빨강 · 파랑' : cls.teams.length + '팀');
-    $('t-game').classList.toggle('flip', clsFlip);
+    var tgText = GAME_NAME[clsFlip ? 'flip' : 'rush'] + ' · ' + (clsFlip ? '빨강 · 파랑' : cls.teams.length + '팀');
+    if (window.CGTitle) window.CGTitle.pill($('t-game'), clsFlip ? 'flip' : 'rush', tgText); // 1.1.0: 게임 이름표 (아이콘 + 글자)
+    else $('t-game').textContent = tgText;
     // 오른쪽: 나 · 상태 · 안내
     if (ME) { $('t-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('t-nick').textContent = ME.nick; }
     $('t-picked').textContent = mine ? tl(mine) + ' 선택' : playingNow ? '팀 배정을 기다리는 중' : '팀을 골라 주세요';
@@ -403,6 +415,7 @@
     // 방 설정
     var sum = [['게임', GAME_NAME[clsFlip ? 'flip' : 'rush']], ['태그', (s.tags || []).join(' · ')], ['팀', clsFlip ? '빨강 · 파랑' : cls.teams.length + '팀'], ['게임 시간', s.limitMin + '분']];
     if (!clsFlip) sum.push(['보스', BOSS_MODE[s.bossMode] || '문제 풀이']);
+    else sum.push(['아이템 블록', s.items === false ? '없음' : '나옴']); // 1.1.0
     fillSummary($('t-summary'), sum);
     // 팀 칸 (팀 배틀 대기실과 같은 .wteams · .wteam · .wt-slots)
     var box = $('t-teams');
@@ -445,6 +458,8 @@
       }
       box.appendChild(col);
     });
+    if (clsFlip && n === 2) vsDecor(box, cls.teams, { note: playingNow ? '게임 중' : '선생님을 기다려요' });
+    else vsReset();
     renderChat();
     renderSoundBtns();
   }
@@ -561,7 +576,8 @@
   function tickCountdown() {
     var cd = $('countdown');
     if (!game || !game.countdownUntil) { if (!cd.classList.contains('go')) cd.hidden = true; return; }
-    var left = Math.max(1, Math.ceil((game.countdownUntil - now()) / 1000));
+    var ms = game.countdownUntil - now(), left = Math.max(1, Math.ceil(ms / 1000));
+    if (game.flip && ms <= 2000 && !game.hinted) { game.hinted = true; flipHint(); } // 1.1.0: 2초 남았을 때 뒤집을 블록 반짝
     cd.hidden = false;
     cd.querySelector('.cd-label').textContent = '준비!';
     var num = cd.querySelector('.cd-num');
@@ -583,20 +599,23 @@
     rush: '팀마다 맵을 하나씩 받아 블록을 먼저 다 깨는 팀이 이겨요',
     flip: '두 팀이 맵 하나에서 상대 색 블록을 뒤집어요 · 끝났을 때 블록이 많은 팀 승'
   };
-  var BOSS_MODE = { quiz: '문제 풀이', typing: '타이핑' };
+  var BOSS_MODE = { quiz: '문제 풀이', typing: '타이핑', none: '없음' };
   var BOSS_MODE_HELP = {
     quiz: '보스가 빈칸 채우기 · 출력 결과 맞히기 문제를 내요 (한 번만 제출)',
-    typing: '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시 · 시간은 5초 + 줄마다 7초)'
+    typing: '보스 코드를 한 줄씩 그대로 쳐서 깨요 (틀린 줄은 다시 · 시간은 5초 + 줄마다 7초)',
+    none: '보스가 나오지 않아요 — 아이템도 없이 타이핑 속도로만 겨뤄요' // 1.1.0
   };
+  var ITEMS_HELP = { on: '두 팀이 뒤집기를 30번 할 때마다 🎁 아이템 블록 — 뒤집으면 폭탄 · 자동완성 · 얼음', off: '아이템 블록이 나오지 않아요 — 뒤집기로만 겨뤄요' };
   function optDefault(k) { return OPTIONS && OPTIONS[k] ? OPTIONS[k].def : null; }
 
-  function openCreate(mode) {
+  // 1.1.0: 게임은 로비에서 누른 칸으로 (rush | flip). 블록 러시 팀: 0 = 협동(예전 레이드, 서버 mode 'coop') · 2 · 3 · 4팀
+  function openCreate(g) {
     cr = cr || {
-      tags: [], max: optDefault('max') || 4, teams: optDefault('roomTeams') || 2, teamSize: optDefault('teamSize') || 4, limitMin: optDefault('limitMin') || 5,
-      botSpeed: optDefault('botSpeed') || 'normal', auto: true, blocks: 72, bossMode: 'quiz',
-      game: 'rush', flipMin: optDefault('flipMin') || 4, flipSize: optDefault('flipTeamSize') || 8, flipBlocks: 120 // 0.16.0
+      tags: [], max: optDefault('max') || 4, teams: optDefault('roomTeams') || 2, teamSize: optDefault('teamSize') || 4, limitMin: optDefault('limitMin') || 3,
+      botSpeed: optDefault('botSpeed') || 'normal', auto: true, blocks: 72, bossMode: 'quiz', items: true,
+      game: 'rush', flipSize: optDefault('flipTeamSize') || 8, flipBlocks: 120 // 0.16.0
     };
-    cr.mode = mode === 'battle' ? 'battle' : 'coop';
+    cr.game = g === 'flip' ? 'flip' : 'rush';
     $('cr-error').textContent = '';
     $('btn-open').disabled = false;
     show('create');
@@ -662,77 +681,67 @@
     var cnt = countFor(cr.tags);
     var info = $('cr-taginfo');
     info.className = 'tag-info' + (cr.tags.length && cnt.boss ? '' : ' warn');
-    var crIsFlip = cr.mode === 'battle' && cr.game === 'flip';
+    var crIsFlip = cr.game === 'flip';
     if (crIsFlip) info.className = 'tag-info' + (cr.tags.length ? '' : ' warn');
     info.textContent = !cr.tags.length ? '태그를 하나 이상 고르세요' : crIsFlip ? '일반 ' + cnt.normal + '문제 출제 (플립 배틀은 보스가 없어요)' :
       '일반 ' + cnt.normal + '문제 · 보스 ' + cnt.boss + '문제 출제' + (cnt.boss ? '' : ' — 보스 문제가 없어 보스가 나오지 않아요');
 
-    var battle = cr.mode === 'battle';
-    var flip = battle && cr.game === 'flip'; // 0.16.0: 플립 배틀 (팀 배틀만)
-    $('cr-title').textContent = battle ? '팀 배틀 만들기' : '레이드 만들기';
-    // 게임 고르기: 블록 러시 / 플립 배틀
-    $('cr-game-field').hidden = !battle;
-    var gs = $('cr-game');
-    gs.innerHTML = '';
-    ['rush', 'flip'].forEach(function (v) {
-      var b = el('button', 'ss-opt', GAME_NAME[v]);
+    var flip = cr.game === 'flip';
+    var coop = !flip && cr.coop; // 블록 러시 협동 (예전 레이드)
+    var battle = !coop;
+    $('cr-title').textContent = GAME_NAME[cr.game] + ' 방 만들기';
+    if (window.CGTitle) $('cr-title').insertBefore(window.CGTitle.icon(cr.game), $('cr-title').firstChild); // 1.1.0
+    // 팀: 블록 러시 = 협동 · 2팀 · 3팀 · 4팀 / 플립 배틀 = 빨강 · 파랑
+    var ts = $('cr-tmseg');
+    ts.hidden = flip;
+    ts.innerHTML = '';
+    [0, 2, 3, 4].forEach(function (v) {
+      var b = el('button', 'ss-opt', v ? v + '팀' : '협동'); // 1.1.0: 하나만 고르는 것은 스위치 모양
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(v === cr.game));
-      b.onclick = function () { cr.game = v; renderCreate(); };
-      gs.appendChild(b);
+      b.setAttribute('aria-pressed', String(v ? !cr.coop && cr.teams === v : !!cr.coop));
+      b.onclick = function () { if (v) { cr.coop = false; cr.teams = v; } else cr.coop = true; renderCreate(); };
+      ts.appendChild(b);
     });
-    $('cr-gamehelp').textContent = GAME_HELP[cr.game];
-    $('cr-ppl-field').hidden = battle;
-    $('cr-team-field').hidden = !battle;
-    $('cr-tm-wrap').hidden = flip;
     $('cr-tm-flip').hidden = !flip;
+    $('cr-ppl-field').hidden = !coop;
+    $('cr-ts-field').hidden = coop;
     var tsize = flip ? cr.flipSize : cr.teamSize, tsMax = flip ? 16 : 8;
-    $('cr-tm').textContent = cr.teams + '팀';
     $('cr-ts').textContent = tsize + '명';
-    $('cr-tm-down').disabled = cr.teams <= 2; $('cr-tm-up').disabled = cr.teams >= 4;
+    $('cr-ts-range').textContent = '1 ~ ' + tsMax + '명';
     $('cr-ts-down').disabled = tsize <= 1; $('cr-ts-up').disabled = tsize >= tsMax;
-    $('cr-team-help').textContent = flip ? '팀마다 1 ~ 16명 (1:1 도 돼요)' : '2 ~ 4팀 · 팀마다 1 ~ 8명 (1:1 도 돼요)';
+    $('cr-team-help').textContent = flip ? '팀마다 1 ~ 16명 (1:1 도 돼요)' : coop ? '협동 — 팀 없이 다 같이 맵 하나를 깨요 (혼자서도 돼요)' : '팀마다 같은 맵으로 겨뤄요 · 팀마다 1 ~ 8명 (1:1 도 돼요)';
     $('cr-hint').textContent = flip
-      ? '빨강 · 파랑 두 팀이 맵 하나에서 상대 색 블록을 뒤집어요. 게임 시간이 끝났을 때 우리 색 블록이 많은 팀이 이겨요.'
+      ? '빨강 · 파랑 두 팀이 맵 하나에서 상대 색 블록을 뒤집어요. 게임 시간이 끝났을 때 우리 색 블록이 많은 팀이 이겨요.' + (cr.items !== false ? ' 가끔 나오는 🎁 아이템 블록을 뒤집으면 폭탄 · 자동완성 · 얼음!' : '')
       : battle
-      ? '팀마다 같은 맵 · 같은 문제로 겨뤄요. 보스를 잡으면 다른 팀을 공격하는 방해 아이템과 방패가 나와요.'
+      ? (cr.bossMode === 'none' ? '팀마다 같은 맵 · 같은 문제로 겨뤄요. 먼저 맵을 다 깨는 팀이 이겨요. 보스 · 아이템 없이 타이핑 속도로만!' : '팀마다 같은 맵 · 같은 문제로 겨뤄요. 먼저 맵을 다 깨는 팀이 이기고, 보스를 잡으면 다른 팀을 공격하는 방해 아이템과 방패가 나와요.')
       : '혼자서도, 친구와 함께도 · 모두가 맵 하나를 같이 깨요. 다른 팀을 공격하는 아이템과 방패는 나오지 않아요.';
-    // 게임 시간: 플립 배틀은 3 · 4 · 5분 고르기
-    $('cr-flipmin-field').hidden = !flip;
-    $('cr-lim-field').hidden = flip;
-    var fm = $('cr-flipmin');
-    fm.innerHTML = '';
-    ((o.flipMin || {}).list || [3, 4, 5]).forEach(function (v) {
-      var b = el('button', 'seg-btn', v + '분');
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(v === cr.flipMin));
-      b.onclick = function () { cr.flipMin = v; renderCreate(); };
-      fm.appendChild(b);
-    });
-    $('cr-boss-field').parentNode.hidden = flip; // 플립 배틀은 보스 · 아이템 없음
-    $('cr-bothelp').textContent = flip ? '대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요)' : '대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)';
+    // 게임 시간: 1.1.0 부터 두 게임 모두 1 ~ 10분 직접 입력 (처음 값 3분)
+    $('cr-boss-field').parentNode.hidden = false; // 1.1.0: 블록 러시 = 보스 방식(문제 풀이 · 타이핑 · 없음) / 플립 배틀 = 아이템 블록(나옴 · 없음)
+    $('cr-bothelp').textContent = flip ? '대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 아이템 블록은 안 잡음)' : '대기실에서 방장이 비트를 부를 수 있어요 (비트도 인원에 들어가요 · 보스는 안 잡음)';
     $('cr-ppl').textContent = cr.max;
     $('cr-ppl-down').disabled = cr.max <= 2;
     $('cr-ppl-up').disabled = cr.max >= 16;
-    var lim = (o.limitMin || {}), limMin = lim.min || 1, limMax = lim.max || 30;
+    var lim = (o.limitMin || {}), limMin = lim.min || 1, limMax = lim.max || 10;
     if (document.activeElement !== $('cr-lim')) $('cr-lim').value = cr.limitMin;
     $('cr-lim-down').disabled = cr.limitMin <= limMin;
     $('cr-lim-up').disabled = cr.limitMin >= limMax;
-    // 0.15.0 보스 방식: 문제 풀이 / 타이핑
+    // 0.15.0 보스 방식: 문제 풀이 / 타이핑 · 1.1.0: 없음 / 플립 배틀은 같은 자리에 아이템 블록 나옴 · 없음
     var bm = $('cr-bossmode');
     bm.innerHTML = '';
-    ['quiz', 'typing'].forEach(function (v) {
-      var b = el('button', 'ss-opt', BOSS_MODE[v]);
+    $('cr-boss-title').textContent = flip ? '아이템 블록' : '보스';
+    bm.setAttribute('aria-label', flip ? '아이템 블록' : '보스 방식');
+    (flip ? [['on', '나옴'], ['off', '없음']] : [['quiz', BOSS_MODE.quiz], ['typing', BOSS_MODE.typing], ['none', BOSS_MODE.none]]).forEach(function (x) {
+      var b = el('button', 'ss-opt', x[1]);
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(v === cr.bossMode));
-      b.onclick = function () { cr.bossMode = v; renderCreate(); };
+      b.setAttribute('aria-pressed', String(flip ? (x[0] === 'on') === (cr.items !== false) : x[0] === cr.bossMode));
+      b.onclick = function () { if (flip) cr.items = x[0] === 'on'; else cr.bossMode = x[0]; renderCreate(); };
       bm.appendChild(b);
     });
-    $('cr-bosshelp').textContent = BOSS_MODE_HELP[cr.bossMode];
+    $('cr-bosshelp').textContent = flip ? ITEMS_HELP[cr.items !== false ? 'on' : 'off'] : BOSS_MODE_HELP[cr.bossMode];
     var sb = $('cr-botspeed');
     sb.innerHTML = '';
     ((o.botSpeed || {}).list || ['slow', 'normal', 'fast']).forEach(function (v) {
-      var b = el('button', 'seg-btn', BOT_SPEED[v] || v);
+      var b = el('button', 'ss-opt', BOT_SPEED[v] || v);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(v === cr.botSpeed));
       b.onclick = function () { cr.botSpeed = v; renderCreate(); };
@@ -748,14 +757,14 @@
 
     if (ME) { $('cr-avatar').innerHTML = AV.svg(ME.kind, ME.color); $('cr-name').textContent = ME.nick + '의 방'; }
     var sum = flip ? [
-      ['방식', '팀 배틀'], ['게임', GAME_NAME.flip], ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
-      ['팀', '빨강 · 파랑 × ' + cr.flipSize + '명 (최대 ' + (2 * cr.flipSize) + '명)'], ['게임 시간', cr.flipMin + '분'],
-      ['블록 수', cr.auto ? '자동' : cr.flipBlocks + '블록'], ['비트 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
+      ['게임', GAME_NAME.flip], ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
+      ['팀', '빨강 · 파랑 × ' + cr.flipSize + '명 (최대 ' + (2 * cr.flipSize) + '명)'], ['게임 시간', cr.limitMin + '분'],
+      ['블록 수', cr.auto ? '자동' : cr.flipBlocks + '블록'], ['아이템 블록', cr.items !== false ? '나옴' : '없음'], ['비트 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
     ] : [
-      ['방식', battle ? '팀 배틀' : '레이드']].concat(battle ? [['게임', GAME_NAME.rush]] : []).concat([['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
-      battle ? ['팀', cr.teams + '팀 × ' + cr.teamSize + '명 (최대 ' + (cr.teams * cr.teamSize) + '명)'] : ['최대 인원', cr.max + '명'], ['게임 시간', cr.limitMin + '분'],
+      ['게임', GAME_NAME.rush], ['태그', cr.tags.length ? cr.tags.join(' · ') : '없음'],
+      battle ? ['팀', cr.teams + '팀 × ' + cr.teamSize + '명 (최대 ' + (cr.teams * cr.teamSize) + '명)'] : ['팀', '협동 · 최대 ' + cr.max + '명'], ['게임 시간', cr.limitMin + '분'],
       ['블록 수', cr.auto ? '자동' : cr.blocks + '블록'], ['보스', BOSS_MODE[cr.bossMode]], ['비트 속도', BOT_SPEED_SHORT[cr.botSpeed] || '보통']
-    ]);
+    ];
     fillSummary($('cr-summary'), sum);
     $('btn-open').disabled = !cr.tags.length || createWaitUntil > Date.now(); // 0.15.1: 1분 제한 동안은 흐리게
   }
@@ -766,8 +775,8 @@
   }
 
   $('cr-ppl-down').onclick = function () { cr.max = Math.max(2, cr.max - 1); renderCreate(); };
-  // 제한 시간: − / + 또는 숫자 직접 입력 (1 ~ 30분)
-  function limRange() { var o = (OPTIONS && OPTIONS.limitMin) || {}; return [o.min || 1, o.max || 30]; }
+  // 게임 시간: − / + 또는 숫자 직접 입력 (1.1.0: 두 게임 모두 1 ~ 10분)
+  function limRange() { var o = (OPTIONS && OPTIONS.limitMin) || {}; return [o.min || 1, o.max || 10]; }
   function setLimit(v) {
     var r = limRange(), empty = String(v).trim() === ''; // 빈칸이면 이전 값 그대로
     v = Math.round(Number(v));
@@ -785,9 +794,7 @@
     else if (e.key === 'ArrowDown') { e.preventDefault(); setLimit(cr.limitMin - 1); }
   });
   $('cr-ppl-up').onclick = function () { cr.max = Math.min(16, cr.max + 1); renderCreate(); };
-  $('cr-tm-down').onclick = function () { cr.teams = Math.max(2, cr.teams - 1); renderCreate(); };
-  $('cr-tm-up').onclick = function () { cr.teams = Math.min(4, cr.teams + 1); renderCreate(); };
-  function crFlip() { return cr.mode === 'battle' && cr.game === 'flip'; }
+  function crFlip() { return cr.game === 'flip'; }
   $('cr-ts-down').onclick = function () { if (crFlip()) cr.flipSize = Math.max(1, cr.flipSize - 1); else cr.teamSize = Math.max(1, cr.teamSize - 1); renderCreate(); };
   $('cr-ts-up').onclick = function () { if (crFlip()) cr.flipSize = Math.min(16, cr.flipSize + 1); else cr.teamSize = Math.min(8, cr.teamSize + 1); renderCreate(); };
   $('cr-auto').onclick = function () { cr.auto = !cr.auto; renderCreate(); };
@@ -799,9 +806,9 @@
     $('btn-open').disabled = true;
     var flip = crFlip();
     var settings = {
-      mode: cr.mode, teams: cr.teams, teamSize: flip ? cr.flipSize : cr.teamSize,
-      tags: cr.tags, max: cr.max, limitMin: flip ? cr.flipMin : cr.limitMin, blocks: cr.auto ? 0 : (flip ? cr.flipBlocks : cr.blocks),
-      botSpeed: cr.botSpeed, bossMode: cr.bossMode, game: flip ? 'flip' : 'rush'
+      mode: !flip && cr.coop ? 'coop' : 'battle', teams: cr.teams, teamSize: flip ? cr.flipSize : cr.teamSize,
+      tags: cr.tags, max: cr.max, limitMin: cr.limitMin, blocks: cr.auto ? 0 : (flip ? cr.flipBlocks : cr.blocks),
+      botSpeed: cr.botSpeed, bossMode: cr.bossMode, game: flip ? 'flip' : 'rush', items: cr.items !== false
     };
     socket.emit('room:create', { settings: settings }, function (res) {
       if (!res || !res.ok) {
@@ -1016,8 +1023,10 @@
     var amHost = room.hostId === meId;
     $('w-name').textContent = room.name;
     var flip = battle && s.game === 'flip';
-    [].forEach.call(document.querySelectorAll('#screen-wait .rush-only'), function (x) { x.hidden = flip; });
-    $('w-mode').textContent = battle ? '팀 배틀 · ' + GAME_NAME[flip ? 'flip' : 'rush'] + ' · ' + s.teams + '팀 × ' + s.teamSize + '명' : '레이드';
+    [].forEach.call(document.querySelectorAll('#screen-wait .rush-only'), function (x) { x.hidden = flip || s.bossMode === 'none'; }); // 보스 키 안내
+    var wText = flip ? GAME_NAME.flip + ' · 빨강 · 파랑 × ' + s.teamSize + '명' : battle ? GAME_NAME.rush + ' · ' + s.teams + '팀 × ' + s.teamSize + '명' : GAME_NAME.rush + ' · 협동';
+    if (window.CGTitle) window.CGTitle.pill($('w-mode'), flip ? 'flip' : 'rush', wText); // 1.1.0: 게임 이름표
+    else $('w-mode').textContent = wText;
     $('w-count').textContent = room.members.length + '/' + s.max;
     emptySlot.botShown = {};
     var slots = $('w-slots'), teams = $('w-teams');
@@ -1040,6 +1049,10 @@
         col.appendChild(g);
         teams.appendChild(col);
       });
+      if (flip) {
+        var ck = room.check || {};
+        vsDecor(teams, room.teams, { max: s.teamSize, hostId: room.hostId, hot: !!(ck.ok && !ck.warn && room.members.every(function (p) { return p.ready || p.bot || p.id === room.hostId; })) });
+      } else vsReset();
     } else {
       slots.innerHTML = '';
       slots.classList.toggle('many', s.max > 8);
@@ -1048,15 +1061,15 @@
         slots.appendChild(p ? personSlot(p, {}) : emptySlot(0));
       }
     }
-    var sum = [['방식', battle ? '팀 배틀' : '레이드']];
-    if (battle) sum.push(['게임', GAME_NAME[flip ? 'flip' : 'rush']]);
+    var sum = [['게임', GAME_NAME[flip ? 'flip' : 'rush']]];
     sum.push(['태그', s.tags.join(' · ')]);
-    sum.push(flip ? ['팀', '빨강 · 파랑 × ' + s.teamSize + '명'] : battle ? ['팀', s.teams + '팀 × ' + s.teamSize + '명'] : ['최대 인원', s.max + '명']);
+    sum.push(flip ? ['팀', '빨강 · 파랑 × ' + s.teamSize + '명'] : battle ? ['팀', s.teams + '팀 × ' + s.teamSize + '명'] : ['팀', '협동 · 최대 ' + s.max + '명']);
     sum.push(['게임 시간', s.limitMin + '분'],
       ['블록 수', s.blocks ? s.blocks + '블록' : flip ? '자동' : (battle ? '자동 (가장 큰 팀 × 24)' : '자동 (인원 × 24)')]);
     if (!flip) sum.push(['보스', BOSS_MODE[s.bossMode] || '문제 풀이']);
     sum.push(['비트 속도', BOT_SPEED_SHORT[s.botSpeed] || '보통']);
-    if (battle && !flip) sum.push(['방해 아이템', '늘 나옴']);
+    if (battle && !flip && s.bossMode !== 'none') sum.push(['방해 아이템', '늘 나옴']);
+    if (flip) sum.push(['아이템', s.items === false ? '없음' : '폭탄 · 자동완성 · 얼음']); // 1.1.0
     fillSummary($('w-summary'), sum);
     // 시작 조건 · 준비 · 자동 시작
     var chk = room.check || { ok: true }, me = null;
@@ -1092,6 +1105,46 @@
   // 0.16.0: 플립 배틀 팀 색 — 1 빨강 · 2 파랑
   var FLIP_COLORS = ['#FF4655', '#2F80FF'];
   function teamColor(no, flip) { return flip ? FLIP_COLORS[(no - 1) % 2] : TEAM_COLORS[(no - 1) % TEAM_COLORS.length]; }
+
+  // 1.1.0: 플립 배틀 대기실 — 빨강(왼쪽) VS 파랑(오른쪽). 팀 칸 두 개 사이에 VS 를 끼우고,
+  // 사람이 들고 나거나 준비하면 VS 가 번쩍, 모두 준비되면 흔들림. 새로 온 사람은 자기 팀 쪽에서 미끄러져 들어온다.
+  var vsMemo = { key: '', seen: {}, box: '' };
+  function vsDecor(box, teams, o) {
+    o = o || {};
+    box.classList.add('vs');
+    var cols = box.querySelectorAll(':scope > .wteam');
+    if (cols.length !== 2) return;
+    cols[0].classList.add('vs-red'); cols[1].classList.add('vs-blue');
+    var mid = el('div', 'vs-mid');
+    var v = el('b', 'vs-v', 'VS');
+    mid.appendChild(v);
+    if (o.hot) mid.appendChild(el('small', 'vs-go', '곧 시작!'));
+    else if (o.note) mid.appendChild(el('small', 'vs-note', o.note));
+    mid.classList.toggle('hot', !!o.hot);
+    box.insertBefore(mid, cols[1]);
+    // 팀 머리: 인원 · 준비
+    teams.forEach(function (t, i) {
+      var hd = cols[i] && cols[i].querySelector('.wt-head');
+      if (!hd || o.max == null) return;
+      var rd = t.members.filter(function (p) { return p.ready || p.bot || p.id === o.hostId; }).length;
+      hd.appendChild(el('span', 'vs-cnt', t.members.length + '/' + o.max + (t.members.length ? ' · 준비 ' + rd : '')));
+    });
+    // 바뀐 게 있으면 VS 번쩍 · 새 얼굴은 미끄러져 들어옴 (처음 그릴 때는 조용히)
+    var key = teams.map(function (t) { return t.members.map(function (p) { return p.id + (p.ready ? '!' : ''); }).join(','); }).join('|');
+    var first = !vsMemo.key || vsMemo.box !== box.id, seen = {};
+    teams.forEach(function (t, i) {
+      t.members.forEach(function (p) {
+        seen[p.id] = i;
+        if (!first && vsMemo.seen[p.id] !== i) {
+          var s = cols[i].querySelector('[data-pid="' + p.id + '"]');
+          if (s) s.classList.add(i ? 'vs-in-r' : 'vs-in-l');
+        }
+      });
+    });
+    if (!first && key !== vsMemo.key) v.classList.add('pop');
+    vsMemo.key = key; vsMemo.seen = seen; vsMemo.box = box.id;
+  }
+  function vsReset() { vsMemo.key = ''; vsMemo.seen = {}; }
 
   // ── 대기실 · 팀 선택 화면 채팅 (v0.7.3): 정해 둔 문구만 · 게임 중에는 없음 ──
   var CH = window.CGChat;
@@ -1216,8 +1269,57 @@
 
   // ── 결과 ──
   var REASON = { clear: '클리어!', time: '시간 초과', idle: '방치로 끝남', empty: '모두 나감' };
+  // ── 1.1.0 결과 포즈 · MVP (js/shared/hero.js): 맨 위 큰 글자 · 내 캐릭터 크게 · 우리 팀원 같은 포즈 · 승리 팀 MVP ──
+  //   o: { mood: 'win' | 'lose' | 'draw' | 'rank'(3 · 4팀 판의 2위 이하), big, members(우리 팀, 나 포함), game, team, mvp }
+  function showHero(o) {
+    var box = document.querySelector('#overlay-result .result'), H = window.CGHero;
+    box.classList.remove('hero', 'm-win', 'm-lose', 'm-draw', 'm-rank');
+    var old = box.querySelector('.hconfetti');
+    if (old) old.remove();
+    var big = $('rs-big'), hero = $('rs-hero');
+    hero.innerHTML = '';
+    if (!H || !o || !ME) { big.hidden = true; hero.hidden = true; return; }
+    box.classList.add('hero', 'm-' + o.mood);
+    big.textContent = o.big;
+    big.hidden = false;
+    var pose = o.mood === 'rank' ? 'draw' : o.mood;
+    var mvp = o.mvp ? H.mvp(o.members, o.game, o.team) : null;
+    var me = el('div', 'rs-me');
+    me.appendChild(H.avatar({ kind: ME.kind, color: ME.color }, pose));
+    if (mvp && mvp.nick === ME.nick) me.appendChild(el('span', 'hcrown', '👑'));
+    if (o.mood === 'lose') me.appendChild(H.cloud());
+    hero.appendChild(me);
+    hero.appendChild(el('div', 'rs-me-nick', ME.nick + ' (나)'));
+    var mates = (o.members || []).filter(function (p) { return p.nick !== ME.nick; }).slice(0, 15);
+    if (mates.length) {
+      var row = el('div', 'rs-mates');
+      mates.forEach(function (p) {
+        var m = el('div', 'rs-mate');
+        m.appendChild(H.avatar(p, pose));
+        if (mvp && mvp.nick === p.nick) m.appendChild(el('span', 'hcrown', '👑'));
+        m.appendChild(el('span', null, p.nick));
+        row.appendChild(m);
+      });
+      hero.appendChild(row);
+    }
+    if (mvp) {
+      var mb = el('div', 'rs-mvp');
+      mb.appendChild(el('span', 'mvp-badge', 'MVP'));
+      mb.appendChild(H.avatar(mvp, 'win'));
+      var tx = el('div');
+      tx.appendChild(el('div', 't1', '🏆 ' + mvp.title));
+      tx.appendChild(el('div', 't2', mvp.nick + (mvp.nick === ME.nick ? ' (나)' : '') + ' · ' + mvp.why));
+      mb.appendChild(tx);
+      hero.appendChild(mb);
+    }
+    hero.hidden = false;
+    if (o.mood === 'win') H.confetti(box, 28);
+  }
+
   socket.on('result', function (r) {
     closeBubble(); closeBossBubble();
+    // 1.1.0: 협동 — 클리어면 다 같이 승리 포즈 + MVP, 아니면 패배 포즈
+    showHero({ mood: r.success ? 'win' : 'lose', big: r.success ? 'CLEAR!' : (r.reason === 'time' ? 'TIME UP' : 'GAME OVER'), members: r.players, game: 'rush', mvp: !!r.success });
     game = null;
     $('rs-teams').hidden = true;
     $('rs-graph').hidden = true;
@@ -1244,11 +1346,29 @@
       ol.appendChild(li);
     });
     $('overlay-result').hidden = false;
-    show('wait');
-    renderWait();
-    setTimeout(function () { $('btn-result-ok').focus(); }, 50);
+    resultBehind('wait');
+    setTimeout(function () { $('btn-result-ok').focus({ preventScroll: true }); document.querySelector('#overlay-result .result').scrollTop = 0; }, 50); // 1.1.0: 위쪽 포즈가 보이게
   });
-  function closeResult(focusWait) { $('overlay-result').hidden = true; }
+  // 1.1.0: 결과 창은 끝난 게임 화면 위에 띄우고, [대기실로]를 눌렀을 때 대기실(공식전은 팀 고르기)로 간다
+  //   (예전에는 결과 창 뒤가 바로 대기실이라 결과를 보는 동안 준비 재촉 · 방 닫힘 시계가 흘렀음 — 사용자 지적 2026-10-23)
+  var afterResult = null;
+  function goAfter(t) {
+    show(t);
+    if (t === 'wait') { renderWait(); socket.emit('room:back', {}); } // 서버: 준비 재촉을 지금부터 다시 센다
+    else renderTeam();
+  }
+  function resultBehind(t) {
+    if (current === 'game') { afterResult = t; return; }
+    afterResult = null;
+    goAfter(t);
+  }
+  /** go: [대기실로]를 눌러 닫음 (true) / 다른 일로 닫힘 — 로비로 나감 · 새 판 시작 (false) */
+  function closeResult(go) {
+    $('overlay-result').hidden = true;
+    var t = afterResult;
+    afterResult = null;
+    if (go && t) goAfter(t);
+  }
 
   // 공식전 한 판 결과 — 팀별 순위
   var CLASS_REASON = { clear: '모든 팀 클리어!', time: '시간 종료', stop: '선생님이 게임을 끝냈어요', out: '게임 끝' };
@@ -1261,6 +1381,10 @@
     game = null;
     var my = r.teams.filter(function (t) { return t.no === mine; })[0];
     if (sound.on && !(cls && cls.sfx === false)) SND.play(my && my.rank === 1 ? 'win' : 'end');
+    // 1.1.0: 1위 = 승리 포즈 + MVP · 2팀 판의 2위 = 패배 · 3 · 4팀 판의 2위 이하 = 등수 + 흔들흔들
+    var firsts = r.teams.filter(function (t) { return t.rank === 1; }).length; // 공동 1위면 무승부 포즈
+    var hm = !my ? null : my.rank === 1 ? (firsts > 1 ? { mood: 'draw', big: 'DRAW' } : { mood: 'win', big: 'VICTORY!' }) : r.teams.length <= 2 ? { mood: 'lose', big: 'DEFEAT' } : { mood: 'rank', big: my.rank + '위!' };
+    showHero(hm ? Object.assign(hm, { members: my.members, game: 'rush', team: my.no, mvp: hm.mood === 'win' }) : null);
     drawRankGraph(r);
     var box = document.querySelector('#overlay-result .result');
     box.classList.toggle('fail', !(my && my.rank === 1));
@@ -1293,9 +1417,8 @@
     pl.hidden = !(my && my.members.length);
     $('btn-result-ok').textContent = '대기실로';
     $('overlay-result').hidden = false;
-    if (battle) { show('wait'); renderWait(); }
-    else { show('team'); renderTeam(); }
-    setTimeout(function () { $('btn-result-ok').focus(); }, 50);
+    resultBehind(battle ? 'wait' : 'team');
+    setTimeout(function () { $('btn-result-ok').focus({ preventScroll: true }); document.querySelector('#overlay-result .result').scrollTop = 0; }, 50); // 1.1.0: 위쪽 포즈가 보이게
   });
   $('btn-result-ok').onclick = function () { closeResult(true); };
 
@@ -1310,6 +1433,8 @@
     var my = r.teams.filter(function (t) { return t.no === mine; })[0];
     var win = r.winner && r.winner === mine, draw = !r.winner;
     if (sound.on && !(cls && cls.sfx === false)) SND.play(win ? 'win' : 'end');
+    // 1.1.0: 승리 · 패배 · 무승부 포즈 + 승리 팀 MVP
+    showHero(my ? { mood: win ? 'win' : draw ? 'draw' : 'lose', big: win ? 'VICTORY!' : draw ? 'DRAW' : 'DEFEAT', members: my.members, game: 'flip', team: my.no, mvp: !!win } : null);
     $('rs-graph').hidden = true;
     var box = document.querySelector('#overlay-result .result');
     box.classList.toggle('fail', !win && !draw);
@@ -1342,9 +1467,8 @@
     pl.hidden = !(my && my.members.length);
     $('btn-result-ok').textContent = '대기실로';
     $('overlay-result').hidden = false;
-    if (battle) { show('wait'); renderWait(); }
-    else { show('team'); renderTeam(); }
-    setTimeout(function () { $('btn-result-ok').focus(); }, 50);
+    resultBehind(battle ? 'wait' : 'team');
+    setTimeout(function () { $('btn-result-ok').focus({ preventScroll: true }); document.querySelector('#overlay-result .result').scrollTop = 0; }, 50); // 1.1.0: 위쪽 포즈가 보이게
   }
 
   // 결과 화면의 순위 변동 그래프 (v0.13.0, 전광판 그래프를 작게) — 판이 끝난 순간까지
@@ -1512,6 +1636,7 @@
     closeBubble(); closeBossBubble();
     var t = now(), fx = st.fx || {};
     $('overlay-result').hidden = true;
+    afterResult = null; // 새 판이 시작됨 (공식전: 선생님이 다음 판을 시작)
     var isClass = st.room.mode === 'class' || st.room.mode === 'battle'; // 팀 대전 (공식전 · 팀 배틀)
     game = {
       board: st.board, players: players, meId: st.meId,
@@ -1533,24 +1658,30 @@
     if (game.countdownUntil) { game.paused = true; game.pauseAt = t; game.lastCd = 0; }
     buildBoard();
     $('g-feed').innerHTML = '';
-    $('g-room').textContent = st.room.name || '레이드';
-    $('g-mode').textContent = flip ? (st.room.mode === 'class' ? '공식전' : '팀 배틀') + ' · 플립 배틀 · ' + TEAMS.name(curNames(), game.team)
-      : st.room.mode === 'class' ? '공식전 · ' + st.room.name : st.room.mode === 'battle' ? '팀 배틀 · ' + st.room.name : '레이드';
+    $('g-room').textContent = st.room.name || GAME_NAME.rush;
+    // 1.1.0: 자유 플레이는 게임 이름으로 (예전 '팀 배틀 · ' / '레이드')
+    var gmText = flip ? (st.room.mode === 'class' ? '공식전 · ' : '') + '플립 배틀 · ' + TEAMS.name(curNames(), game.team)
+      : st.room.mode === 'class' ? '공식전 · ' + st.room.name : st.room.mode === 'battle' ? GAME_NAME.rush + ' · ' + st.room.name : GAME_NAME.rush + ' · 협동';
+    // 1.1.0: 게임 이름표 — 블록 러시는 하늘색 이름표, 플립 배틀은 지금처럼 우리 팀 색 + 아이콘
+    if (window.CGTitle && !flip) window.CGTitle.pill($('g-mode'), 'rush', gmText);
+    else {
+      $('g-mode').classList.remove('gpill', 'rush', 'flip');
+      $('g-mode').classList.add('green');
+      $('g-mode').textContent = gmText;
+      if (window.CGTitle) $('g-mode').insertBefore(window.CGTitle.icon('flip'), $('g-mode').firstChild);
+    }
     $('g-mode').classList.toggle('flip-t1', flip && game.team === 1);
     $('g-mode').classList.toggle('flip-t2', flip && game.team === 2);
     $('g-stand-card').hidden = !isClass || flip; // 플립 배틀은 위쪽 가로 막대 하나
     $('flip-bar').hidden = !flip;
-    $('deck').hidden = flip; // 플립 배틀은 아이템이 없다
-    document.querySelector('#screen-game .feed-card').hidden = flip;
+    $('deck').hidden = flip ? st.items === false : st.bossMode === 'none'; // 1.1.0: 플립 배틀도 아이템 · 아이템이 없는 판은 '내 아이템' 줄을 숨김
+    document.querySelector('#screen-game .feed-card').hidden = false;
     $('g-progress-card').hidden = isClass;
     $('g-team-title').textContent = isClass ? '우리 팀원' : '우리 팀';
     $('done').hidden = true;
     $('aim').hidden = true; clearTimeout(aimTimer);
     $('paused').hidden = true;
     if (st.paused) setPaused(true);
-    var tg = $('g-tags');
-    tg.innerHTML = '';
-    (st.room.tags || []).forEach(function (x) { tg.appendChild(el('span', null, '#' + x)); });
     $('btn-leave').textContent = '나가기 · Alt+Q';
     $('idle').hidden = !game.idleUntil;
     show('game');
@@ -1561,6 +1692,11 @@
     // 새로고침: 치던 블록과 코드를 이어서 (플립 배틀)
     if (flip && st.mine && game.board.cells[st.mine.i]) { game.board.cells[st.mine.i].code = st.mine.code; openBubble(st.mine.i, st.mine.ms); }
     if (!wasGame && !st.paused && !st.ended && !game.countdownUntil) sfx('start');
+    // 1.1.0: 새 판이 막 시작됐으면 (카운트다운이 거의 그대로 남음) 게임 시작 장면 약 2초 — 카운트다운 앞부분 위에 뜬다
+    if (!wasGame && !st.ended && st.countdownMs > 3000 && window.CGTitle) {
+      window.CGTitle.play(flip ? 'flip' : 'rush', { names: flip ? [TEAMS.name(curNames(), 1), TEAMS.name(curNames(), 2)] : null });
+      setTimeout(function () { sfx(flip ? 'titleFlip' : 'titleRush'); }, 60); // 1.1.0: 시작 장면 소리
+    }
     tickCountdown();
     requestAnimationFrame(layout); // 0.16.0: 내 아이템 줄 · 시간 막대까지 그려진 뒤 칸 크기를 다시 잰다 (맵이 아래로 넘치지 않게)
   });
@@ -1611,14 +1747,23 @@
     if (!game) return;
     var cell = game.board.cells[m.i];
     if (!cell) return;
-    if (game.flip) { // 0.16.0: 블록이 뒤집혔다
-      cell.t = m.t;
-      cell.solved = m.t === game.team;
+    if (game.flip) { // 0.16.0: 블록이 뒤집혔다 · 1.1.0: via 'item' 아이템 블록이 나타남(t 0) · 'bomb' 폭탄 (차례로)
       if (m.counts) game.counts = m.counts;
-      renderCell(m.i);
-      pop(m.i, m.t === game.team ? 'flip-us' : 'flip-them');
       renderFlipBar();
-      if (m.t !== game.team && m.by !== game.meId) sfx('flipped'); // 우리 블록을 빼앗김
+      var fgo = function () {
+        if (!game || game.board.cells[m.i] !== cell) return;
+        cell.t = m.t;
+        cell.solved = m.t === game.team;
+        renderCell(m.i);
+        pop(m.i, m.t === 0 ? 'flip-item' : m.t === game.team ? 'flip-us' : 'flip-them');
+        if (m.via === 'bomb') itemFx.cellBurst(m.i, 'bomb');
+      };
+      if (m.via === 'bomb') {
+        cell.solved = m.t === game.team; // 이동 · Enter 규칙은 바로 (화면만 차례로)
+        setTimeout(fgo, chainDelay(m));
+      } else fgo();
+      if (m.via === 'item') sfx('join'); // 아이템 블록 등장
+      else if (!m.via && m.t !== game.team && m.by !== game.meId) sfx('flipped'); // 우리 블록을 빼앗김
       return;
     }
     cell.solved = m.solved;
@@ -1794,7 +1939,7 @@
       box.appendChild(s);
     }
     // 방패 칸: 공식전에서만 (자유 플레이라도 가진 게 있으면)
-    if (game.cls || d.shields) {
+    if ((game.cls && !game.flip) || d.shields) { // 1.1.0: 플립 배틀은 방패가 없다
       var sh = el('div', 'dk-slot shield' + (d.shields ? '' : ' empty'));
       sh.appendChild(el('kbd', null, 'Ctrl+Shift+9'));
       sh.appendChild(el('i', null, '🛡'));
@@ -1882,7 +2027,7 @@
   function useSlot(n) {
     if (!game) return;
     var it = game.deck && game.deck.slots ? game.deck.slots[n - 1] : null;
-    if (it && it.kind === 'attack' && game.cls && !it.off) {
+    if (it && it.kind === 'attack' && game.cls && !it.off && !game.flip) { // 플립 배틀: 상대는 한 팀뿐 — 바로 쏜다
       if (game.aim && game.aim.slot === n) fireSlot(n, 0); // 같은 단축키를 한 번 더 = 기본 대상
       else startAim(n, it);
       return;
@@ -2046,6 +2191,24 @@
     f.className = 'fx-flash go ' + kind;
   }
 
+  // 1.1.0: 플립 배틀 카운트다운 2초 남았을 때 — 뒤집을 블록(상대 색) 둘레가 1.5초 금빛으로 반짝반짝
+  // (블록은 움직이지 않음 · 그동안 카운트다운 가림막을 옅게)
+  function flipHint() {
+    if (!game || !game.flip || !game.team || game.ended) return;
+    var opp = game.team === 1 ? 2 : 1, cd = $('countdown');
+    cellEls.forEach(function (c) {
+      if (!c.classList.contains('t' + opp)) return;
+      c.style.animationDelay = Math.floor(Math.random() * 250) + 'ms';
+      c.classList.add('hint');
+    });
+    cd.classList.add('hinting');
+    clearTimeout(flipHint.t);
+    flipHint.t = setTimeout(function () {
+      cd.classList.remove('hinting');
+      cellEls.forEach(function (c) { if (c.classList.contains('hint')) { c.classList.remove('hint'); c.style.animationDelay = ''; } });
+    }, 1750);
+  }
+
   function pop(i, kind) {
     var el = cellEls[i];
     if (!el) return;
@@ -2094,6 +2257,7 @@
     if (game.flip) { // 0.16.0: 빨강(t1) · 파랑(t2) · 우리 색(ours) · 점유(누가 치는 중)
       el.classList.toggle('t1', cell.t === 1);
       el.classList.toggle('t2', cell.t === 2);
+      el.classList.toggle('item', cell.t === 0); // 1.1.0: 회색 아이템 블록 (두 팀 누구나)
       el.classList.toggle('ours', cell.t === game.team);
       el.classList.toggle('banned', game.banned === i && cell.t !== game.team);
       el.classList.toggle('occ-mine', !!mine);
@@ -2202,11 +2366,11 @@
     var tune = null, fast = false;
     if (!$('overlay-result').hidden) tune = null; // 결과 화면에서는 쉰다
     else if (current === 'game' && game) {
-      if (!game.paused && !game.ended) { tune = 'game'; fast = game.endAt - Date.now() < 30000; }
+      if (!game.paused && !game.ended) { tune = game.flip ? 'flip' : 'rush'; fast = game.endAt - Date.now() < 30000; } // 1.1.0: 게임마다 다른 곡
     } else if (current === 'wait' || current === 'team') tune = 'lobby';
     else if (current === 'enter' || current === 'lobby' || current === 'create') tune = 'title'; // v0.13.0
     if (window.CGIntro && window.CGIntro.active()) tune = null; // 인트로 동안은 조용히 (키를 누르면 시작)
-    SND.bgm(!!tune && sound.on && !teacherMuted(), fast, tune || 'game');
+    SND.bgm(!!tune && sound.on && !teacherMuted(), fast, tune || 'rush');
   }
   setInterval(updateBgm, 250);
 

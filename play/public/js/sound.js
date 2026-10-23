@@ -1,6 +1,6 @@
 /* KAIT-PLAY — 소리 (6-2). 음원 파일 없이 브라우저(Web Audio)가 8비트 느낌으로 직접 만든다.
  *   CGSound.play('correct')   효과음 한 번
- *   CGSound.bgm(true/false, fast, tune)   배경음 — tune: 'game'(게임 중, 기본) · 'lobby'(대기실, v0.11.0)
+ *   CGSound.bgm(true/false, fast, tune)   배경음 — tune: 'rush'(블록 러시 게임 중, 예전 'game') · 'flip'(플립 배틀 게임 중, 1.1.0) · 'lobby'(대기실) · 'title'(입장 · 로비)
  *   CGSound.unlock()   첫 클릭·키 입력 때 불러 준다 (브라우저는 사용자가 한 번 누르기 전에는 소리를 못 낸다)
  *   CGSound.volume = 0.25   전체 크기 (학생 기기는 작게, 전광판은 크게)
  * 소리가 안 나는 기기(스피커 없음 · 음소거 · 옛 브라우저)에서도 게임은 그대로 돌아간다. */
@@ -28,8 +28,8 @@
   S.ready = function () { return !!ctx && ctx.state === 'running'; };
   S.setVolume = function (v) { S.volume = v; if (master) master.gain.value = v; };
 
-  // 음 하나: 주파수(또는 [시작, 끝] 미끄러짐), 길이, 파형, 크기, 시작 지연
-  function tone(f, dur, type, vol, delay) {
+  // 음 하나: 주파수(또는 [시작, 끝] 미끄러짐), 길이, 파형, 크기, 시작 지연, 좌우(-1 왼쪽 ~ 1 오른쪽, 1.1.0)
+  function tone(f, dur, type, vol, delay, pan) {
     var c = ensure();
     if (!c || !S.enabled) return;
     var t = c.currentTime + (delay || 0);
@@ -41,7 +41,9 @@
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(v, t + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(master);
+    o.connect(g);
+    if (pan && c.createStereoPanner) { var p = c.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(master); }
+    else g.connect(master);
     o.start(t); o.stop(t + dur + 0.02);
   }
   // 잡음 (폭발 · 먹구름): 짧은 흰 잡음에 낮은 소리 거르기
@@ -107,6 +109,17 @@
     // v0.13.0: 인트로에서 아무 키나 눌렀을 때 — 올라가는 화음 + 반짝
     intro: function () { seq([N.C5, N.E5, N.G5, N.C6, N.E6, N.G6], 0.045, 'square', 0.4); tone(N.C7, 0.45, 'triangle', 0.4, 0.28); tone(N.G6, 0.45, 'triangle', 0.3, 0.28); noise(0.25, 0.25, 0, 5000); },
     clear: function () { seq([N.E6, N.G6, N.E7, N.C7, N.D7, N.G7], 0.07, 'square', 0.45); },
+    // 1.1.0 게임 시작 장면: 블록 러시 = 블록이 쿵쿵 떨어지다 와장창 + 반짝 / 플립 배틀 = 양쪽에서 쉬익 → 쾅 → 빨강 · 파랑이 번갈아 '딴-딴'
+    titleRush: function () {
+      for (var k = 0; k < 5; k++) tone([N.C4 - k * 8, N.C3], 0.09, 'square', 0.3, k * 0.09);
+      noise(0.35, 0.7, 0.62, 1500); tone([200, 50], 0.3, 'sine', 0.55, 0.62);
+      seq([0, 0, 0, 0, 0, 0, 0, 0, N.C6, N.E6, N.G6, N.C7], 0.09, 'square', 0.35); tone(N.E7, 0.4, 'triangle', 0.3, 1.1);
+    },
+    titleFlip: function () {
+      tone([N.C3, N.C5], 0.36, 'sawtooth', 0.22, 0, -0.8); tone([N.C3, N.C5], 0.36, 'sawtooth', 0.22, 0, 0.8);
+      noise(0.3, 0.8, 0.4, 1800); tone([150, 40], 0.3, 'sine', 0.6, 0.4);
+      [N.A5, N.E5, N.A5, N.E5, N.C6, N.G5, N.A6].forEach(function (f, k) { tone(f, 0.08, 'square', 0.33, 0.62 + k * 0.08, k % 2 ? 0.7 : -0.7); });
+    },
   };
   S.play = function (name) {
     if (!S.enabled || !SOUNDS[name]) return;
@@ -117,7 +130,8 @@
   //   title: 입장 화면 · 로비 (v0.13.0, 인트로 다음 — 신나게, 하지만 작게)
   //   game: 게임 중 (전광판 · v0.11.0 부터 학생 기기도) · lobby: 대기실 · 팀 선택 화면 (느리고 잔잔하게)
   var TUNES = {
-    game: {
+    // 블록 러시 게임 중 (예전 'game' 곡 그대로 — 밝은 다장조, 통통 튀게)
+    rush: {
       step: 0.16, fastStep: 0.115, melVol: 0.16, bassVol: 0.3, hat: true,
       mel: ['E5', 'G5', 'A5', 'G5', 'E5', 'D5', 'C5', 'D5', 'E5', 'G5', 'C6', 'B5', 'A5', 'G5', 'E5', 0,
         'F5', 'A5', 'C6', 'A5', 'G5', 'E5', 'D5', 'E5', 'F5', 'E5', 'D5', 'B4', 'C5', 0, 'G4', 0],
@@ -129,6 +143,16 @@
         'F5', 'A5', 'C6', 'F6', 'E6', 'C6', 'A5', 'C6', 'D6', 'B5', 'G5', 'B5', 'C6', 0, 'G5', 0],
       bass: ['C3', 'C3', 'G2', 'G2', 'A2', 'A2', 'E2', 'E2', 'F2', 'F2', 'C3', 'C3', 'G2', 'G2', 'G2', 'B2']
     },
+    // 1.1.0 플립 배틀 게임 중 — 가단조 대결 곡. 2마디마다 빨강(왼쪽 · 네모 소리) ↔ 파랑(오른쪽 · 톱니 소리)이 주고받고, 쿵 · 짝 북
+    flip: {
+      step: 0.14, fastStep: 0.105, melVol: 0.15, bassVol: 0.3, hat: true, duel: true,
+      mel: ['A4', 0, 'C5', 'E5', 'A5', 0, 'G5', 'E5', 'G4', 0, 'B4', 'D5', 'G5', 0, 'F5', 'D5',
+        'A4', 0, 'C5', 'E5', 'A5', 'C6', 'B5', 'A5', 'G5', 'F5', 'E5', 'D5', 'E5', 0, 0, 0,
+        'F4', 0, 'A4', 'C5', 'F5', 0, 'E5', 'C5', 'G4', 0, 'B4', 'D5', 'G5', 0, 'A5', 'B5',
+        'C6', 'B5', 'A5', 'G5', 'A5', 0, 'E5', 0, 'A5', 'G5', 'E5', 'D5', 'E5', 0, 'A4', 0],
+      bass: ['A2', 'A3', 'A2', 'A3', 'G2', 'G3', 'G2', 'G3', 'A2', 'A3', 'A2', 'A3', 'E2', 'E3', 'E2', 'E3',
+        'F2', 'F3', 'F2', 'F3', 'G2', 'G3', 'G2', 'G3', 'A2', 'A3', 'C3', 'C4', 'E2', 'E3', 'E2', 'G#2']
+    },
     lobby: {
       step: 0.24, fastStep: 0.24, melVol: 0.12, bassVol: 0.22, hat: false,
       mel: ['C5', 0, 'E5', 'G5', 'A5', 0, 'G5', 0, 'E5', 0, 'D5', 'E5', 'C5', 0, 0, 0,
@@ -136,26 +160,37 @@
       bass: ['C3', 0, 'G3', 0, 'A2', 0, 'E3', 0, 'F2', 0, 'C3', 0, 'G2', 0, 'D3', 0]
     }
   };
-  var bgmOn = false, bgmFast = false, bgmTune = 'game', bgmTimer = null, bgmStep = 0, bgmNext = 0;
+  TUNES.game = TUNES.rush; // 예전 이름 (호환)
+  var bgmOn = false, bgmFast = false, bgmTune = 'rush', bgmTimer = null, bgmStep = 0, bgmNext = 0;
   function bgmTick() {
     var c = ensure();
     if (!bgmOn || !c) return;
-    var T = TUNES[bgmTune] || TUNES.game;
+    var T = TUNES[bgmTune] || TUNES.rush;
     var step = bgmFast ? T.fastStep : T.step;
     if (!bgmNext || bgmNext < c.currentTime) bgmNext = c.currentTime + 0.05;
     while (bgmNext < c.currentTime + 0.3) {
       var m = T.mel[bgmStep % T.mel.length], b = T.bass[Math.floor(bgmStep / 2) % T.bass.length];
       var d = bgmNext - c.currentTime;
-      if (m) tone(N[m], step * 0.85, bgmTune === 'lobby' ? 'triangle' : 'square', T.melVol, d);
-      if (b && bgmStep % 2 === 0) tone(N[b], step * 1.7, 'triangle', T.bassVol, d);
-      if (T.hat && bgmStep % 4 === 0) noise(0.04, 0.12, d, 6000);
+      if (T.duel) {
+        // 플립 배틀: 8칸마다 빨강(왼쪽) ↔ 파랑(오른쪽), 북은 쿵(1 · 3박) · 짝(2 · 4박)
+        var blue = Math.floor(bgmStep / 8) % 2 === 1;
+        if (m) tone(N[m], step * 0.8, blue ? 'sawtooth' : 'square', blue ? T.melVol * 0.8 : T.melVol, d, blue ? 0.55 : -0.55);
+        if (b && bgmStep % 2 === 0) tone(N[b], step * 1.6, 'triangle', T.bassVol, d);
+        if (bgmStep % 8 === 0) tone([150, 45], 0.14, 'sine', 0.5, d);
+        if (bgmStep % 8 === 4) noise(0.09, 0.28, d, 2600);
+        if (bgmStep % 2 === 1) noise(0.025, 0.08, d, 8000);
+      } else {
+        if (m) tone(N[m], step * 0.85, bgmTune === 'lobby' ? 'triangle' : 'square', T.melVol, d);
+        if (b && bgmStep % 2 === 0) tone(N[b], step * 1.7, 'triangle', T.bassVol, d);
+        if (T.hat && bgmStep % 4 === 0) noise(0.04, 0.12, d, 6000);
+      }
       bgmStep += 1;
       bgmNext += step;
     }
   }
   S.bgm = function (on, fast, tune) {
     bgmFast = !!fast;
-    tune = TUNES[tune] ? tune : 'game';
+    tune = TUNES[tune] ? tune : 'rush';
     if (on && bgmOn && tune !== bgmTune) { bgmTune = tune; bgmStep = 0; return; } // 곡만 바꾼다
     bgmTune = tune;
     if (on && !bgmOn) { bgmOn = true; bgmNext = 0; bgmStep = 0; bgmTimer = setInterval(bgmTick, 100); }

@@ -242,6 +242,19 @@ test('0.14.0: 준비 재촉 — 준비 안 한 채 기다린 시간(waitMs)을 �
   cleanup(room);
 });
 
+test('1.1.0: 결과 창을 닫고 대기실로 돌아오면(room:back) 준비 재촉을 그때부터 다시 센다', () => {
+  const w = fakeWorld();
+  const { room } = battleRoom(w);
+  const b = w.person();
+  room.join(b, b.sock);
+  room.waitSince.set(b.id, Date.now() - 25000);
+  const m = id => room.detail().members.find(x => x.id === id);
+  assert.ok(m(b.id).waitMs >= 25000);
+  assert.strictEqual(room.backFromResult(b).ok, true);
+  assert.ok(m(b.id).waitMs < 1000, '돌아온 순간부터');
+  cleanup(room);
+});
+
 test('0.15.1: 방은 1분에 하나 — 만들면 gapMs, 너무 빨리 다시 만들면 waitMs (화면이 남은 초를 셈)', () => {
   const { Lobby } = require('../server/rooms/lobby');
   const io = { to: () => ({ emit() {} }), sockets: { sockets: new Map() } };

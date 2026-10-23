@@ -86,11 +86,107 @@
   var NAMES = { slime: '슬라임', robot: '로봇', cat: '고양이', ghost: '유령', owl: '부엉이', dino: '공룡', alien: '외계인', frog: '개구리' };
   var COLOR_NAMES = { '#FFD23F': '노랑', '#45B1F5': '하늘', '#FF8FB1': '분홍', '#7EE0B5': '민트', '#FFB347': '주황', '#C9A2FF': '보라', '#F2F4FA': '하양', '#FF6B6B': '빨강' };
 
-  function svg(kind, color) {
-    var f = PARTS[kind] || PARTS.slime;
-    return '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true">' +
-      '<ellipse cx="16" cy="29.6" rx="9" ry="1.7" fill="#000" opacity=".35"/>' + f(color) + '</svg>';
+  // ── 1.1.0 결과 화면 표정 · 팔 (mood: 'win' 승리 · 'lose' 패배 · 'draw' 무승부) ──
+  //   BODY: 눈 · 입을 뺀 몸 (위 PARTS 와 같은 모양) · FACE: 눈 자리(l · r) · 눈 크기(s) · 입 자리(m) · 눈 색(robot 은 화면 속 하늘색)
+  var BODY = {
+    slime: function (c) {
+      return '<path d="M5 28 C5 17 9 9 16 9 C23 9 27 17 27 28 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<path d="M10 15 C11 12.5 13 11.4 15 11.2" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".75"/>';
+    },
+    robot: function (c) {
+      return '<line x1="16" y1="3.8" x2="16" y2="8" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<circle cx="16" cy="3.6" r="1.9" fill="' + c + '" stroke="' + INK + '" stroke-width="1.2"/>' +
+        '<rect x="6" y="8" width="20" height="15" rx="3.5" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<rect x="9" y="12" width="14" height="6.5" rx="2" fill="' + INK + '"/>' +
+        '<rect x="10" y="23" width="12" height="5.6" rx="1.6" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>';
+    },
+    cat: function (c) {
+      return '<path d="M7.5 15 L8.5 4.8 L15 10.5 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<path d="M24.5 15 L23.5 4.8 L17 10.5 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<circle cx="16" cy="18.5" r="10" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<path d="M15 21.4 L17 21.4 L16 22.8 Z" fill="#FF5C8A"/>' +
+        '<line x1="4" y1="20" x2="9.5" y2="21" stroke="' + INK + '" stroke-width="1"/><line x1="28" y1="20" x2="22.5" y2="21" stroke="' + INK + '" stroke-width="1"/>';
+    },
+    ghost: function (c) {
+      return '<path d="M6 28.5 V15 A10 10 0 0 1 26 15 V28.5 L22.7 25.8 L19.3 28.5 L16 25.8 L12.7 28.5 L9.3 25.8 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<ellipse cx="10" cy="20.5" rx="1.6" ry="1" fill="#FF5C8A" opacity=".6"/><ellipse cx="22" cy="20.5" rx="1.6" ry="1" fill="#FF5C8A" opacity=".6"/>';
+    },
+    owl: function (c) {
+      return '<path d="M8 11 L7 4 L12.5 8 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.4" stroke-linejoin="round"/>' +
+        '<path d="M24 11 L25 4 L19.5 8 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.4" stroke-linejoin="round"/>' +
+        '<ellipse cx="16" cy="18" rx="10.5" ry="11" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<ellipse cx="16" cy="24" rx="5.5" ry="3.8" fill="#fff" opacity=".35"/>' +
+        '<circle cx="12" cy="15.5" r="4" fill="#fff" stroke="' + INK + '" stroke-width="1.2"/><circle cx="20" cy="15.5" r="4" fill="#fff" stroke="' + INK + '" stroke-width="1.2"/>' +
+        '<path d="M14.6 19.4 L17.4 19.4 L16 22 Z" fill="#FFB347" stroke="' + INK + '" stroke-width="1" stroke-linejoin="round"/>';
+    },
+    dino: function (c) {
+      return '<path d="M10 9 L11.6 4.6 L13.6 8.4 L15.6 4.2 L17.4 8.2 L19.2 4.8 L20.4 8.4" fill="#fff" stroke="' + INK + '" stroke-width="1.2" stroke-linejoin="round"/>' +
+        '<path d="M6 28.5 V16 C6 11 10 8 15 8 H19.5 C24.5 8 27.5 11 27.5 15 V18.5 H22 V28.5 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6" stroke-linejoin="round"/>' +
+        '<path d="M22.5 18.5 L23.5 20 L24.5 18.5 L25.5 20 L26.5 18.5" fill="none" stroke="' + INK + '" stroke-width="1" stroke-linejoin="round"/>' +
+        '<ellipse cx="12" cy="22" rx="3.2" ry="4" fill="#fff" opacity=".3"/>';
+    },
+    alien: function (c) {
+      return '<line x1="11" y1="9" x2="8.5" y2="3.8" stroke="' + INK + '" stroke-width="1.4"/><circle cx="8.2" cy="3.4" r="1.8" fill="' + c + '" stroke="' + INK + '" stroke-width="1.1"/>' +
+        '<line x1="21" y1="9" x2="23.5" y2="3.8" stroke="' + INK + '" stroke-width="1.4"/><circle cx="23.8" cy="3.4" r="1.8" fill="' + c + '" stroke="' + INK + '" stroke-width="1.1"/>' +
+        '<path d="M16 7.5 C24 7.5 27.5 12.5 27 18 C26.4 24.5 21 28.6 16 28.6 C11 28.6 5.6 24.5 5 18 C4.5 12.5 8 7.5 16 7.5 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>';
+    },
+    frog: function (c) {
+      return '<circle cx="10" cy="9.5" r="4.6" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/><circle cx="22" cy="9.5" r="4.6" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<path d="M4.5 21 C4.5 13.5 9.5 11 16 11 C22.5 11 27.5 13.5 27.5 21 C27.5 26.5 22.5 28.6 16 28.6 C9.5 28.6 4.5 26.5 4.5 21 Z" fill="' + c + '" stroke="' + INK + '" stroke-width="1.6"/>' +
+        '<circle cx="10" cy="9.5" r="3" fill="#fff"/><circle cx="22" cy="9.5" r="3" fill="#fff"/>' +
+        '<ellipse cx="8" cy="18.6" rx="1.7" ry="1.1" fill="#FF5C8A" opacity=".55"/><ellipse cx="24" cy="18.6" rx="1.7" ry="1.1" fill="#FF5C8A" opacity=".55"/>';
+    }
+  };
+  var FACE = {
+    slime: { l: [12.5, 19.5], r: [19.5, 19.5], s: 2.2, m: [16, 24] },
+    robot: { l: [12.6, 15.3], r: [19.4, 15.3], s: 1.8, m: null, eye: '#7CF5FF' },
+    cat: { l: [12, 17.8], r: [20, 17.8], s: 2, m: [16, 24.6] },
+    ghost: { l: [12.5, 16], r: [19.5, 16], s: 2.2, m: [16, 21.6] },
+    owl: { l: [12, 15.6], r: [20, 15.6], s: 1.9, m: null },
+    dino: { l: null, r: [21, 13], s: 1.9, m: null },
+    alien: { l: [11.2, 16.5], r: [20.8, 16.5], s: 2.6, m: [16, 23.8] },
+    frog: { l: [10, 9.6], r: [22, 9.6], s: 1.7, m: [16, 21.5] }
+  };
+  function eyes(f, mood) {
+    var col = f.eye || INK, out = '', s = f.s;
+    [f.l, f.r].forEach(function (p, k) {
+      if (!p) return;
+      var x = p[0], y = p[1];
+      if (mood === 'win') out += '<path d="M' + (x - s) + ' ' + (y + s * 0.35) + ' Q' + x + ' ' + (y - s * 1.1) + ' ' + (x + s) + ' ' + (y + s * 0.35) + '" stroke="' + col + '" stroke-width="1.5" fill="none" stroke-linecap="round"/>';
+      else if (mood === 'lose') {
+        // 축 처진 눈 (바깥쪽이 아래로) + 왼쪽 눈 아래 눈물
+        var d = k === 0 ? -1 : 1;
+        out += '<path d="M' + (x - s) + ' ' + (y - s * 0.2 * -d) + ' L' + (x + s) + ' ' + (y + s * 0.2 * -d) + '" stroke="' + col + '" stroke-width="1.5" stroke-linecap="round" transform="rotate(' + (d * 14) + ' ' + x + ' ' + y + ')"/>';
+        if (k === (f.l ? 0 : 1)) out += '<path d="M' + (x - s * 0.4) + ' ' + (y + s * 0.9) + ' q-0.9 1.6 0 2.4 q0.9 -0.8 0 -2.4 Z" fill="#7CC8FF" stroke="#2C7BD0" stroke-width=".5"/>';
+      } else out += '<line x1="' + (x - s) + '" y1="' + y + '" x2="' + (x + s) + '" y2="' + y + '" stroke="' + col + '" stroke-width="1.5" stroke-linecap="round"/>';
+    });
+    return out;
+  }
+  function mouth(f, mood) {
+    if (!f.m) return '';
+    var x = f.m[0], y = f.m[1];
+    if (mood === 'win') return '<path d="M' + (x - 2.6) + ' ' + (y - 0.8) + ' Q' + x + ' ' + (y + 3.6) + ' ' + (x + 2.6) + ' ' + (y - 0.8) + ' Z" fill="' + INK + '"/><path d="M' + (x - 1.1) + ' ' + (y + 1.2) + ' Q' + x + ' ' + (y + 0.4) + ' ' + (x + 1.1) + ' ' + (y + 1.2) + ' Q' + x + ' ' + (y + 2.4) + ' ' + (x - 1.1) + ' ' + (y + 1.2) + ' Z" fill="#FF5C8A"/>';
+    if (mood === 'lose') return '<path d="M' + (x - 2) + ' ' + (y + 1) + ' Q' + x + ' ' + (y - 1.2) + ' ' + (x + 2) + ' ' + (y + 1) + '" stroke="' + INK + '" stroke-width="1.4" fill="none" stroke-linecap="round"/>';
+    return '<line x1="' + (x - 1.8) + '" y1="' + y + '" x2="' + (x + 1.8) + '" y2="' + y + '" stroke="' + INK + '" stroke-width="1.4" stroke-linecap="round"/>';
+  }
+  /** 작은 팔 (8종 공통) — 승리: 만세 · 패배: 축 늘어짐 · 무승부: 옆으로. 몸 뒤에 그린다 */
+  function arms(c, mood) {
+    var A = { win: [[7, 18, 3.5, 9], [25, 18, 28.5, 9]], lose: [[7.5, 20, 4.5, 27], [24.5, 20, 27.5, 27]], draw: [[7, 19, 2.5, 20], [25, 19, 29.5, 20]] }[mood];
+    return A.map(function (a) {
+      return '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + a[2] + '" y2="' + a[3] + '" stroke="' + INK + '" stroke-width="4.2" stroke-linecap="round"/>' +
+        '<line x1="' + a[0] + '" y1="' + a[1] + '" x2="' + a[2] + '" y2="' + a[3] + '" stroke="' + c + '" stroke-width="2.4" stroke-linecap="round"/>';
+    }).join('');
   }
 
-  window.CGAvatar = { svg: svg, NAMES: NAMES, COLOR_NAMES: COLOR_NAMES };
+  /** mood 를 주면 결과 화면 표정 · 팔 (1.1.0). 없으면 늘 쓰는 모습 */
+  function svg(kind, color, mood) {
+    var f = PARTS[kind] ? kind : 'slime';
+    var inner = mood && BODY[f]
+      ? arms(color, mood) + BODY[f](color) + eyes(FACE[f], mood) + mouth(FACE[f], mood)
+      : PARTS[f](color);
+    return '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true">' +
+      '<ellipse cx="16" cy="29.6" rx="9" ry="1.7" fill="#000" opacity=".35"/>' + inner + '</svg>';
+  }
+
+  window.CGAvatar = { svg: svg, NAMES: NAMES, COLOR_NAMES: COLOR_NAMES, MOODS: ['win', 'lose', 'draw'] };
 })();

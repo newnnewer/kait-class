@@ -6,7 +6,11 @@
 //   · 클리어가 없다 — 게임 시간이 끝났을 때 우리 색 블록이 많은 팀이 이긴다 (같으면 무승부)
 //     끝나는 순간 치고 있던 블록은 뒤집히지 않은 것으로 센다
 //   · 놓은 블록(Esc · 오답 · 시간 초과)은 그 사람이 다른 블록을 뒤집기 전까지 다시 못 잡는다 — 긴 코드 피하기 막기
-//   · 보스 · 아이템 없음 (첫 버전). 이동은 블록 러시와 같은 규칙 — '깬 블록' = 우리 색 블록
+//   · 보스 없음. 이동은 블록 러시와 같은 규칙 — '깬 블록' = 우리 색 블록
+//   · 1.1.0 아이템: 두 팀 뒤집기를 합쳐 30번마다 회색 '아이템 블록'(t = 0)이 나온다 (앞선 팀의 블록 하나가 회색으로 — 두 팀 누구나 잡을 수 있음).
+//     뒤집으면 우리 색 + 아이템 1개(내 아이템 5칸). 폭탄(내 상하좌우 4블록을 우리 색으로) · 자동완성(우리 팀 10초) · 얼음(상대 팀 5초 입력 금지).
+//     방을 만들 때 아이템 블록 나옴 / 없음 (settings.items)
+//     페널티 · 방패 없음. 비트는 아이템 블록을 잡지 않는다
 //
 // FlipMatch 는 블록 러시의 Match 와 같은 이름의 함수(move · occupy · submit · release …)를 갖춰
 // 소켓 처리(server/index.js) · 대기실(room.js) · 공식전(classgame.js)이 그대로 부를 수 있게 한다.
@@ -16,6 +20,7 @@ const { step, edge, corner } = require('../../public/js/shared/move');
 const { isCorrect } = require('./grade');
 const { randomSeed, makeRng, shuffle } = require('../rng');
 const { stepFlipBot } = require('../classes/bot');
+const { DECK_SIZE, FLIP_ITEM_MS, rollFlipItem } = require('./items');
 const TEAMS = require('../../public/js/shared/teams');
 
 const MAX_INPUT = 200;
@@ -25,18 +30,21 @@ const SNAP_MS = 5000; // 그래프 기록 간격 (블록 수 변화) — 사용�
 
 // ── 맵 크기 ── (숫자는 여기서 고친다)
 const FLIP = {
-  times: [3, 4, 5],                    // 게임 시간(분) — 고를 수 있는 값
-  defMin: 4,
-  perPerson: { 3: 5, 4: 6, 5: 7 },     // 자동 블록 수 = 전체 인원 × 이 값
+  defMin: 3,                           // 1.1.0: 게임 시간은 블록 러시와 같이 1 ~ 10분 직접 입력 (처음 값 3분)
+  perPerson: min => Math.max(1, Math.min(10, Math.round(Number(min)) || 3)) + 2, // 자동 블록 수 = 전체 인원 × (분 + 2): 1분 3 · 3분 5 · 5분 7 · 10분 12
   minBlocks: 40,
   maxBlocks: 320,
   ratio: 1.6,                          // 가로 : 세로 (화면 모양)
   minCols: 8, maxCols: 24,
+  // 1.1.0 아이템 블록: 두 팀 뒤집기(타이핑으로 뒤집은 것)를 합쳐 이만큼마다 하나 — 사람이 많고 빠른 판은 자주, 적은 판은 드물게
+  //   (사용자 결정 2026-10-23 14시 21분: 시간마다 → 뒤집기 30번마다). 맵에 동시에 100블록마다 1개 (1 ~ 3개)
+  itemEveryFlips: 30,
+  itemMax: total => Math.max(1, Math.min(3, Math.round(total / 100))),
 };
 
-/** 자동 블록 수 = 인원 × (3 · 4 · 5분 → 5 · 6 · 7), 40 ~ 320 */
+/** 자동 블록 수 = 인원 × (게임 시간(분) + 2), 40 ~ 320 */
 function flipBlocks(people, limitMin) {
-  const per = FLIP.perPerson[limitMin] || FLIP.perPerson[FLIP.defMin];
+  const per = FLIP.perPerson(limitMin == null ? FLIP.defMin : limitMin);
   return Math.max(FLIP.minBlocks, Math.min(FLIP.maxBlocks, Math.max(1, people) * per));
 }
 
@@ -74,9 +82,10 @@ class FlipMatch {
   /**
    * channels: 알림을 보낼 곳 (두 팀 채널)
    * teamOf(p) → 1 | 2 (0 = 팀 없음)
-   * s: { blocks, occMs, limitMs, countdownMs, idleMs, idleWarnMs, noIdle }
+   * s: { blocks, occMs, limitMs, countdownMs, idleMs, idleWarnMs, noIdle, items(false = 아이템 블록 안 나옴) }
+   * teamLabel(no) → 화면에 쓰는 팀 이름 · onEvent(e) → 전광판 소식 (1.1.0)
    */
-  constructor({ io, channels, info, codes, s, teamOf, onEnd, seed }) {
+  constructor({ io, channels, info, codes, s, teamOf, onEnd, seed, teamLabel, onEvent }) {
     this.io = io;
     this.channels = channels;
     this.info = info || { id: 'x', name: '', tags: [] };
@@ -90,12 +99,19 @@ class FlipMatch {
     this.idleWarnMs = s.idleWarnMs || IDLE_WARN_MS;
     this.noIdle = !!s.noIdle;
     this.onEnd = onEnd || (() => {});
+    this.teamLabel = teamLabel || (no => (no === 1 ? '빨강' : '파랑'));
+    this.onEvent = onEvent || (() => {});
     this.pausedAt = 0;
     this.ended = false;
-    // 블록 러시와 같은 이름 (소켓 처리 · 교사 화면 · 비트가 그대로 읽는다) — 플립 배틀에는 보스 · 효과가 없다
+    // 블록 러시와 같은 이름 (소켓 처리 · 교사 화면 · 비트가 그대로 읽는다) — 플립 배틀에는 보스가 없고, 효과는 팀마다(fxT)
     this.boss = null;
     this.fx = { auto: 0, freeze: 0, confuse: 0, cloud: 0 };
     this.shields = 0;
+    // 1.1.0 아이템: 팀마다 효과가 끝나는 시각 · 사람마다 내 아이템 5칸
+    this.fxT = { 1: { auto: 0, freeze: 0 }, 2: { auto: 0, freeze: 0 } };
+    this.decks = new Map();
+    this.itemSeq = 0;
+    this.itemsOn = s.items !== false;
 
     this.pos = new Map();      // id → { r, c }
     this.members = new Map();  // id → player
@@ -106,6 +122,9 @@ class FlipMatch {
 
     this.seed = seed == null ? randomSeed() : seed;
     this.board = createFlipBoard({ blocks: s.blocks || FLIP.minBlocks, seed: this.seed });
+    this.itemMax = FLIP.itemMax(this.board.cells.length);
+    this.flipCount = 0;                     // 두 팀이 타이핑으로 뒤집은 수 (폭탄은 안 셈)
+    this.nextItemAt = FLIP.itemEveryFlips;  // 뒤집기가 이만큼 되면 아이템 블록
     this.codeRng = makeRng((this.seed ^ 0x9e3779b9) >>> 0);
     this.lastCode = '';
     const now = Date.now();
@@ -134,10 +153,10 @@ class FlipMatch {
     return { cols: b.cols, rows: b.rows, solved: i => b.cells[i].t === t, blocked: () => false };
   }
 
-  /** 팀별 블록 수 [빨강, 파랑] */
+  /** 팀별 블록 수 [빨강, 파랑] (회색 아이템 블록은 어느 팀에도 세지 않는다) */
   counts() {
     let a = 0, b = 0;
-    for (const c of this.board.cells) { if (c.t === 1) a++; else b++; }
+    for (const c of this.board.cells) { if (c.t === 1) a++; else if (c.t === 2) b++; }
     return [a, b];
   }
 
@@ -176,6 +195,9 @@ class FlipMatch {
       banned: forId != null && this.banned.has(forId) ? this.banned.get(forId) : -1,
       totalMs: this.limitMs,
       myTeam: me ? this.teamOf(me) : 0,
+      deck: forId != null ? this.deckMsg(forId) : { slots: [], shields: 0 },
+      items: this.itemsOn, // 1.1.0: 아이템 블록 없음이면 화면이 '내 아이템' 줄을 숨김
+      fx: this.fxFor(me ? this.teamOf(me) : 0),
       counts: this.counts(),
       limits: { occ: this.occLimitMs },
       endMs: this.msLeft(this.endAt),
@@ -190,8 +212,9 @@ class FlipMatch {
   pubOf(p) { return { id: p.id, nick: p.nick, kind: p.kind, color: p.color, online: p.online, bot: !!p.bot }; }
   emitAll(ev, data) { this.io.to(this.channels).emit(ev, data); } // 두 팀 채널 (socket.io 가 겹치는 연결은 한 번만 보냄)
   emitTo(p, ev, data) { if (p.socketId) this.io.to(p.socketId).emit(ev, data); }
+  emitTeam(no, ev, data) { const ch = this.channels[no - 1]; if (ch) this.io.to(ch).emit(ev, data); } // 1.1.0: 한 팀에만
   feed(text, kind) { this.emitAll('feed', { text, kind: kind || 'info' }); }
-  stat(p) { let s = this.stats.get(p.id); if (!s) { s = { solved: 0, bosses: 0 }; this.stats.set(p.id, s); } return s; }
+  stat(p) { let s = this.stats.get(p.id); if (!s) { s = { solved: 0, bosses: 0, items: 0 }; this.stats.set(p.id, s); } return s; } // items: 가져간 아이템 블록 수 (1.1.0 MVP)
 
   // ── 사람 ──
 
@@ -248,11 +271,13 @@ class FlipMatch {
     this.startedAt += d;
     this.lastInput += d;
     for (const o of this.occ.values()) o.until += d;
+    for (const no of [1, 2]) for (const k of ['auto', 'freeze']) if (this.fxT[no][k]) this.fxT[no][k] += d;
     if (this.ended) return;
     this.emitAll('pause', { on: false, endMs: this.msLeft(this.endAt) });
   }
 
-  frozen() { return false; }
+  /** 얼음 (1.1.0): 상대 팀이 쓴 얼음에 걸린 팀은 5초 동안 이동 · 잡기 · 제출 · 아이템이 안 된다 */
+  frozen(p) { const t = p ? this.teamOf(p) : 0; return !!t && Date.now() < this.fxT[t].freeze; }
   busy(p) { return this.occBy.has(p.id); }
   cellIndex(p) { const cur = this.pos.get(p.id); return cur ? cur.r * this.board.cols + cur.c : -1; }
 
@@ -264,7 +289,7 @@ class FlipMatch {
     if (!cur) return;
     this.touch(p);
     let to = cur;
-    if (!this.busy(p) && !this.pausedAt) {
+    if (!this.busy(p) && !this.pausedAt && !this.frozen(p)) {
       const v = this.viewFor(p);
       if (msg.to === 'home' || msg.to === 'end') to = edge(v, cur, msg.to);
       else if (msg.to === 'first' || msg.to === 'last') to = corner(v, msg.to);
@@ -291,6 +316,7 @@ class FlipMatch {
     this.touch(p);
     const team = this.teamOf(p);
     if (!team) return { ok: false, why: 'none' };
+    if (this.frozen(p)) return { ok: false, why: 'frozen' };
     if (this.occBy.has(p.id)) {
       const i = this.occBy.get(p.id), o = this.occ.get(i);
       return { ok: true, i, ms: this.msLeft(o.until), code: o.code };
@@ -318,6 +344,7 @@ class FlipMatch {
     const i = this.occBy.get(p.id);
     if (i === undefined) return { ok: false, why: 'not-occupying' };
     if (this.pausedAt) return { ok: false, why: 'paused' };
+    if (this.frozen(p)) return { ok: false, why: 'frozen' }; // 점유는 그대로 — 얼음이 풀리면 이어서
     text = String(text == null ? '' : text).slice(0, MAX_INPUT);
     const o = this.occ.get(i);
     if (isCorrect(text, o.code)) {
@@ -336,6 +363,7 @@ class FlipMatch {
     const cell = this.board.cells[i];
     const team = this.teamOf(p);
     if (!cell || !team || cell.t === team) return;
+    const wasItem = cell.t === 0;
     cell.t = team;
     cell.by = p.id;
     this.banned.delete(p.id); // 뒤집었으니 놓았던 블록도 다시 잡을 수 있다
@@ -343,6 +371,13 @@ class FlipMatch {
     st.solved += 1;
     this.emitAll('stat', { id: p.id, solved: st.solved });
     this.emitAll('cell', { i, t: team, by: p.id, counts: this.counts() });
+    if (wasItem) this.gotItem(p);
+    // 1.1.0: 뒤집기 30번마다 아이템 블록 (맵에 이미 가득하면 이번 차례는 건너뜀)
+    this.flipCount += 1;
+    if (this.itemsOn && this.flipCount >= this.nextItemAt) {
+      this.nextItemAt += FLIP.itemEveryFlips;
+      if (this.itemBlocks() < this.itemMax) this.spawnItem();
+    }
   }
 
   /** 점유 풀기 — why: esc / wrong / timeout / leave / offline */
@@ -360,8 +395,116 @@ class FlipMatch {
   bossGrab() { return { ok: false, why: 'none' }; }
   bossSubmit() { return { ok: false, why: 'none' }; }
   bossDrop() {}
-  useItem() { return { ok: false, why: 'none' }; }
   defend() { return { ok: false, why: 'none' }; }
+
+  // ── 아이템 (1.1.0) ──
+
+  fxFor(no) {
+    const f = this.fxT[no];
+    return f ? { auto: this.msLeft(f.auto), freeze: this.msLeft(f.freeze), confuse: 0, cloud: 0 } : { auto: 0, freeze: 0, confuse: 0, cloud: 0 };
+  }
+  itemBlocks() { let n = 0; for (const c of this.board.cells) if (c.t === 0) n++; return n; }
+
+  /** 아이템 블록 하나 — 앞선 팀(같으면 무작위)의 블록 중 아무도 치고 있지 않은 것 하나를 회색으로 */
+  spawnItem() {
+    const [a, b] = this.counts();
+    const from = a > b ? 1 : b > a ? 2 : (Math.random() < 0.5 ? 1 : 2);
+    const list = [];
+    this.board.cells.forEach((c, i) => { if (c.t === from && !this.occ.has(i)) list.push(i); });
+    if (!list.length) return -1;
+    const i = list[Math.floor(Math.random() * list.length)];
+    const cell = this.board.cells[i];
+    cell.t = 0;
+    cell.by = null;
+    this.emitAll('cell', { i, t: 0, by: null, counts: this.counts(), via: 'item' });
+    this.feed('아이템 블록이 나타났어요! 먼저 뒤집는 팀이 가져가요', 'good');
+    this.onEvent({ type: 'spawn', no: 0 });
+    return i;
+  }
+
+  deckOf(id) { let d = this.decks.get(id); if (!d) { d = new Array(DECK_SIZE).fill(null); this.decks.set(id, d); } return d; }
+  deckMsg(id) { return { slots: this.deckOf(id).map(x => x && { id: x.id, name: x.name, desc: x.desc, kind: x.kind }), shields: 0 }; }
+  sendDeck(p) { this.emitTo(p, 'deck', this.deckMsg(p.id)); }
+
+  /** 아이템 블록을 뒤집었다 → 내 아이템에 (가득 차면 사라짐) */
+  gotItem(p) {
+    if (p.bot) return;
+    this.stat(p).items += 1;
+    const item = rollFlipItem({ force: process.env.FORCE_ITEM }); // FORCE_ITEM: 시험용
+    const d = this.deckOf(p.id), k = d.indexOf(null);
+    const kept = k >= 0;
+    if (kept) { d[k] = { uid: ++this.itemSeq, ...item }; this.sendDeck(p); } else this.emitTo(p, 'deck:full', { name: item.name });
+    const tl = this.teamLabel(this.teamOf(p));
+    this.emitAll('item', { id: item.id, name: item.name, desc: kept ? `${TEAMS.josa(tl, '이/가')} 아이템 블록을 뒤집었어요` : '내 아이템이 가득 차서 사라졌어요', kind: 'get', by: p.nick, lost: !kept });
+    this.feed(`${tl} ${p.nick} ${item.name} ${kept ? '획득' : '(아이템이 가득 참)'}`, kept ? 'good' : 'muted');
+    this.onEvent({ type: 'get', no: this.teamOf(p), nick: p.nick, item: { id: item.id, name: item.name } });
+  }
+
+  /** 시간 효과를 한 팀에 — 이미 걸려 있으면 다시 처음부터 */
+  startFx(no, key, ms) {
+    this.fxT[no][key] = Date.now() + ms;
+    this.emitTeam(no, 'effect', { type: key, ms });
+  }
+
+  /** 내 아이템 쓰기 (Ctrl+Shift+1~5). 얼음은 늘 상대 팀에 (대상 고르기 없음) */
+  useItem(p, slot) {
+    if (this.ended) return { ok: false, why: 'ended' };
+    if (this.pausedAt) return { ok: false, why: 'paused' };
+    this.touch(p);
+    const team = this.teamOf(p);
+    if (!team) return { ok: false, why: 'none' };
+    if (this.frozen(p)) return { ok: false, why: 'frozen' };
+    const k = Number(slot) - 1;
+    const d = this.deckOf(p.id);
+    const item = Number.isInteger(k) && k >= 0 && k < DECK_SIZE ? d[k] : null;
+    if (!item) return { ok: false, why: 'empty' };
+    d[k] = null;
+    this.sendDeck(p);
+    const opp = team === 1 ? 2 : 1, me = this.teamLabel(team), them = this.teamLabel(opp);
+    if (item.id === 'ice') {
+      this.startFx(opp, 'freeze', FLIP_ITEM_MS.ice);
+      this.emitTeam(team, 'item', { id: item.id, name: item.name, desc: `${them}에 ${item.name} 발사! (5초 동안 입력 금지)`, kind: 'attack', by: p.nick, to: opp });
+      this.emitTeam(opp, 'item', { id: item.id, name: item.name, desc: `${me}의 공격! 5초 동안 입력 금지`, kind: 'hit', by: `${me} ${p.nick}` });
+      this.feed(`${me} ${p.nick} → ${them} 얼음`, 'attack');
+      this.onEvent({ type: 'attack', from: team, to: opp, name: item.name, desc: '5초 동안 입력 금지', nick: p.nick });
+      return { ok: true, item: { id: item.id, name: item.name, kind: 'attack', to: opp } };
+    }
+    if (item.id === 'auto') {
+      this.startFx(team, 'auto', FLIP_ITEM_MS.auto);
+      this.emitTeam(team, 'item', { id: item.id, name: item.name, desc: item.desc, kind: 'good', by: p.nick });
+      this.feed(`${me} ${p.nick} 자동완성`, 'good');
+      this.onEvent({ type: 'item', no: team, nick: p.nick, item: { id: item.id, name: item.name } });
+      return { ok: true, item: { id: item.id, name: item.name, kind: 'good' } };
+    }
+    // 폭탄: 내 상하좌우 4블록 중 우리 색이 아닌 것(회색 아이템 블록은 빼고)을 우리 색으로 — 치고 있던 사람은 풀린다. 뒤집기 수에는 안 셈
+    //   (1.1.0 사용자 결정 14시 21분: 둘레 8블록 → 상하좌우 4블록, 너무 셌음)
+    const b = this.board, cols = b.cols, rows = b.rows, at = this.cellIndex(p);
+    const r = Math.floor(at / cols), c = at % cols, list = [];
+    for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
+      const rr = r + dr, cc = c + dc;
+      if (rr >= 0 && rr < rows && cc >= 0 && cc < cols) {
+        const i = rr * cols + cc, t = b.cells[i].t;
+        if (t !== team && t !== 0) list.push(i);
+      }
+    }
+    this.emitAll('item', { id: item.id, name: item.name, desc: `${list.length}블록을 ${me} 색으로 뒤집었어요!`, kind: 'good', by: p.nick });
+    for (const i of list) {
+      const o = this.occ.get(i);
+      if (o) {
+        this.occ.delete(i);
+        this.occBy.delete(o.pid);
+        const who = this.members.get(o.pid);
+        if (who) this.emitTo(who, 'released', { i, why: 'item', via: 'bomb' });
+        this.emitAll('occ', { i, by: null, why: 'item' });
+      }
+      b.cells[i].t = team;
+      b.cells[i].by = p.id;
+      this.emitAll('cell', { i, t: team, by: p.id, counts: this.counts(), via: 'bomb', at });
+    }
+    this.feed(`${me} ${p.nick} 폭탄 — ${list.length}블록`, 'good');
+    this.onEvent({ type: 'item', no: team, nick: p.nick, item: { id: item.id, name: item.name }, n: list.length });
+    return { ok: true, item: { id: item.id, name: item.name, kind: 'good', n: list.length } };
+  }
   spawnBoss() {}
 
   // ── 시계 (0.2초마다) ──
@@ -442,9 +585,16 @@ class FlipRound {
         limitMs: this.limitMs,
         idleMs: owner.idleMs, idleWarnMs: owner.idleWarnMs, noIdle: !!owner.noIdle,
         countdownMs: this.countdownUntil ? Math.max(0, this.countdownUntil - Date.now()) : 0,
+        items: s.items !== false, // 1.1.0: 아이템 블록 나옴 / 없음
       },
       teamOf: p => { const no = owner.teamOf.get(p.id) || 0; return no === 1 || no === 2 ? no : 0; },
       onEnd: r => this.matchEnded(r),
+      teamLabel: no => this.tl(no),
+      onEvent: e => { // 1.1.0: 아이템 소식 → 전광판 (공식전)
+        if (!owner.onRoundEvent) return;
+        if (e.type === 'attack') owner.onRoundEvent('attack', { from: e.from, to: e.to, name: e.name, desc: e.desc, blocked: false });
+        else owner.onRoundEvent('match', { no: e.no, e });
+      },
     });
     // 두 팀이 같은 판 — 팀 번호로 찾아도 같은 판이 나온다 (owner.matchOf · 교사 화면)
     this.matches = new Map([[1, this.match], [2, this.match]]);
@@ -556,7 +706,7 @@ class FlipRound {
         rank: r.winner === 0 || r.winner === no ? 1 : 2,
         win: r.winner === no, blocks: n, solved: n, total: r.total, pct: Math.round(n / r.total * 100), ms: endT,
         bosses: 0, atk: { sent: 0, got: 0, blocked: 0 },
-        members: players.sort((a, b) => b.solved - a.solved).map(p => ({ nick: p.nick, kind: p.kind, color: p.color, solved: p.solved, bosses: 0, bot: !!p.bot })),
+        members: players.sort((a, b) => b.solved - a.solved).map(p => ({ nick: p.nick, kind: p.kind, color: p.color, solved: p.solved, bosses: 0, items: p.items || 0, bot: !!p.bot })),
         bots: players.filter(p => p.bot).length,
       };
     }).sort((a, b) => a.rank - b.rank || a.no - b.no);

@@ -59,24 +59,25 @@ test('태그가 없으면 방을 만들 수 없고, 이상한 값은 기본값�
   const c = await call(a.s, 'room:create', { settings: { tags: ['변수', '없는태그'], max: 99, limitMin: 7, blocks: 50 } });
   assert.deepStrictEqual(c.room.settings.tags, ['변수']);
   assert.strictEqual(c.room.settings.max, 16);
-  assert.strictEqual(c.room.settings.limitMin, 7); // 1 ~ 30분 사이면 그대로
+  assert.strictEqual(c.room.settings.limitMin, 7); // 1 ~ 10분 사이면 그대로
   assert.strictEqual(c.room.settings.blocks, 48);
   a.s.close();
 });
 
-test('제한 시간은 1 ~ 30분 정수, 없으면 5분', () => {
+test('게임 시간은 1 ~ 10분 정수, 없으면 3분 (1.1.0)', () => {
   const { clean, cleanClass } = require('../server/rooms/settings');
   const lim = v => clean({ tags: ['출력'], limitMin: v }).limitMin;
-  assert.strictEqual(lim(undefined), 5);
-  assert.strictEqual(lim('abc'), 5);
+  assert.strictEqual(lim(undefined), 3);
+  assert.strictEqual(lim('abc'), 3);
   assert.strictEqual(lim(0), 1);
   assert.strictEqual(lim(-3), 1);
   assert.strictEqual(lim(1), 1);
-  assert.strictEqual(lim(12.4), 12);
-  assert.strictEqual(lim('25'), 25);
-  assert.strictEqual(lim(99), 30);
-  assert.strictEqual(cleanClass({ tags: ['출력'] }).limitMin, 5);
-  assert.strictEqual(cleanClass({ tags: ['출력'], limitMin: 17 }).limitMin, 17);
+  assert.strictEqual(lim(8.4), 8);
+  assert.strictEqual(lim('10'), 10);
+  assert.strictEqual(lim(99), 10);
+  assert.strictEqual(cleanClass({ tags: ['출력'] }).limitMin, 3);
+  assert.strictEqual(cleanClass({ tags: ['출력'], limitMin: 7 }).limitMin, 7);
+  assert.strictEqual(cleanClass({ tags: ['출력'], game: 'flip', limitMin: 9 }).limitMin, 9);
 });
 
 test('들어가기 · 방장만 시작 · 시작하면 판이 온다 · 진행 중에는 못 들어온다', async () => {
