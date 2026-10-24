@@ -559,6 +559,7 @@ class ClassGame {
     try {
       result.id = this.hub.db.saveGame({ code: this.code, startedAt: result.startedAt, endedAt: result.endedAt, reason: result.reason, settings: this.settings, result });
     } catch (e) { console.error('[저장소] 게임 기록 저장 실패:', e.message); }
+    if (this.hub.onPlay) this.hub.onPlay(this.settings, result); // 1.2.0 통계
     this.round = null;
     this.phase = 'waiting';
     this.lastResult = result;

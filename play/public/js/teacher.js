@@ -82,6 +82,7 @@
   var pwSource = 'env';
   var DEMO = false;
   function loggedIn(res) {
+    showVersion(res.version);
     OPTIONS = res.options; BANK_TAGS = res.bankTags || BANK_TAGS;
     pwSource = res.pwSource || pwSource;
     DEMO = !!res.demo;
@@ -96,13 +97,320 @@
   }
 
   $('btn-logout').onclick = function () {
-    call('admin:logout', {}, function () { store.set('admin', null); store.set('class', null); show('login'); });
+    call('admin:logout', {}, function () { store.set('admin', null); store.set('class', null); statsKey = null; statsStore.set(null); show('login'); });
   };
+
+  // ── 1.2.0 버전 표시: 맨 아래 줄 'KAIT-PLAY v1.1' (KAIT-CLASS 꼬리말처럼 앞 두 자리, 마우스를 올리면 전체) ──
+  function showVersion(v) {
+    if (!v) return;
+    var short = String(v).split('.').slice(0, 2).join('.');
+    Array.prototype.forEach.call(document.querySelectorAll('.kp-ver'), function (e) { e.textContent = 'KAIT-PLAY v' + short; e.title = 'v' + v; });
+  }
+  try { fetch(BASE + '/healthz', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) { showVersion(j && j.version); }).catch(function () {}); } catch (e) { /* 로그인하면 다시 받음 */ }
+
+  // ── 1.2.0 이용 통계 — 통계 비밀번호가 없으면 교사 로그인만으로, 있으면 한 번 더 (열쇠는 이 탭에만 — 탭을 닫으면 다시 넣기)
+  //    체험 서버는 통계 비밀번호가 없으면 열리지 않음 (서버가 정함) ──
+  var statsStore = {
+    get: function () { try { return sessionStorage.getItem('kp.stats'); } catch (e) { return null; } },
+    set: function (v) { try { if (v == null) sessionStorage.removeItem('kp.stats'); else sessionStorage.setItem('kp.stats', v); } catch (e) { /* 저장 못 해도 된다 */ } }
+  };
+  var statsKey = statsStore.get();
+  var statsDays = 7, statsFrom = '', statsTo = '', statsChart = 'plays', statsData = null;
+  var statsLocked = false, statsCanRemove = true;
+  var KIND_NAME = { 'rush-coop': '블록 러시 · 협동', 'rush-teams': '블록 러시 · 팀 대전', flip: '플립 배틀' };
+  var REASON_NAME = { clear: '클리어', time: '게임 시간 끝', stop: '선생님이 끝냄', out: '모두 기권 · 나감', idle: '방치로 끝남', empty: '모두 나감', forfeit: '기권' };
+  var PLACE_NAME = { 'class': '공식전', room: '자유 플레이' };
+  function statsMode(m) { // lock · none · body
+    $('st-lock').hidden = m !== 'lock';
+    $('st-none').hidden = m !== 'none';
+    $('st-body').hidden = m !== 'body';
+    ['st-days', 'btn-st-reload', 'btn-st-down', 'btn-st-pw'].forEach(function (id) { $(id).hidden = m !== 'body'; });
+    $('btn-st-lock').hidden = m !== 'body' || !statsLocked; // 통계 닫기: 통계 비밀번호가 있을 때만
+    $('st-custom').hidden = m !== 'body' || statsDays !== -1;
+    if (m !== 'body') $('st-range').textContent = '';
+    if (m === 'lock') setTimeout(function () { $('st-pw').focus(); }, 0);
+  }
+  function statsParams(extra) {
+    var p = statsDays === -1 && statsFrom && statsTo ? { from: statsFrom, to: statsTo } : { days: statsDays === -1 ? 7 : statsDays };
+    p.key = statsKey;
+    return p;
+  }
+  function statsFail(res) {
+    if (res.locked != null) statsLocked = !!res.locked;
+    if (res.none) { statsMode('none'); return true; }
+    if (res.statsAuth === false) { statsKey = null; statsStore.set(null); statsMode('lock'); return true; }
+    return false;
+  }
+  function loadStats() {
+    call('stats:get', statsParams(), function (res) {
+      if (statsFail(res)) return;
+      if (!res.ok) { toast(res.error || '불러오지 못했어요', 'warn'); return; }
+      statsData = res;
+      statsLocked = !!res.locked;
+      statsCanRemove = res.canRemove !== false;
+      statsMode('body');
+      renderStats();
+    });
+  }
+  $('st-lock').onsubmit = function (e) {
+    e.preventDefault();
+    $('btn-st-open').disabled = true;
+    call('stats:login', { password: $('st-pw').value }, function (res) {
+      $('btn-st-open').disabled = false;
+      if (res.none) { statsMode('none'); return; }
+      if (!res.ok) { $('st-error').textContent = res.error || '열지 못했어요'; return; }
+      $('st-pw').value = '';
+      $('st-error').textContent = '';
+      statsKey = res.key || null; statsStore.set(statsKey);
+      loadStats();
+    });
+  };
+  $('btn-st-retry').onclick = loadStats;
+  $('btn-st-reload').onclick = loadStats;
+  $('btn-st-lock').onclick = function () {
+    var k = statsKey;
+    statsKey = null; statsStore.set(null);
+    statsMode('lock');
+    if (k) call('stats:logout', { key: k });
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('#st-days button'), function (b) {
+    b.onclick = function () {
+      statsDays = Number(b.getAttribute('data-days'));
+      Array.prototype.forEach.call(document.querySelectorAll('#st-days button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      if (statsDays === -1) { // 직접: 지금 보던 기간을 처음 값으로, 날짜를 고르고 [보기]
+        var today = statsData ? statsData.to : '';
+        $('st-from').value = statsFrom || (statsData ? statsData.from : '');
+        $('st-to').value = statsTo || today;
+        $('st-from').max = today; $('st-to').max = today;
+        if (statsData && statsData.first) { $('st-from').min = statsData.first; $('st-to').min = statsData.first; }
+        $('st-custom').hidden = false;
+        $('st-from').focus();
+        if (statsFrom && statsTo) loadStats();
+        return;
+      }
+      loadStats();
+    };
+  });
+  $('st-custom').onsubmit = function (e) {
+    e.preventDefault();
+    var a = $('st-from').value, b = $('st-to').value;
+    if (!a || !b) return;
+    if (a > b) { var t = a; a = b; b = t; $('st-from').value = a; $('st-to').value = b; }
+    statsFrom = a; statsTo = b;
+    loadStats();
+  };
+
+  // 내려받기 — 지금 보는 기간의 게임 기록 (한 판에 한 줄, 엑셀에서 한글이 깨지지 않게 UTF-8 BOM)
+  function csvCell(v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function ymdhm(t) { var d = new Date(t); var p = function (n) { return String(n).padStart(2, '0'); }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  $('btn-st-down').onclick = function () {
+    $('btn-st-down').disabled = true;
+    call('stats:export', statsParams(), function (res) {
+      $('btn-st-down').disabled = false;
+      if (statsFail(res)) return;
+      if (!res.ok) { toast(res.error || '내려받지 못했어요', 'warn'); return; }
+      var lines = [['끝난 시각', '어디서', '게임', '팀 수', '사람', '비트', '게임 시간(분)', '보스 방식', '아이템', '걸린 시간(초)', '끝난 방식']];
+      res.rows.forEach(function (g) {
+        lines.push([
+          ymdhm(g.at), PLACE_NAME[g.place] || g.place,
+          g.game === 'flip' ? '플립 배틀' : g.mode === 'coop' ? '블록 러시 · 협동' : '블록 러시 · 팀 대전',
+          g.teams || '', g.humans, g.bots, g.limitMin || '',
+          g.game === 'flip' ? '' : ({ quiz: '문제 풀이', typing: '타이핑', none: '없음' }[g.bossMode] || g.bossMode),
+          g.game === 'flip' ? (g.items ? '아이템 블록' : '없음') : (g.items ? '있음' : '없음'),
+          Math.round(g.ms / 1000), REASON_NAME[g.reason] || g.reason
+        ]);
+      });
+      var text = '﻿' + lines.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'KAIT-PLAY-게임기록_' + res.from + (res.to !== res.from ? '~' + res.to : '') + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+      toast(res.rows.length + '판을 내려받았어요');
+    });
+  };
+
+  // 통계 비밀번호 — 있으면 바꾸기 · 없애기(체험 서버 말고), 없으면 안내만 (처음 만들기는 서버 명령으로만)
+  function openStatsPw() {
+    ['st-pw-old', 'st-pw-new', 'st-pw-new2'].forEach(function (id) { $(id).value = ''; });
+    $('st-pw-error').textContent = '';
+    $('st-pw-on').hidden = !statsLocked;
+    $('st-pw-off').hidden = statsLocked;
+    $('btn-st-pw-save').hidden = !statsLocked;
+    $('btn-st-pw-remove').hidden = !statsLocked || !statsCanRemove;
+    resetRemove();
+    $('st-pw-dialog').hidden = false;
+    if (statsLocked) setTimeout(function () { $('st-pw-old').focus(); }, 30);
+  }
+  $('btn-st-pw').onclick = openStatsPw;
+  $('btn-st-pw-cancel').onclick = function () { $('st-pw-dialog').hidden = true; };
+  $('st-pw-form').onsubmit = function (e) {
+    e.preventDefault();
+    if (!statsLocked) return;
+    var old = $('st-pw-old').value, nw = $('st-pw-new').value;
+    if (!old) { $('st-pw-error').textContent = '지금 통계 비밀번호를 넣어 주세요'; return; }
+    if (nw.length < 6) { $('st-pw-error').textContent = '새 비밀번호는 6자 이상이어야 해요'; return; }
+    if (nw !== $('st-pw-new2').value) { $('st-pw-error').textContent = '새 비밀번호 두 개가 서로 달라요'; return; }
+    $('btn-st-pw-save').disabled = true;
+    call('stats:password', { old: old, new: nw }, function (res) {
+      $('btn-st-pw-save').disabled = false;
+      if (!res.ok) { $('st-pw-error').textContent = res.error || '바꾸지 못했어요'; return; }
+      statsKey = res.key; statsStore.set(res.key);
+      $('st-pw-dialog').hidden = true;
+      toast('통계 비밀번호를 바꿨어요');
+      loadStats();
+    });
+  };
+  // 없애기는 두 번 눌러야 (지금 비밀번호 칸을 채운 뒤)
+  var removeArmed = 0;
+  function resetRemove() { removeArmed = 0; $('btn-st-pw-remove').classList.remove('armed'); $('btn-st-pw-remove').textContent = '비밀번호 없애기'; }
+  $('btn-st-pw-remove').onclick = function () {
+    var old = $('st-pw-old').value;
+    if (!old) { $('st-pw-error').textContent = '없애려면 지금 통계 비밀번호를 넣어 주세요'; $('st-pw-old').focus(); return; }
+    if (Date.now() - removeArmed > 4000) {
+      removeArmed = Date.now();
+      $('btn-st-pw-remove').classList.add('armed');
+      $('btn-st-pw-remove').textContent = '한 번 더 누르면 없애요';
+      $('st-pw-error').textContent = '없애면 교사 비밀번호만으로 통계가 열려요';
+      setTimeout(function () { if (removeArmed && Date.now() - removeArmed >= 4000) resetRemove(); }, 4100);
+      return;
+    }
+    call('stats:remove', { password: old }, function (res) {
+      resetRemove();
+      if (!res.ok) { $('st-pw-error').textContent = res.error || '없애지 못했어요'; return; }
+      statsKey = null; statsStore.set(null);
+      $('st-pw-dialog').hidden = true;
+      toast('통계 비밀번호를 없앴어요 — 이제 교사 로그인만으로 열려요');
+      loadStats();
+    });
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('#st-chart-kind button'), function (b) {
+    b.onclick = function () {
+      statsChart = b.getAttribute('data-kind');
+      Array.prototype.forEach.call(document.querySelectorAll('#st-chart-kind button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      if (statsData) renderChart(statsData);
+    };
+  });
+  function fmtDay(d, y) { return (y ? d.slice(0, 4) + '년 ' : '') + Number(d.slice(5, 7)) + '월 ' + Number(d.slice(8, 10)) + '일'; }
+  function nf(n) { return Number(n || 0).toLocaleString('ko-KR'); }
+  function renderStats() {
+    var r = statsData;
+    var yrs = r.from.slice(0, 4) !== r.to.slice(0, 4); // 해가 넘어가면 연도도
+    $('st-range').textContent = r.from === r.to ? fmtDay(r.to) : fmtDay(r.from, yrs) + ' ~ ' + fmtDay(r.to, yrs) + (r.days === 0 ? ' (기록 시작부터)' : '');
+    // 지금
+    var live = $('st-live');
+    live.innerHTML = '';
+    live.appendChild(el('span', 'st-live-dot'));
+    live.appendChild(el('b', null, '지금'));
+    [['접속', r.live.players + '명'], ['자유 플레이 방', r.live.rooms + '개'], ['열린 공식전', r.live.classes + '개'], ['진행 중인 게임', r.live.playing + '판']].forEach(function (x) {
+      var s = el('span', 'st-live-item'); s.appendChild(document.createTextNode(x[0] + ' ')); s.appendChild(el('b', null, x[1])); live.appendChild(s);
+    });
+    // 숫자 카드
+    var k = $('st-kpis');
+    k.innerHTML = '';
+    var s = r.sum;
+    [
+      ['게임', nf(s.plays) + '판', '공식전 ' + nf(s.classPlays) + ' · 자유 플레이 ' + nf(s.roomPlays)],
+      ['플레이한 인원', nf(s.people) + '명', '한 판 평균 ' + s.avgPeople + '명 (여러 판 하면 판마다 셈)'],
+      ['입장한 사람', nf(s.visitors) + '명', '이 기간에 들어온 브라우저 수'],
+      ['게임한 시간', s.minutes >= 60 ? Math.floor(s.minutes / 60) + '시간 ' + (s.minutes % 60) + '분' : s.minutes + '분', '판마다 실제로 걸린 시간의 합']
+    ].forEach(function (x) {
+      var c = el('div', 'st-kpi');
+      c.appendChild(el('span', 'st-kpi-label', x[0]));
+      c.appendChild(el('b', 'st-kpi-num', x[1]));
+      c.appendChild(el('span', 'st-kpi-sub', x[2]));
+      k.appendChild(c);
+    });
+    renderChart(r);
+    // 게임 종류 · 끝난 방식 (가로 막대)
+    function hbars(box, rows, stacked) {
+      box.innerHTML = '';
+      var max = Math.max.apply(null, [1].concat(rows.map(function (x) { return x.total; })));
+      if (!rows.some(function (x) { return x.total; })) { box.appendChild(el('p', 'muted small', '이 기간에 끝난 게임이 없어요')); return; }
+      rows.forEach(function (x) {
+        var row = el('div', 'st-hrow');
+        row.appendChild(el('span', 'st-hname', x.name));
+        var bar = el('span', 'st-hbar');
+        if (stacked) {
+          ['class', 'room'].forEach(function (pl) { if (x[pl]) { var seg = el('i', 'st-seg ' + pl); seg.style.width = (x[pl] / max * 100) + '%'; seg.title = PLACE_NAME[pl] + ' ' + x[pl] + '판'; bar.appendChild(seg); } });
+        } else { var seg = el('i', 'st-seg one'); seg.style.width = (x.total / max * 100) + '%'; bar.appendChild(seg); }
+        row.appendChild(bar);
+        row.appendChild(el('b', 'st-hnum', x.total + '판'));
+        box.appendChild(row);
+      });
+    }
+    hbars($('st-kinds'), ['rush-coop', 'rush-teams', 'flip'].map(function (key) {
+      var v = r.kinds[key] || { 'class': 0, room: 0 };
+      return { name: KIND_NAME[key], 'class': v['class'], room: v.room, total: v['class'] + v.room };
+    }), true);
+    hbars($('st-reasons'), Object.keys(r.reasons).sort(function (a, b) { return r.reasons[b] - r.reasons[a]; }).map(function (key) {
+      return { name: REASON_NAME[key] || key, total: r.reasons[key] };
+    }), false);
+    // 최근 게임
+    var rb = $('st-recent');
+    rb.innerHTML = '';
+    if (!r.recent.length) { rb.appendChild(el('p', 'muted small', '이 기간에 끝난 게임이 없어요')); return; }
+    var table = el('table', 'rec-table');
+    var head = el('tr');
+    ['끝난 시각', '어디서', '게임', '인원', '설정', '걸린 시간', '끝난 방식'].forEach(function (h) { head.appendChild(el('th', null, h)); });
+    var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
+    var tb = el('tbody');
+    r.recent.forEach(function (g) {
+      var tr = el('tr');
+      var d = new Date(g.at);
+      tr.appendChild(el('td', 'nowrap', (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')));
+      tr.appendChild(el('td', 'nowrap', PLACE_NAME[g.place] || g.place));
+      tr.appendChild(el('td', 'nowrap', g.game === 'flip' ? '플립 배틀' : g.mode === 'coop' ? '블록 러시 · 협동' : '블록 러시 · ' + g.teams + '팀'));
+      tr.appendChild(el('td', 'nowrap', g.humans + '명' + (g.bots ? ' + 비트 ' + g.bots : '')));
+      var set = [g.limitMin ? g.limitMin + '분' : ''];
+      if (g.game === 'flip') set.push(g.items ? '아이템 블록' : '아이템 없음');
+      else set.push({ quiz: '보스 문제 풀이', typing: '보스 타이핑', none: '보스 없음' }[g.bossMode] || '');
+      tr.appendChild(el('td', 'nowrap muted', set.filter(Boolean).join(' · ')));
+      tr.appendChild(el('td', 'nowrap', mmss(g.ms)));
+      tr.appendChild(el('td', 'nowrap', REASON_NAME[g.reason] || g.reason));
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    rb.appendChild(table);
+  }
+  // 막대 그래프 — 게임 수(공식전 · 자유 플레이 쌓기) / 입장한 사람
+  function renderChart(r) {
+    var visitors = statsChart === 'visitors';
+    var box = $('st-chart');
+    box.innerHTML = '';
+    var legend = $('st-legend');
+    legend.innerHTML = '';
+    $('st-chart-title').textContent = (r.unit === 'hour' ? '시간별 ' : r.unit === 'month' ? '달별 ' : '날짜별 ') + (visitors ? '입장한 사람' : '게임 수');
+    if (visitors && r.unit === 'hour') { box.appendChild(el('p', 'muted small st-chart-empty', '입장한 사람은 날짜 단위로만 세요 — 이틀 이상 기간에서 보세요 (이날 ' + nf(r.sum.visitors) + '명)')); return; }
+    if (!visitors) ['class', 'room'].forEach(function (pl) { var l = el('span', 'st-key'); l.appendChild(el('i', 'st-seg ' + pl)); l.appendChild(document.createTextNode(PLACE_NAME[pl])); legend.appendChild(l); });
+    var val = function (b) { return visitors ? b.visitors : b['class'] + b.room; };
+    var max = Math.max.apply(null, [0].concat(r.chart.map(val)));
+    var top = max <= 4 ? 4 : Math.ceil(max / 4) * 4; // 눈금이 정수로 떨어지게
+    var grid = el('div', 'st-grid');
+    for (var i = 4; i >= 0; i--) { var gl = el('div', 'st-gl'); gl.appendChild(el('span', null, nf(top * i / 4))); grid.appendChild(gl); }
+    box.appendChild(grid);
+    var bars = el('div', 'st-bars');
+    var many = r.chart.length > 16;
+    r.chart.forEach(function (b, idx) {
+      var col = el('div', 'st-col');
+      var stack = el('div', 'st-stack');
+      var total = val(b);
+      if (visitors) { if (b.visitors) { var v = el('i', 'st-seg one'); v.style.height = (b.visitors / top * 100) + '%'; stack.appendChild(v); } }
+      else ['room', 'class'].forEach(function (pl) { if (b[pl]) { var seg = el('i', 'st-seg ' + pl); seg.style.height = (b[pl] / top * 100) + '%'; stack.appendChild(seg); } });
+      if (total) { var n = el('span', 'st-val', nf(total)); n.style.bottom = (total / top * 100) + '%'; stack.appendChild(n); }
+      col.title = b.label + ' · ' + (visitors ? '입장 ' + b.visitors + '명' : '공식전 ' + b['class'] + ' · 자유 플레이 ' + b.room);
+      col.appendChild(stack);
+      var showLabel = !many || idx % Math.ceil(r.chart.length / 12) === 0 || idx === r.chart.length - 1;
+      col.appendChild(el('span', 'st-x', showLabel ? b.label : ''));
+      bars.appendChild(col);
+    });
+    box.appendChild(bars);
+  }
 
   // ── 목록 · 기록 ──
   var tab = 'classes';
   Array.prototype.forEach.call(document.querySelectorAll('#home-tabs button'), function (b) {
-    b.onclick = function () { tab = b.getAttribute('data-tab'); renderHome(); if (tab === 'records') loadRecords(); if (tab === 'bank') loadBank(); };
+    b.onclick = function () { tab = b.getAttribute('data-tab'); renderHome(); if (tab === 'records') loadRecords(); if (tab === 'bank') loadBank(); if (tab === 'stats') loadStats(); };
   });
 
   function showHome() {
@@ -120,6 +428,7 @@
     $('tab-classes').hidden = tab !== 'classes';
     $('tab-records').hidden = tab !== 'records';
     $('tab-bank').hidden = tab !== 'bank';
+    $('tab-stats').hidden = tab !== 'stats';
     $('home-rooms').setAttribute('aria-pressed', String(allowRooms));
     $('pw-warn').hidden = DEMO || pwSource !== 'env';
     var box = $('class-list');

@@ -18,8 +18,9 @@ const { Players } = require('./players');
 const { Lobby } = require('./rooms/lobby');
 const { OPTIONS, cleanClass } = require('./rooms/settings');
 const { ClassHub } = require('./classes/hub');
-const { Auth } = require('./admin/auth');
+const { Auth, STATS_HASH_KEY } = require('./admin/auth');
 const db = require('./db').open(config.dbFile);
+const stats = require('./stats').open(config.statsFile); // 1.2.0: 이용 통계 (data/stats.db)
 
 
 const BASE = config.basePath; // '' 또는 '/play'
@@ -131,6 +132,11 @@ lobby.hostOffMs = config.hostOffMs;
 hub.countdownMs = config.countdownMs;
 hub.nicks = () => players.nicks();
 const auth = new Auth(config.adminPassword, db);
+// 1.2.0: 통계 비밀번호 — 교사 비밀번호와 따로, stats.db 에 저장 (서버 명령 scripts/stats-password.js 로만 정함)
+const statsAuth = new Auth('', stats, STATS_HASH_KEY);
+lobby.onPlay = (settings, result) => stats.record('room', settings, result);
+hub.onPlay = (settings, result) => stats.record('class', settings, result);
+console.log(`[통계] ${config.statsFile} · 통계 비밀번호 ${statsAuth.enabled() ? '있음' : config.demo ? '없음 — 체험 서버라 통계가 열리지 않아요 (scripts/stats-password.js 로 만들기)' : '없음 (교사 로그인만으로 열림)'}`);
 console.log(`[관리자] 교사 화면 비밀번호: ${({ db: '교사 화면에서 바꾼 비밀번호', env: '.env 의 ADMIN_PASSWORD (처음 비밀번호)', none: '없음 — 로그인할 수 없어요 (.env 확인)' })[auth.source()]}`);
 
 // 방 만들기 화면에서 태그별 문제 수를 세는 데 쓰는 정보 (코드·정답은 빼고 태그만)
@@ -225,6 +231,7 @@ io.on('connection', (socket) => {
     }
     pendingNick = null;
     bind(p);
+    stats.visit(token);
     ok(cb, { ok: true, me: players.pub(p) });
     lobby.enter(p, socket);
   });
@@ -319,6 +326,47 @@ io.on('connection', (socket) => {
   adminOn('admin:list', () => adminBase());
   adminOn('admin:rooms', m => hub.setAllowRooms(m.allow));
   adminOn('admin:records', m => ({ ok: true, games: db.recentGames(m.n || 30) }));
+  // 1.2.0 통계 — 통계 비밀번호는 '있으면 쓰고 없으면 안 씀'
+  //   · 없음(보통의 설치): 교사 로그인만으로 열림 — 교사 = 운영자
+  //   · 있음: 교사 로그인 + 통계 열쇠. 처음 만들기 · 잊었을 때는 서버 명령(scripts/stats-password.js)으로만
+  //   · 체험 서버(DEMO=1): 교사 비밀번호를 여럿이 쓰므로 통계 비밀번호가 없으면 열리지 않고, 없애기도 막음
+  const statsInfo = () => ({ locked: statsAuth.enabled(), canRemove: !config.demo, demo: config.demo });
+  function statsGate(m) {
+    if (statsAuth.enabled()) return statsAuth.check(m.key) ? null : { ok: false, statsAuth: false, error: '통계 비밀번호를 넣어 주세요', ...statsInfo() };
+    if (config.demo) return { ok: false, none: true, error: '통계 비밀번호가 아직 없어요', ...statsInfo() };
+    return null;
+  }
+  adminOn('stats:login', m => {
+    if (!statsAuth.enabled()) return config.demo ? { ok: false, none: true, error: '통계 비밀번호가 아직 없어요' } : { ok: true, key: null };
+    return statsAuth.login(m.password);
+  });
+  adminOn('stats:get', m => {
+    const no = statsGate(m);
+    if (no) return no;
+    const r = stats.summary({ days: m.days, from: m.from, to: m.to });
+    let playing = 0;
+    for (const x of lobby.rooms.values()) if (x.phase === 'playing') playing += 1;
+    for (const c of hub.classes.values()) if (c.round) playing += 1;
+    r.live = { players: players.count(), rooms: lobby.rooms.size, classes: hub.classes.size, playing };
+    return Object.assign(r, statsInfo());
+  });
+  adminOn('stats:export', m => statsGate(m) || stats.rows({ days: m.days, from: m.from, to: m.to }));
+  // 바꾸기 · 없애기는 지금 통계 비밀번호를 알아야 (처음 만들기는 서버 명령으로만)
+  adminOn('stats:password', m => {
+    if (!statsAuth.enabled()) return { ok: false, error: '통계 비밀번호가 없어요 — 처음 만들기는 서버 명령으로 해요' };
+    const r = statsAuth.change(m.old, m.new);
+    return r.ok ? { ok: true, key: r.key } : { ok: false, error: r.error === '지금 비밀번호가 맞지 않아요' ? '지금 통계 비밀번호가 맞지 않아요' : r.error };
+  });
+  adminOn('stats:remove', m => {
+    if (config.demo) return { ok: false, error: '체험 서버에서는 통계 비밀번호를 없앨 수 없어요' };
+    if (!statsAuth.enabled()) return { ok: true };
+    const r = statsAuth.attempt(m.password);
+    if (!r.ok) return { ok: false, error: r.error === '비밀번호가 맞지 않아요' ? '지금 통계 비밀번호가 맞지 않아요' : r.error };
+    stats.setSetting(STATS_HASH_KEY, null);
+    statsAuth.keys.clear();
+    return { ok: true };
+  });
+  adminOn('stats:logout', m => { statsAuth.logout(m.key); return { ok: true }; });
   adminOn('class:create', m => {
     const s = cleanClass(m.settings);
     if (!s) return { ok: false, error: '태그를 하나 이상 고르세요' };
@@ -469,6 +517,7 @@ server.listen(config.port, () => {
 function shutdown() {
   console.log('끝내는 중…');
   db.close();
+  stats.close();
   io.close();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 3000).unref();

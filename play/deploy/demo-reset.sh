@@ -4,6 +4,7 @@
 #
 #  KAIT-CLASS 체험 서버의 매일 되돌리기에 KAIT-PLAY 자료(교사 비밀번호 · 문제 은행 ·
 #  지난 기록 · 설정 = /opt/kait-play/data/game.db)도 함께 되돌린다.
+#  이용 통계(data/stats.db, 1.2.0)는 건드리지 않는다 — 체험 서버에서도 통계가 계속 쌓이게.
 #
 #  한 번만 (지금 상태를 기준으로 삼기 · 매일 되돌리기에 붙이기):
 #      sudo bash play/deploy/demo-reset.sh setup

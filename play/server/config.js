@@ -31,6 +31,8 @@ module.exports = {
   adminPassword: process.env.ADMIN_PASSWORD || '',
   // 저장소 파일 (게임 기록 · 설정)
   dbFile: process.env.DB_FILE || require('path').join(__dirname, '..', 'data', 'game.db'),
+  // 1.2.0: 이용 통계 파일 (게임 기록 · 통계 비밀번호) — game.db 와 따로 두어 체험 서버의 매일 되돌리기에도 남는다
+  statsFile: process.env.STATS_FILE || require('path').join(__dirname, '..', 'data', 'stats.db'),
   // 게임 시작 카운트다운 (자유 플레이 · 공식전 모두, v0.7.6). 0 이면 바로 시작 (자동 시험용)
   countdownMs: parseInt(process.env.COUNTDOWN_MS || '5000', 10),
   autoStartMs: parseInt(process.env.AUTO_START_MS || '15000', 10), // v0.13.0: 모두 준비되면 자동 시작까지

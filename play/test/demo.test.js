@@ -19,7 +19,7 @@ function client() { return io(URL, { path: '/play/socket.io', transports: ['webs
 
 test.before(async () => {
   proc = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), BASE_PATH: '/play', DEMO: '1', ADMIN_PASSWORD: 'demo-pw', DB_FILE: path.join(DIR, 'game.db') },
+    env: { ...process.env, PORT: String(PORT), BASE_PATH: '/play', DEMO: '1', ADMIN_PASSWORD: 'demo-pw', DB_FILE: path.join(DIR, 'game.db'), STATS_FILE: path.join(DIR, 'stats.db') },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise(r => proc.stdout.on('data', d => { if (String(d).includes('기다리는 중')) r(); }));
@@ -49,4 +49,23 @@ test('체험 서버: 교사 비밀번호를 바꿀 수 없고, 처음 비밀번�
   assert.strictEqual((await call(t2, 'admin:login', { password: 'demo-pw' })).ok, true);
   assert.strictEqual((await call(t2, 'admin:login', { password: 'hacked-123' })).ok, false);
   t.close(); t2.close();
+});
+
+test('1.2.0 체험 서버: 통계 비밀번호가 없으면 통계가 열리지 않고 · 만들면 바꿀 수 있지만 없앨 수는 없다', async () => {
+  const t = client(); await once(t, 'connect');
+  await call(t, 'admin:login', { password: 'demo-pw' });
+  assert.strictEqual((await call(t, 'stats:get', { days: 7 })).none, true);
+  assert.strictEqual((await call(t, 'stats:export', { days: 7 })).none, true);
+  assert.strictEqual((await call(t, 'stats:login', { password: '' })).none, true);
+  require('child_process').execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'stats-password.js'), 'owner-only'], { env: { ...process.env, STATS_FILE: path.join(DIR, 'stats.db') } });
+  assert.strictEqual((await call(t, 'stats:get', { days: 7 })).statsAuth, false);
+  const key = (await call(t, 'stats:login', { password: 'owner-only' })).key;
+  const g = await call(t, 'stats:get', { key, days: 7 });
+  assert.strictEqual(g.ok, true);
+  assert.strictEqual(g.canRemove, false);
+  const r = await call(t, 'stats:remove', { password: 'owner-only' });
+  assert.strictEqual(r.ok, false);
+  assert.match(r.error, /체험 서버/);
+  assert.strictEqual((await call(t, 'stats:password', { old: 'owner-only', new: 'owner-two' })).ok, true, '바꾸기는 됨');
+  t.close();
 });

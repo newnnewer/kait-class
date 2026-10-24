@@ -28,17 +28,19 @@ function sameText(a, b) {
 }
 
 class Auth {
-  /** envPassword: .env 의 처음 비밀번호, db: 바꾼 비밀번호를 저장하는 곳 */
-  constructor(envPassword, db) {
+  /** envPassword: .env 의 처음 비밀번호, db: 바꾼 비밀번호를 저장하는 곳 (getSetting · setSetting),
+   *  hashKey: 저장 이름 (1.2.0: 통계 비밀번호는 stats.db 의 'statsHash' — 같은 Auth 를 하나 더 만들어 씀) */
+  constructor(envPassword, db, hashKey = HASH_KEY) {
     this.envPassword = String(envPassword || '');
     this.db = db;
+    this.hashKey = hashKey;
     this.keys = new Map(); // 열쇠 → 만료 시각
     this.fails = 0;
     this.lockUntil = 0;
   }
 
   stored() {
-    const h = this.db ? this.db.getSetting(HASH_KEY, null) : null;
+    const h = this.db ? this.db.getSetting(this.hashKey, null) : null;
     return h && h.salt && h.hash ? h : null;
   }
 
@@ -92,7 +94,7 @@ class Auth {
     if (/\s/.test(newPw)) return { ok: false, error: '새 비밀번호에 띄어쓰기는 쓸 수 없어요' };
     const r = this.attempt(oldPw);
     if (!r.ok) return { ok: false, error: r.error === '비밀번호가 맞지 않아요' ? '지금 비밀번호가 맞지 않아요' : r.error };
-    this.db.setSetting(HASH_KEY, hashPassword(newPw));
+    this.db.setSetting(this.hashKey, hashPassword(newPw));
     this.keys.clear();
     return { ok: true, key: this.newKey() };
   }
@@ -108,4 +110,6 @@ class Auth {
   logout(key) { this.keys.delete(key); }
 }
 
-module.exports = { Auth, hashPassword, HASH_KEY, MIN_LEN };
+const STATS_HASH_KEY = 'statsHash';
+
+module.exports = { Auth, hashPassword, HASH_KEY, STATS_HASH_KEY, MIN_LEN };

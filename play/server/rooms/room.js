@@ -478,6 +478,7 @@ class Room {
     this.closeAt = Date.now() + (this.lobby.waitCloseMs || WAIT_CLOSE_MS);
     if (this.closed) return;
     const idle = this.battle ? result.teams.every(t => t.reason === 'idle' || t.reason === 'forfeit') && result.teams.some(t => t.reason === 'idle') : result.reason === 'idle';
+    if (this.lobby.onPlay) this.lobby.onPlay(this.settings, result); // 1.2.0 통계 (방치로 끝난 판도 남김)
     if (idle) { this.close('idle'); return; }
     this.emitAll(this.battle ? 'class:result' : 'result', result);
     this.changed();

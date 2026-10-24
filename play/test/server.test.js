@@ -20,7 +20,7 @@ const SETTINGS = { tags: ['출력'], max: 4, limitMin: 5, occSec: 20, bossEveryS
 
 test.before(async () => {
   proc = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), BASE_PATH: '/play', GRACE_MS: '300', COUNTDOWN_MS: '0', CREATE_GAP_MS: '0', WAIT_CLOSE_MS: '1500', DB_FILE: ':memory:' },
+    env: { ...process.env, PORT: String(PORT), BASE_PATH: '/play', GRACE_MS: '300', COUNTDOWN_MS: '0', CREATE_GAP_MS: '0', WAIT_CLOSE_MS: '1500', DB_FILE: ':memory:', STATS_FILE: ':memory:' },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise(r => proc.stdout.on('data', d => { if (String(d).includes('기다리는 중')) r(); }));

@@ -39,7 +39,7 @@
     <p class="error" id="login-error" role="alert"></p>
   </form>
   <footer class="credit">
-    <div>KAIT-PLAY · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
+    <div><span class="kp-ver">KAIT-PLAY</span> · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
     <div>글꼴 Pretendard · JetBrains Mono · Press Start 2P · Archivo (SIL OFL 1.1) · 실시간 연결 Socket.IO (MIT)</div>
   </footer>
 </main>
@@ -53,6 +53,7 @@
       <button type="button" data-tab="classes" aria-pressed="true">공식전</button>
       <button type="button" data-tab="records" aria-pressed="false">지난 기록</button>
       <button type="button" data-tab="bank" aria-pressed="false">문제 은행</button>
+      <button type="button" data-tab="stats" aria-pressed="false">통계</button>
     </div>
     <span class="grow"></span>
     <div class="switch-row">
@@ -104,8 +105,82 @@
     <div class="bk-list" id="bk-list"></div>
     <button type="button" class="btn small ghost-btn" id="btn-bk-more" hidden>더 보기</button>
   </section>
+
+  <!-- 1.2.0 이용 통계 — 교사 로그인 + 통계 비밀번호(따로) -->
+  <section id="tab-stats" class="home-body" hidden>
+    <div class="home-head">
+      <h1>이용 통계</h1>
+      <span class="muted" id="st-range"></span>
+      <span class="grow"></span>
+      <div class="seg" role="group" aria-label="기간" id="st-days" hidden>
+        <button type="button" data-days="1" aria-pressed="false">오늘</button>
+        <button type="button" data-days="7" aria-pressed="true">7일</button>
+        <button type="button" data-days="30" aria-pressed="false">30일</button>
+        <button type="button" data-days="0" aria-pressed="false">전체</button>
+        <button type="button" data-days="-1" aria-pressed="false">직접</button>
+      </div>
+      <button type="button" class="btn small ghost-btn" id="btn-st-reload" hidden>새로 고침</button>
+      <button type="button" class="btn small ghost-btn" id="btn-st-down" hidden title="지금 보는 기간의 게임 기록을 엑셀에서 열 수 있는 CSV 파일로">내려받기</button>
+      <button type="button" class="btn small ghost-btn" id="btn-st-pw" hidden>통계 비밀번호</button>
+      <button type="button" class="btn small ghost-btn" id="btn-st-lock" hidden title="통계만 닫아요 (교사 로그인은 그대로) — 다시 보려면 통계 비밀번호를 넣어요">통계 닫기</button>
+    </div>
+    <form class="st-custom" id="st-custom" hidden>
+      <label for="st-from">기간</label>
+      <input type="date" id="st-from" class="t-input st-date" required>
+      <span>~</span>
+      <input type="date" id="st-to" class="t-input st-date" required aria-label="끝 날짜">
+      <button type="submit" class="btn small yellow">보기</button>
+    </form>
+
+    <form class="card st-lock" id="st-lock" autocomplete="off" hidden>
+      <b>통계 비밀번호</b>
+      <span class="muted">교사 비밀번호와 다른, 통계만 여는 비밀번호예요</span>
+      <input id="st-pw" class="t-input" type="password" autocomplete="off" aria-label="통계 비밀번호">
+      <button type="submit" class="btn yellow wide" id="btn-st-open">통계 열기</button>
+      <p class="error" id="st-error" role="alert"></p>
+    </form>
+    <div class="card st-lock st-none" id="st-none" hidden>
+      <b>통계 비밀번호가 아직 없어요</b>
+      <span>체험 서버는 교사 비밀번호를 여럿이 함께 쓰므로, 통계 비밀번호를 만들어야 통계가 열려요. 서버에서 아래 명령을 한 번 실행하면 비밀번호를 만들어 보여 줘요. 처음 만들기는 교사 화면에서 할 수 없어요.</span>
+      <code class="st-cmd">sudo docker exec kait-play node scripts/stats-password.js</code>
+      <span class="muted small">기록은 비밀번호와 상관없이 이미 쌓이고 있어요 · 만든 뒤 바꾸기는 통계 탭에서 할 수 있어요</span>
+      <button type="button" class="btn small ghost-btn" id="btn-st-retry">만들었어요 — 다시 확인</button>
+    </div>
+
+    <div id="st-body" class="st-body" hidden>
+      <div class="st-live" id="st-live"></div>
+      <div class="st-kpis" id="st-kpis"></div>
+      <div class="card st-card">
+        <div class="st-card-head">
+          <b id="st-chart-title">게임 수</b>
+          <span class="st-legend" id="st-legend"></span>
+          <span class="grow"></span>
+          <div class="seg small" role="group" aria-label="그래프" id="st-chart-kind">
+            <button type="button" data-kind="plays" aria-pressed="true">게임 수</button>
+            <button type="button" data-kind="visitors" aria-pressed="false">입장한 사람</button>
+          </div>
+        </div>
+        <div class="st-chart" id="st-chart"></div>
+      </div>
+      <div class="st-two">
+        <div class="card st-card">
+          <div class="st-card-head"><b>게임 종류</b></div>
+          <div class="st-kinds" id="st-kinds"></div>
+        </div>
+        <div class="card st-card">
+          <div class="st-card-head"><b>끝난 방식</b></div>
+          <div class="st-kinds" id="st-reasons"></div>
+        </div>
+      </div>
+      <div class="card st-card">
+        <div class="st-card-head"><b>최근 게임</b><span class="muted small">이 기간의 마지막 20판</span></div>
+        <div id="st-recent"></div>
+      </div>
+      <p class="muted small">게임이 끝날 때마다 한 줄씩 남아요(공식전 · 자유 플레이 모두, 비트만 한 판은 빼요) · 닉네임 같은 개인 정보는 남기지 않아요 · '입장한 사람'은 캐릭터를 골라 들어온 브라우저 수(하루에 한 번) · 통계는 서버의 data/stats.db 에 저장돼요(체험 서버의 매일 되돌리기에도 남음) · 내려받기는 지금 보는 기간의 게임 기록(한 판에 한 줄, CSV)</p>
+    </div>
+  </section>
   <footer class="credit">
-    <div>KAIT-PLAY · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
+    <div><span class="kp-ver">KAIT-PLAY</span> · © 2026 <a href="https://kait.re.kr" target="_blank" rel="noopener">한국정보교사연합회(KAIT)</a> · <a href="mailto:newnnewer@gmail.com" title="메일 보내기">newnnewer</a> · <a href="https://polyformproject.org/licenses/noncommercial/1.0.0" target="_blank" rel="noopener" title="PolyForm Noncommercial 1.0.0">비상업 라이선스</a> · 소스 <a href="https://github.com/newnnewer/kait-class" target="_blank" rel="noopener">github.com/newnnewer/kait-class</a></div>
     <div>글꼴 Pretendard · JetBrains Mono · Press Start 2P · Archivo (SIL OFL 1.1) · 실시간 연결 Socket.IO (MIT)</div>
   </footer>
 </main>
@@ -266,6 +341,34 @@ for i in range(3):
     <span class="muted small">바꾸면 다른 컴퓨터에 열려 있던 교사 화면은 로그아웃돼요. 잊으면 서버에서 <code>docker exec kait-play node scripts/admin-password.js</code> 로 새로 만들 수 있어요.</span>
     <p class="error" id="pw-error" role="alert"></p>
     <div class="row"><button type="button" class="btn ghost-btn mid" id="btn-pw-cancel">취소</button><span class="grow"></span><button type="submit" class="btn yellow" id="btn-pw-save">바꾸기</button></div>
+  </form>
+</div>
+
+<!-- 1.2.0 통계 비밀번호 (바꾸기 · 없애기 — 처음 만들기는 서버 명령으로만) -->
+<div class="overlay" id="st-pw-dialog" hidden>
+  <form class="card login-card" id="st-pw-form" autocomplete="off">
+    <h2>통계 비밀번호</h2>
+    <div id="st-pw-on">
+      <label for="st-pw-old" class="label">지금 통계 비밀번호</label>
+      <input id="st-pw-old" class="t-input" type="password" autocomplete="off">
+      <label for="st-pw-new" class="label">새 비밀번호 (6자 이상, 띄어쓰기 없이)</label>
+      <input id="st-pw-new" class="t-input" type="password" autocomplete="new-password" minlength="6">
+      <label for="st-pw-new2" class="label">새 비밀번호 한 번 더</label>
+      <input id="st-pw-new2" class="t-input" type="password" autocomplete="new-password" minlength="6">
+      <span class="muted small">교사 비밀번호와 따로예요. 바꾸면 다른 컴퓨터에 열려 있던 통계는 닫혀요. 잊으면 서버에서 <code>sudo docker exec kait-play node scripts/stats-password.js</code> 로 새로 만들 수 있어요.</span>
+    </div>
+    <div id="st-pw-off" class="st-pw-off">
+      <span>지금은 통계 비밀번호가 없어서 <b>교사 로그인만으로 통계가 열려요.</b> 교사 비밀번호를 혼자 쓰는 서버라면 이대로 충분해요.</span>
+      <span>교사 비밀번호를 여러 선생님과 함께 쓰는데 통계는 나만 보려면, 서버에서 아래 명령으로 만드세요 (처음 만들기는 화면에서 할 수 없어요 — 교사 비밀번호를 아는 누군가가 먼저 정하지 못하게).</span>
+      <code class="st-cmd">sudo docker exec kait-play node scripts/stats-password.js</code>
+    </div>
+    <p class="error" id="st-pw-error" role="alert"></p>
+    <div class="row">
+      <button type="button" class="btn ghost-btn mid" id="btn-st-pw-cancel">닫기</button>
+      <button type="button" class="btn ghost-btn mid danger" id="btn-st-pw-remove" title="지금 통계 비밀번호를 넣고 누르면, 그 뒤로는 교사 로그인만으로 통계가 열려요">비밀번호 없애기</button>
+      <span class="grow"></span>
+      <button type="submit" class="btn yellow" id="btn-st-pw-save">바꾸기</button>
+    </div>
   </form>
 </div>
 

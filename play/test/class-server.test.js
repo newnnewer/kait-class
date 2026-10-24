@@ -23,7 +23,7 @@ function client() { return io(URL, { path: '/play/socket.io', transports: ['webs
 
 test.before(async () => {
   proc = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), BASE_PATH: '/play', GRACE_MS: '300', COUNTDOWN_MS: '0', ADMIN_PASSWORD: 'test-pw', DB_FILE: path.join(DIR, 'game.db') },
+    env: { ...process.env, PORT: String(PORT), BASE_PATH: '/play', GRACE_MS: '300', COUNTDOWN_MS: '0', ADMIN_PASSWORD: 'test-pw', DB_FILE: path.join(DIR, 'game.db'), STATS_FILE: path.join(DIR, 'stats.db') },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise(r => proc.stdout.on('data', d => { if (String(d).includes('기다리는 중')) r(); }));
@@ -248,4 +248,59 @@ test('문제 은행: 로그인해야 쓰고, 붙여넣기 추가는 다음 게�
   assert.strictEqual((await call(t, 'bank:try', { kind: 'boss', code: 'print(1 + ___)', answers: '2 | 1 + 1', text: '1+1' })).correct, true);
   assert.strictEqual((await call(t, 'bank:remove', { id: mine.id })).ok, true);
   s.s.close(); t.close();
+});
+
+test('1.2.0 통계: 비밀번호가 없으면 교사 로그인만으로 · 서버 명령으로 만들면 한 번 더 · 바꾸기 · 없애기 · 내려받기', async () => {
+  const t = await teacher();
+  assert.strictEqual((await call(t, 'stats:get', { days: 1 })).auth, false, '교사 로그인 전에는 안 됨');
+  await call(t, 'admin:login', { password: 'from-script' });
+  const open0 = await call(t, 'stats:get', { days: 1 });
+  assert.strictEqual(open0.ok, true, '통계 비밀번호가 없으면 바로 열림');
+  assert.strictEqual(open0.locked, false);
+  assert.strictEqual((await call(t, 'stats:password', { old: 'x', new: 'abcdefg' })).ok, false, '처음 만들기는 화면에서 안 됨');
+  const out = require('child_process').execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'stats-password.js'), 'stats-pw-9'], { env: { ...process.env, STATS_FILE: path.join(DIR, 'stats.db') } }).toString();
+  assert.match(out, /stats-pw-9/);
+  const locked = await call(t, 'stats:get', { days: 1 });
+  assert.strictEqual(locked.statsAuth, false, '만든 뒤로는 열쇠가 있어야');
+  assert.strictEqual((await call(t, 'stats:login', { password: 'from-script' })).ok, false, '교사 비밀번호로는 안 열림');
+  let key = (await call(t, 'stats:login', { password: 'stats-pw-9' })).key;
+  assert.ok(key);
+  const before = (await call(t, 'stats:get', { key, days: 1 })).sum.classPlays;
+  const made = await call(t, 'class:create', { settings: { tags: ['출력'], teams: 2, blocks: 24 } });
+  const a = await student();
+  await call(a.s, 'class:join', { code: made.cls.code });
+  await call(a.s, 'class:team', { no: 1 });
+  await call(t, 'class:start', {});
+  const ended = once(t, 'class:result');
+  await call(t, 'class:stop', {});
+  await ended;
+  const g = await call(t, 'stats:get', { key, days: 1 });
+  assert.strictEqual(g.locked, true);
+  assert.strictEqual(g.sum.classPlays, before + 1);
+  assert.strictEqual(g.recent[0].place, 'class');
+  assert.strictEqual(g.recent[0].humans, 1);
+  assert.ok(g.sum.visitors >= 1);
+  assert.ok(g.live.classes >= 1);
+  // 직접 고른 기간 · 내려받기
+  const today = g.to;
+  const ex = await call(t, 'stats:export', { key, from: today, to: today });
+  assert.strictEqual(ex.ok, true);
+  assert.strictEqual(ex.rows.length, g.sum.plays);
+  assert.strictEqual(ex.rows[ex.rows.length - 1].place, 'class');
+  assert.strictEqual((await call(t, 'stats:export', { key: 'nope', days: 7 })).statsAuth, false);
+  // 바꾸기: 지금 비밀번호가 맞아야 · 바꾸면 예전 열쇠는 닫힘
+  assert.strictEqual((await call(t, 'stats:password', { old: 'wrong-pw', new: 'stats-pw-10' })).ok, false);
+  const ch = await call(t, 'stats:password', { old: 'stats-pw-9', new: 'stats-pw-10' });
+  assert.strictEqual(ch.ok, true);
+  assert.strictEqual((await call(t, 'stats:get', { key, days: 1 })).statsAuth, false);
+  key = ch.key;
+  assert.strictEqual((await call(t, 'stats:get', { key, days: 1 })).ok, true);
+  // 없애기 → 다시 교사 로그인만으로
+  assert.strictEqual((await call(t, 'stats:remove', { password: 'stats-pw-9' })).ok, false);
+  assert.strictEqual((await call(t, 'stats:remove', { password: 'stats-pw-10' })).ok, true);
+  const open1 = await call(t, 'stats:get', { days: 1 });
+  assert.strictEqual(open1.ok, true);
+  assert.strictEqual(open1.locked, false);
+  await call(t, 'class:close', {});
+  a.s.close(); t.close();
 });
