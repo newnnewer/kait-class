@@ -204,35 +204,43 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
                 : ($isAssess ? '이 평가에서는 붙여넣기를 할 수 없습니다. 직접 입력하세요.'
                              : '이 수업에서는 붙여넣기를 할 수 없습니다. 직접 입력하세요.');
           ?>
-          <textarea id="code" class="editor" spellcheck="false"
-                    placeholder="<?= h($ph) ?>"></textarea>
-          <div class="small warnmsg" id="pasteMsg"></div>
-
-          <div class="btnrow">
-            <button class="btn primary" id="submitBtn" type="button">제출하기</button>
-            <span id="afterBtns"></span>
-            <div class="grow"></div>
-            <button class="btn" id="runToggle" type="button" aria-expanded="false" aria-controls="runBox">실행하기</button>
+          <!-- 코드창 + 버튼 줄을 한 테두리 안에 — 코드와 입력·출력 사이를 줄인다 -->
+          <div class="edframe" id="edFrame">
+            <textarea id="code" class="editor" spellcheck="false"
+                      placeholder="<?= h($ph) ?>"></textarea>
+            <div class="btnrow edbar">
+              <button class="btn primary" id="submitBtn" type="button">제출하기</button>
+              <span id="afterBtns"></span>
+              <button class="btn" id="runToggle" type="button" aria-expanded="false" aria-controls="runBox">실행하기</button>
+              <span class="small muted runhint" id="runHint" hidden>채점이 아니며, 맞았는지 알려주지 않습니다.</span>
+              <span class="small warnmsg" id="pasteMsg"></span>
+            </div>
           </div>
           <div id="result" hidden></div>
 
           <!-- ── 직접 실행 ─────────────────────────
                채점이 아니라 내가 정한 입력으로 돌려만 보는 것.
-               [실행하기]로 열면 첫 번째 입력 예시를 채워 곧바로 실행한다 (1.8.0). 다시 누르면 닫힌다. -->
+               처음 [실행하기]를 누르면 첫 번째 입력 예시를 채워 곧바로 실행하고,
+               그 뒤로는 버튼이 [실행]으로 바뀌어 누를 때마다 실행만 한다 (닫히지 않음).
+               [입력] [출력] 상자를 나란히 두어 코드와 결과가 한 화면에 들어오게 한다. -->
           <div class="runbox" id="runBox" hidden
                data-sample="<?= h($samples ? (string)$samples[0]['input'] : '') ?>">
-            <label class="cap" for="runInput">입력</label>
-            <textarea id="runInput" class="code" rows="4" spellcheck="false"></textarea>
-            <div class="runbar">
-              <button class="btn" id="runBtn" type="button">실행</button>
-              <div class="small muted">입력값을 지정할 수 있습니다. 채점이 아니며, 맞았는지 알려주지 않습니다.</div>
+            <div class="iobox">
+              <div class="iohead">
+                <label class="cap" for="runInput">입력</label>
+                <span class="small muted">입력값을 지정할 수 있습니다.</span>
+              </div>
+              <textarea id="runInput" class="code" rows="4" spellcheck="false"></textarea>
             </div>
-            <div class="runhead">
-              <span class="cap">출력</span>
-              <span class="runstat" id="runStatus" aria-live="polite"></span>
-              <span class="runmeta" id="runMeta"></span>
+            <div class="iobox">
+              <div class="iohead runhead">
+                <span class="cap">출력</span>
+                <span class="runstat" id="runStatus" aria-live="polite"></span>
+              </div>
+              <pre class="runout" id="runOut"></pre>
             </div>
-            <pre class="runout" id="runOut"></pre>
+            <!-- 시간 · 메모리는 출력 상자 아래 오른쪽 — 제목 줄이 한 줄로 끝나 입력·출력 상자 높이가 맞는다 -->
+            <div class="runmeta" id="runMeta"></div>
             <div class="runerr" id="runErr" hidden>
               <div class="cap">오류</div>
               <pre class="runout"></pre>

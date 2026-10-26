@@ -127,6 +127,7 @@ async function apiThenReload(action, data, confirmMsg){
       ta.parentNode.replaceChild(fresh, ta);
       ta = fresh;
       bindTextarea();
+      fitEditor();
     }
   }
   function focusCode() { if (ed) ed.focus(); else ta.focus(); }
@@ -163,6 +164,12 @@ async function apiThenReload(action, data, confirmMsg){
       }
     });
     ed.on('keydown', function (cm, e) { countKey(e); });
+    /* 코드창과 버튼 줄을 묶은 테두리에 초점 표시 */
+    var frame = document.getElementById('edFrame');
+    if (frame) {
+      ed.on('focus', function () { frame.classList.add('focus'); });
+      ed.on('blur',  function () { frame.classList.remove('focus'); });
+    }
     if (noPaste) {
       ed.on('paste', function (cm, e) { blockPaste(e); });
       ed.on('drop',  function (cm, e) { blockPaste(e); });
@@ -181,6 +188,7 @@ async function apiThenReload(action, data, confirmMsg){
         ta.value = ta.value.slice(0, s) + '    ' + ta.value.slice(t);
         ta.selectionStart = ta.selectionEnd = s + 4;
       });
+      ta.addEventListener('input', function () { fitEditor(); });
     }
     ta.addEventListener('keydown', countKey);
     if (noPaste) {
@@ -193,6 +201,31 @@ async function apiThenReload(action, data, confirmMsg){
     });
   }
   bindTextarea();
+
+  /* ── 편집기 높이 ──
+     코드 줄 수 + 1줄 (최소 7줄). 줄이 늘고 줄 때마다 따라간다.
+     수업에서 코드와 실행 결과를 한 화면에 함께 보려는 것. */
+  var MIN_ROWS = 7, EXTRA_ROWS = 1;
+  function fitEditor() {
+    if (ed) {
+      var rows = Math.max(ed.lineCount() + EXTRA_ROWS, MIN_ROWS);
+      /* 높이를 딱 정해 주어야 줄 번호 칸이 바닥까지 이어진다.
+         + 8 은 줄 영역 위아래 여백(4px씩). 긴 줄이 있으면 가로 스크롤바가 남는 1줄 위에 놓인다. */
+      ed.getWrapperElement().style.minHeight = '0';
+      ed.setSize(null, Math.ceil(rows * ed.defaultTextHeight()) + 8);
+    } else {
+      var n  = ta.value.split('\n').length;
+      var fs = parseFloat(ta.style.fontSize) || 13.5;
+      ta.style.minHeight = Math.ceil(Math.max(n + EXTRA_ROWS, MIN_ROWS) * fs * 1.6 + 26) + 'px';
+    }
+  }
+  if (ed) {
+    var lastLines = -1;
+    ed.on('change', function () {
+      if (ed.lineCount() !== lastLines) { lastLines = ed.lineCount(); fitEditor(); }
+    });
+  }   /* 편집기가 없을 때는 bindTextarea 가 input 이벤트에 건다 */
+  fitEditor();
 
   /* ── 글자 크기 ── */
   (function () {
@@ -207,6 +240,7 @@ async function apiThenReload(action, data, confirmMsg){
       document.documentElement.style.setProperty('--edfs', size + 'px');
       ta.style.fontSize = size + 'px';
       if (ed) ed.refresh();
+      fitEditor();   /* 글자 크기가 바뀌면 한 줄 높이도 바뀐다 */
       try { localStorage.setItem('edFontSize', String(size)); } catch (e) {}
     }
     document.getElementById('fsUp').addEventListener('click', function () { size += 1; apply(); });
@@ -382,13 +416,15 @@ async function apiThenReload(action, data, confirmMsg){
   /* ═══ 직접 실행 ═══════════════════════════════════
      학생이 자기 입력으로 코드를 돌려 본다. 채점이 아니므로 판정을 말하지 않고,
      테스트케이스도 건드리지 않는다.
-     [실행하기]로 열면 첫 번째 입력 예시를 채우고 곧바로 실행한다. 다시 누르면 닫힌다 (1.8.0).
+     처음 [실행하기]를 누르면 입력 | 출력이 열리고 첫 번째 입력 예시를 채워 곧바로 실행한다.
+     그 뒤로는 같은 버튼이 [실행]이 되어 누를 때마다 실행만 한다 — 입력은 학생이 고친 그대로 둔다.
      출력 상자는 늘 보이고, 상태·시간·메모리는 '출력' 옆 한 줄에, 오류는 출력 상자 아래 따로 보인다. */
   (function () {
     var toggle = document.getElementById('runToggle');
     var rbox   = document.getElementById('runBox');
     var rin    = document.getElementById('runInput');
-    var rbtn   = document.getElementById('runBtn');
+    var rhint  = document.getElementById('runHint');
+    var rbtn   = toggle;   /* 실행 버튼은 이제 이것 하나 */
     var rstat  = document.getElementById('runStatus');
     var rmeta  = document.getElementById('runMeta');
     var rout   = document.getElementById('runOut');
@@ -469,17 +505,18 @@ async function apiThenReload(action, data, confirmMsg){
     }
 
     toggle.addEventListener('click', function () {
-      rbox.hidden = !rbox.hidden;
-      toggle.classList.toggle('on', !rbox.hidden);
-      toggle.setAttribute('aria-expanded', rbox.hidden ? 'false' : 'true');
-      if (rbox.hidden) return;
-      /* 열 때마다 첫 번째 입력 예시로 채우고 바로 실행 (예시가 없으면 빈 입력) */
-      rin.value = rbox.getAttribute('data-sample') || '';
       if (rbtn.disabled) return;   /* 앞 실행이 아직 끝나지 않았으면 기다린다 */
+      if (rbox.hidden) {
+        /* 처음 한 번만: 열고, 첫 번째 입력 예시로 채운다 (예시가 없으면 빈 입력) */
+        rbox.hidden = false;
+        rin.value = rbox.getAttribute('data-sample') || '';
+        toggle.textContent = '실행';
+        toggle.classList.add('on');
+        toggle.setAttribute('aria-expanded', 'true');
+        if (rhint) rhint.hidden = false;
+      }
       run();
     });
-
-    rbtn.addEventListener('click', run);
   })();
 
 })();

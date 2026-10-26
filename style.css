@@ -441,6 +441,8 @@ table.list.grid tr:hover td.c-done{background:#CFEBDC}
 /* 제출 버튼 줄 */
 .btnrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
 .btnrow #afterBtns{display:flex; align-items:center; gap:10px}
+.btnrow #afterBtns:empty{display:none}
+.btnrow .runhint{flex:1 1 220px; min-width:0; line-height:1.5; word-break:keep-all}
 
 /* 복사 버튼 — 라벨 바로 옆 */
 .copybtn{width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center;
@@ -619,25 +621,44 @@ table.list.grid td a{color:inherit}
 table.list.grid td.c-done a,table.list.grid td.c-part a{color:inherit; font-weight:700}
 
 /* ═══ 직접 실행 ═════════════════════════════ */
-/* 입력 → [실행] + 설명 → '출력 · 상태 · 시간 · 메모리' 한 줄 → 출력 상자 → (오류가 있으면) 오류 상자 (1.8.0) */
-.runbox{margin-top:14px; padding:16px 18px 18px; border:1.5px solid var(--b200);
-        border-radius:12px; background:#fff}
-.runbox .cap{display:block; font-size:12.5px; font-weight:600; color:var(--b600); margin-bottom:6px}
-.runbox textarea{font-family:var(--mono); font-size:13px; background:#fff}
-.runbar{display:flex; align-items:center; gap:14px; margin:12px 0 16px}
-.runbar .btn{flex:none}
-.runbar .small{line-height:1.55}
-.runhead{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin-bottom:6px}
-.runhead .cap{margin:0}
-.runstat{font-size:13.5px; font-weight:600}
+/* 코드창과 버튼 줄을 한 테두리로 묶는다 (편집기 자체의 테두리는 끈다) */
+.edframe{border:1px solid var(--line); border-radius:8px; background:#fff; overflow:hidden}
+.edframe.focus{border-color:var(--b500); box-shadow:0 0 0 3px rgba(47,81,160,.15)}
+.edframe .CodeMirror{border:0; border-radius:0; box-shadow:none}
+.edframe textarea.editor{border:0; border-radius:0}
+.edbar{padding:8px 12px; border-top:1px solid var(--line-2); gap:10px}
+.edbar .warnmsg{min-height:0; margin-left:auto}
+.edbar .warnmsg:empty{display:none}
+
+/* [입력] [출력 · 상태 · 시간 · 메모리] 두 상자를 나란히, 오류는 그 아래 전체 폭.
+   좁은 화면에서는 위아래로 쌓는다. */
+.runbox{margin-top:10px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+        gap:10px 12px; align-items:stretch}
+.runbox[hidden]{display:none}
+@media(max-width:640px){ .runbox{grid-template-columns:1fr} }
+.iobox{display:flex; flex-direction:column; min-width:0; border:1px solid var(--line);
+       border-radius:9px; background:#fff; overflow:hidden}
+.iohead{display:flex; align-items:baseline; flex-wrap:wrap; column-gap:10px; row-gap:0;
+        padding:6px 12px; border-bottom:1px solid var(--line-2); background:var(--b25); line-height:20px}
+.runbox .cap{display:block; font-size:12.5px; font-weight:600; color:var(--b600); margin:0; line-height:20px}
+.iohead .small{font-size:12px}
+.runbox > .runmeta{grid-column:-2; text-align:right; margin-top:-6px; line-height:1.4}
+.runbox > .runmeta:empty{display:none}
+@media(max-width:640px){ .runbox > .runmeta{grid-column:auto} }
+#runInput{flex:1; display:block; width:100%; min-height:96px; resize:vertical; margin:0;
+          border:0; border-radius:0; box-shadow:none; padding:10px 12px;
+          font:13px/1.55 var(--mono); background:#fff}
+#runInput:focus{outline:2px solid var(--b200); outline-offset:-2px; border:0; box-shadow:none}
+#runOut{flex:1; border:0; border-radius:0; background:#fff}
+.runerr{grid-column:1 / -1}
+.runerr .cap{color:var(--bad); margin-bottom:6px}
+.runstat{font-size:12.5px; font-weight:600}   /* 입력 · 출력 제목과 같은 크기 */
 .runstat.ok{color:var(--ok)} .runstat.bad{color:var(--bad)} .runstat.wait{color:var(--b500)}
 .runmeta{font:12.5px var(--mono); color:var(--ink-3); white-space:pre}
-.runout{margin:0; min-height:88px; max-height:320px; overflow:auto; padding:10px 12px;
+.runout{margin:0; min-height:96px; max-height:320px; overflow:auto; padding:10px 12px;
         border:1px solid var(--line); border-radius:9px; background:var(--b25);
         font:13px/1.55 var(--mono); white-space:pre-wrap; word-break:break-word}
 .runout.empty{color:var(--ink-3)}
-.runerr{margin-top:12px}
-.runerr .cap{color:var(--bad)}
 .runerr .runout{min-height:0; background:var(--bad-soft); border-color:#EFC3C1; color:var(--bad)}
 #runToggle.on{background:var(--b600); border-color:var(--b600); color:#fff}
 .rbox .rlab{font-size:12px; font-weight:600; color:var(--b500);

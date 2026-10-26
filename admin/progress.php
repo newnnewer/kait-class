@@ -68,7 +68,7 @@ if (($_GET['csv'] ?? '') === '1') {
 page_head(['title' => $s['title'] . ' 현황', 'root' => '../', 'user' => $u,
             'nav' => $isAssess ? 'assessments' : 'lessons']);
 ?>
-<div class="wrap">
+<div class="wrap" id="pgWrap">
 
   <div class="phead">
     <h1><?= h($s['title']) ?></h1>
@@ -76,6 +76,7 @@ page_head(['title' => $s['title'] . ' 현황', 'root' => '../', 'user' => $u,
       <?= h(SET_TYPE_NAME[$s['set_type']]) ?> · 학생 <?= count($students) ?>명 · 문제 <?= count($problems) ?>개
       <?php if ($isAssess && $problems): ?> · 모두 완료 <?= $doneCnt ?>명<?php endif; ?>
     </span>
+    <span class="sub" id="pgTime"></span>
     <div class="grow"></div>
     <a class="btn" href="submissions.php?set_id=<?= $id ?>">제출 기록</a>
     <a class="btn" href="?id=<?= $id ?>&csv=1">CSV 내려받기</a>
@@ -138,4 +139,64 @@ page_head(['title' => $s['title'] . ' 현황', 'root' => '../', 'user' => $u,
   <?php endif; ?>
 
 </div>
+
+<script>
+/* 10초마다 풀이 현황을 새로 읽어 온다 — 수업 중 띄워 두고 F5 없이 보려는 것.
+   페이지 전체가 아니라 본문만 바꿔 끼워 깜빡임·스크롤 튐이 없다.
+   다른 탭을 보는 동안에는 쉬었다가, 돌아오면 바로 한 번 읽는다.
+   제목 옆에는 마지막으로 읽어 온 시각을 '16:03:20 풀이 현황' 처럼 적는다. */
+(function () {
+  var EVERY = 10000, timer = null, busy = false, stopped = false;
+
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  function stamp() {
+    var t = document.getElementById('pgTime'), d = new Date();
+    if (t) t.textContent = two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()) + ' 풀이 현황';
+  }
+  function stop(msg) {
+    stopped = true; clearTimeout(timer);
+    var t = document.getElementById('pgTime');
+    if (t) { t.textContent = msg; t.style.color = 'var(--bad)'; }
+  }
+
+  function refresh() {
+    if (busy || stopped || document.hidden) return;
+    busy = true;
+    fetch(location.href, { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (r) {
+        /* 로그인이 풀리면 로그인 화면으로 돌려보내진다 — 그 화면을 표 자리에 끼우지 않는다 */
+        if (r.redirected || !r.ok) throw new Error('login');
+        return r.text();
+      })
+      .then(function (html) {
+        var d = document.createElement('div');
+        d.innerHTML = html;
+        var nw = d.querySelector('#pgWrap'), ow = document.getElementById('pgWrap');
+        if (!nw || !ow) throw new Error('login');
+        var sx = ow.querySelector('.scrollx'), left = sx ? sx.scrollLeft : 0;
+        ow.innerHTML = nw.innerHTML;
+        var sx2 = ow.querySelector('.scrollx'); if (sx2) sx2.scrollLeft = left;
+        stamp();
+      })
+      .catch(function (e) {
+        if (e && e.message === 'login') stop('로그인이 필요합니다 — 새로고침하세요');
+        /* 잠깐 연결이 끊긴 것이면 시각을 그대로 두고 다음 차례에 다시 읽는다 */
+      })
+      .then(function () { busy = false; });
+  }
+
+  function loop() {
+    clearTimeout(timer);
+    if (stopped) return;
+    timer = setTimeout(function () { refresh(); loop(); }, EVERY);
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && !stopped) { refresh(); loop(); }
+  });
+
+  stamp();
+  loop();
+})();
+</script>
 <?php page_foot(); ?>

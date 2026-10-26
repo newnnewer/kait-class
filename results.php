@@ -97,6 +97,9 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
           <?= h($detail['created_at']) ?>
         </span>
         <div class="grow"></div>
+        <?php if ($canSeeCode): ?>
+          <button class="btn sm" type="button" id="copyCode" title="코드를 클립보드에 복사">코드 복사</button>
+        <?php endif; ?>
         <?php if ($u && $u['role'] === 'admin'): ?>
           <form method="post" action="admin/judge.php" style="display:inline"
                 onsubmit="return confirm('이 제출을 다시 채점할까요?')">
@@ -109,7 +112,7 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
         <a class="btn sm" href="<?= h($backUrl) ?>">닫기</a>
       </div>
       <?php if ($canSeeCode): ?>
-        <pre class="codeview"><?= h($detail['source_code']) ?></pre>
+        <pre class="codeview" id="codeView"><?= h($detail['source_code']) ?></pre>
         <?php /* 지난 제출에서도 어디가 틀렸는지 (1.5.0) — 제출 직후와 같은 규칙 · 같은 모양 */
               $dd = diff_for_submission($detail); if ($dd !== null) echo diff_html($dd); ?>
         <?php if (trim((string)$detail['compile_msg']) !== ''): ?>
@@ -212,4 +215,36 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
   <?php endif; ?>
 
 </div>
+
+<script>
+/* 코드 복사 — 본인 · 관리자에게 코드가 보일 때만 단추가 있다.
+   붙여넣기를 막은 평가 · 수업에서는 문제 화면에서 붙여넣기가 막혀 있어, 회차 채우기에 쓸 수 없다. */
+(function () {
+  var b = document.getElementById('copyCode'), pre = document.getElementById('codeView');
+  if (!b || !pre) return;
+  var label = b.textContent;
+  function done(ok) {
+    b.textContent = ok ? '복사했습니다' : '복사하지 못했습니다';
+    setTimeout(function () { b.textContent = label; }, 1500);
+  }
+  b.addEventListener('click', function () {
+    var text = pre.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { fallback(text); });
+    } else {
+      fallback(text);
+    }
+  });
+  /* http 로 접속하면 clipboard API 가 막힌다 — 옛 방식으로 대신한다 */
+  function fallback(text) {
+    var t = document.createElement('textarea');
+    t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(t);
+    done(ok);
+  }
+})();
+</script>
 <?php page_foot(); ?>
