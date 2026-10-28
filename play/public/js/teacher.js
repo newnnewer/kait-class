@@ -8,6 +8,13 @@
     get: function (k) { try { return localStorage.getItem('kp.' + k); } catch (e) { return null; } },
     set: function (k, v) { try { if (v == null) localStorage.removeItem('kp.' + k); else localStorage.setItem('kp.' + k, v); } catch (e) { /* 저장 못 해도 된다 */ } }
   };
+  // 1.2.1 교사 브라우저 아이디 — 체험 서버에서 이 브라우저가 만든(또는 코드로 연) 공식전을 알아보는 데 씀
+  var TID = store.get('tid');
+  if (!TID || !/^[A-Za-z0-9_-]{8,64}$/.test(TID)) {
+    TID = 't';
+    for (var ti = 0; ti < 23; ti++) TID += 'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 36));
+    store.set('tid', TID);
+  }
   var BASE = location.pathname.replace(/\/teacher\/?$/, '');
   var socket = io({ path: BASE + '/socket.io', transports: ['polling', 'websocket'] });
 
@@ -59,7 +66,7 @@
     $('overlay-offline').hidden = true;
     var key = store.get('admin');
     if (!key) { show('login'); return; }
-    socket.emit('admin:hello', { key: key }, function (res) {
+    socket.emit('admin:hello', { key: key, tid: TID }, function (res) {
       if (!res || !res.ok) { store.set('admin', null); show('login'); return; }
       loggedIn(res);
     });
@@ -69,7 +76,7 @@
   $('login-form').onsubmit = function (e) {
     e.preventDefault();
     $('btn-login').disabled = true;
-    socket.emit('admin:login', { password: $('login-pw').value }, function (res) {
+    socket.emit('admin:login', { password: $('login-pw').value, tid: TID }, function (res) {
       $('btn-login').disabled = false;
       if (!res || !res.ok) { $('login-error').textContent = (res && res.error) || '로그인하지 못했어요'; return; }
       $('login-pw').value = '';
@@ -88,6 +95,8 @@
     DEMO = !!res.demo;
     $('demo-pill').hidden = !DEMO;
     $('btn-pw').hidden = DEMO;                  // 체험 서버: 비밀번호 바꾸기 없음
+    $('home-rooms').disabled = DEMO;            // 1.2.1 체험 서버: 자유 플레이는 늘 켜짐 (잠금)
+    if (DEMO) $('home-rooms-note').textContent = '체험 서버에서는 늘 켜져 있어요 (여러 선생님이 함께 써요)';
     allowRooms = res.allowRooms !== false;
     classes = res.classes || [];
     // 새로고침 전에 보던 공식전으로 돌아간다
@@ -413,13 +422,30 @@
     b.onclick = function () { tab = b.getAttribute('data-tab'); renderHome(); if (tab === 'records') loadRecords(); if (tab === 'bank') loadBank(); if (tab === 'stats') loadStats(); };
   });
 
+  function loadList() {
+    call('admin:list', {}, function (res) { if (res.ok) { classes = res.classes; allowRooms = res.allowRooms !== false; pwSource = res.pwSource || pwSource; renderHome(); } });
+  }
   function showHome() {
     cur = null;
     store.set('class', null);
     show('home');
-    call('admin:list', {}, function (res) { if (res.ok) { classes = res.classes; allowRooms = res.allowRooms !== false; pwSource = res.pwSource || pwSource; renderHome(); } });
+    codeAsk = false;
+    loadList();
     renderHome();
   }
+  // 1.2.1 열려 있는 공식전 목록 자동 갱신 — 공식전 탭을 보고 있을 때만 10초마다 (다른 탭 · 코드를 넣는 중이면 쉼)
+  function listVisible() { return current === 'home' && tab === 'classes' && !document.hidden; }
+  setInterval(function () { if (listVisible() && !codeAsk && socket.connected) loadList(); }, 10000);
+  document.addEventListener('visibilitychange', function () { if (listVisible() && !codeAsk) loadList(); });
+
+  // 1.2.1 쉬는 시간 — 대기 중에 10분 넘게 아무 일이 없으면 카드에 표시 (3시간이 되면 저절로 닫힘)
+  function idleText(ms) {
+    var m = Math.floor((ms || 0) / 60000);
+    if (m < 10) return '';
+    var h = Math.floor(m / 60);
+    return (h ? h + '시간 ' + (m % 60 ? (m % 60) + '분' : '') : m + '분').trim() + '째 사용 안 함';
+  }
+  var codeAsk = false; // 다른 선생님 공식전에 코드를 넣는 중
 
   function renderHome() {
     Array.prototype.forEach.call(document.querySelectorAll('#home-tabs button'), function (b) {
@@ -433,6 +459,7 @@
     $('pw-warn').hidden = DEMO || pwSource !== 'env';
     var box = $('class-list');
     box.innerHTML = '';
+    codeAsk = false;
     if (!classes.length) {
       var e = el('div', 'empty');
       e.appendChild(el('b', null, '열려 있는 공식전이 없어요'));
@@ -440,16 +467,26 @@
       box.appendChild(e);
       return;
     }
-    classes.forEach(function (c) {
-      var card = el('article', 'class-card');
-      card.appendChild(el('b', 'code-chip', c.code));
+    var mine = classes.filter(function (c) { return c.mine !== false; });
+    var others = classes.filter(function (c) { return c.mine === false; });
+    mine.concat(others).forEach(function (c, i) {
+      var other = c.mine === false;
+      if (other && i === mine.length) box.appendChild(el('div', 'cc-others-head', '다른 선생님의 공식전 — 코드를 아는 공식전만 열 수 있어요'));
+      var card = el('article', 'class-card' + (other ? ' other' : ''));
+      card.appendChild(el('b', 'code-chip', other ? '••••' : c.code));
       var mid = el('div', 'cc-mid');
       mid.appendChild(el('b', null, c.phase === 'playing' ? '게임 진행 중' : '대기 중'));
       mid.appendChild(el('span', 'muted', '학생 ' + c.count + '명 · ' + c.teams + '팀 · ' + c.tags.join(' · ')));
+      var idle = idleText(c.idleMs);
+      if (idle) {
+        var ib = el('span', 'cc-idle', idle);
+        ib.title = '대기 중에 3시간 동안 아무 일이 없으면 저절로 닫혀요';
+        mid.appendChild(ib);
+      }
       card.appendChild(mid);
-      var b = el('button', 'join-btn', '열기');
+      var b = el('button', 'join-btn', other ? '코드로 열기' : '열기');
       b.type = 'button';
-      b.onclick = function () { openClass(c.code); };
+      b.onclick = other ? function () { askCode(card, b); } : function () { openClass(c.code); };
       card.appendChild(b);
       box.appendChild(card);
     });
@@ -763,6 +800,40 @@
       enterClass(res.cls);
     });
   };
+
+  // 1.2.1 체험 서버: 다른 선생님 공식전은 공식전 코드를 넣어야 열린다
+  function askCode(card, btn) {
+    if (codeAsk) return;
+    codeAsk = true;
+    var f = el('form', 'cc-code');
+    var inp = document.createElement('input');
+    inp.type = 'text'; inp.inputMode = 'numeric'; inp.maxLength = 4; inp.placeholder = '코드 4자리'; inp.autocomplete = 'off';
+    inp.setAttribute('aria-label', '공식전 코드');
+    var go = el('button', 'join-btn', '열기'); go.type = 'submit';
+    var no = el('button', 'btn small ghost-btn', '취소'); no.type = 'button';
+    f.appendChild(inp); f.appendChild(go); f.appendChild(no);
+    btn.replaceWith(f);
+    card.classList.add('asking');
+    var mid = card.querySelector('.cc-mid');
+    mid.innerHTML = '';
+    mid.appendChild(el('span', 'cc-warn', '다른 선생님이 수업 중일 수 있어요. 내가 연 공식전이 맞는지 확인하고 코드를 넣으세요.'));
+    inp.focus();
+    function cancel() { codeAsk = false; renderHome(); }
+    no.onclick = cancel;
+    inp.onkeydown = function (e) { if (e.key === 'Escape') cancel(); };
+    inp.oninput = function () { inp.value = inp.value.replace(/\D/g, '').slice(0, 4); };
+    f.onsubmit = function (e) {
+      e.preventDefault();
+      if (!/^\d{4}$/.test(inp.value)) { toast('공식전 코드 4자리를 넣어 주세요', 'warn'); inp.focus(); return; }
+      go.disabled = true;
+      call('class:watch', { code: inp.value }, function (res) {
+        go.disabled = false;
+        if (!res.ok) { toast(res.error || '열지 못했어요', 'warn'); inp.select(); return; }
+        codeAsk = false;
+        enterClass(res.cls);
+      });
+    };
+  }
 
   function openClass(code) {
     call('class:watch', { code: code }, function (res) {

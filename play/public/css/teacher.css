@@ -174,6 +174,18 @@ body.teacher .tag-btn[aria-pressed="true"] small, body.teacher .tag-btn[aria-pre
 body.teacher .btn.yellow { background: var(--accent); color: #fff; box-shadow: inset 0 -4px 0 var(--accent-dark), 0 3px 0 rgba(17,26,43,.18); }
 body.teacher .btn.yellow:hover { background: #2A4A94; }
 body.teacher .toggle[aria-pressed="true"] { background: var(--accent); }
+body.teacher #home-rooms:disabled { cursor: not-allowed; opacity: .55; } /* 1.2.1 체험 서버: 자유 플레이 잠금 */
+/* 1.2.1 공식전 목록: 쉬는 시간 · 다른 선생님 공식전(체험 서버) */
+.cc-mid .cc-idle { align-self: flex-start; max-width: 100%; box-sizing: border-box; font-size: 12.5px; font-weight: 700; color: #B86E00; background: #FFF4DC; border-radius: 999px; padding: 1px 9px; margin-top: 2px; }
+.cc-others-head { grid-column: 1 / -1; margin: 8px 2px -4px; font-size: 13px; font-weight: 700; color: var(--soft); }
+body.teacher .class-card.other { border-style: dashed; border-color: #A9B6D6; background: #F7F9FD; }
+body.teacher .class-card.other .code-chip { color: #A9B6D6; letter-spacing: 6px; }
+.cc-code { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.class-card.asking .code-chip { display: none; }
+.cc-mid .cc-warn { white-space: normal; }
+.cc-code input::placeholder { letter-spacing: 0; font-size: 14px; font-weight: 700; }
+.cc-code input { width: 104px; font-family: var(--body); font-weight: 800; font-size: 18px; letter-spacing: 4px; text-align: center; padding: 9px 10px; border: 2px solid var(--accent); border-radius: 10px; background: #fff; color: var(--text); }
+.cc-warn { font-size: 13px; font-weight: 700; color: #C2410C; line-height: 1.45; }
 
 /* v0.8.2 — '열기' 버튼이 좁아져 두 줄이 되지 않게 */
 body.teacher .join-btn { flex-shrink: 0; white-space: nowrap; }

@@ -69,3 +69,48 @@ test('1.2.0 체험 서버: 통계 비밀번호가 없으면 통계가 열리지 
   assert.strictEqual((await call(t, 'stats:password', { old: 'owner-only', new: 'owner-two' })).ok, true, '바꾸기는 됨');
   t.close();
 });
+
+test('1.2.1 체험 서버: 자유 플레이는 늘 켜져 있고 · 교사가 끌 수 없다', async () => {
+  const t = client(); await once(t, 'connect');
+  const login = await call(t, 'admin:login', { password: 'demo-pw' });
+  assert.strictEqual(login.allowRooms, true);
+  const r = await call(t, 'admin:rooms', { allow: false });
+  assert.strictEqual(r.ok, false);
+  assert.match(r.error, /체험 서버/);
+  assert.strictEqual((await call(t, 'admin:list', {})).allowRooms, true);
+  t.close();
+});
+
+test('1.2.1 체험 서버: 다른 교사 브라우저에는 공식전 코드가 가려지고 · 코드를 넣어야 열리며 · 연 뒤에는 내 공식전', async () => {
+  const a = client(); await once(a, 'connect');
+  await call(a, 'admin:login', { password: 'demo-pw', tid: 'teacherAAAA1' });
+  const made = await call(a, 'class:create', { settings: { tags: ['출력'], teams: 2 } });
+  assert.strictEqual(made.ok, true, JSON.stringify(made));
+  const code = made.cls.code;
+  const la = (await call(a, 'admin:list', {})).classes.find(c => c.code === code);
+  assert.ok(la && la.mine === true);
+  assert.strictEqual(typeof la.idleMs, 'number');
+
+  const b = client(); await once(b, 'connect');
+  await call(b, 'admin:login', { password: 'demo-pw', tid: 'teacherBBBB2' });
+  const lb = (await call(b, 'admin:list', {})).classes;
+  assert.ok(lb.length >= 1);
+  assert.ok(lb.every(c => c.code === null && c.mine === false), '남의 공식전 코드는 안 보임');
+  const wrong = code === '1000' ? '1001' : '1000';
+  const w = await call(b, 'class:watch', { code: wrong });
+  assert.strictEqual(w.ok, false);
+  const r = await call(b, 'class:watch', { code });
+  assert.strictEqual(r.ok, true);
+  const lb2 = (await call(b, 'admin:list', {})).classes.find(c => c.code === code);
+  assert.ok(lb2 && lb2.mine === true, '코드로 연 뒤에는 내 공식전');
+
+  const c = client(); await once(c, 'connect');
+  await call(c, 'admin:login', { password: 'demo-pw', tid: 'teacherCCCC3' });
+  for (let i = 0; i < 5; i++) await call(c, 'class:watch', { code: wrong });
+  const locked = await call(c, 'class:watch', { code });
+  assert.strictEqual(locked.ok, false);
+  assert.match(locked.error, /여러 번 틀렸어요/);
+  await call(a, 'class:watch', { code });
+  await call(a, 'class:close', {});
+  a.close(); b.close(); c.close();
+});

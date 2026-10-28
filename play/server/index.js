@@ -125,6 +125,9 @@ const lobby = new Lobby({
 });
 
 const hub = new ClassHub({ io, bank: store, db, lobby, idleMs: config.classIdleMs });
+// 1.2.1 체험 서버: 교사 비밀번호를 여럿이 쓰므로 자유 플레이는 늘 켜 둔다 (스위치 잠금 — 바꾸려면 .env 의 DEMO 를 끔)
+if (config.demo) hub.allowRooms = true;
+hub.demo = config.demo;
 lobby.allowRooms = () => hub.allowRooms;
 lobby.countdownMs = config.countdownMs;
 lobby.autoStartMs = config.autoStartMs;
@@ -284,8 +287,10 @@ io.on('connection', (socket) => {
   let adminKey = null;
   const admin = () => (adminKey && auth.check(adminKey) ? true : (adminKey = null, false));
   let watching = null; // 교사 화면이 보고 있는 공식전
+  let teacherId = null; // 1.2.1 교사 브라우저 아이디 (브라우저에 저장 — 체험 서버에서 '내 공식전'을 가림)
+  const setTeacher = m => { const t = m && m.tid; teacherId = typeof t === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(t) ? t : null; };
   const cls = () => (watching ? hub.get(watching) : null);
-  const adminBase = () => ({ ok: true, classes: hub.list(), allowRooms: hub.allowRooms, options: OPTIONS, bankTags: bankTags(), version: VERSION, pwSource: auth.source(), demo: config.demo });
+  const adminBase = () => ({ ok: true, classes: hub.list(teacherId), allowRooms: hub.allowRooms, options: OPTIONS, bankTags: bankTags(), version: VERSION, pwSource: auth.source(), demo: config.demo });
   function watch(code) {
     if (watching) socket.leave('teach:' + watching);
     watching = null;
@@ -307,12 +312,14 @@ io.on('connection', (socket) => {
     const r = auth.login(msg && msg.password);
     if (!r.ok) return ok(cb, r);
     adminKey = r.key;
+    setTeacher(msg);
     ok(cb, { ...adminBase(), key: r.key });
   });
   socket.on('admin:hello', (msg, cb) => {
     if (!allow()) return;
     if (!auth.check(msg && msg.key)) return ok(cb, { ok: false, auth: false });
     adminKey = msg.key;
+    setTeacher(msg);
     ok(cb, adminBase());
   });
   adminOn('admin:logout', () => { auth.logout(adminKey); adminKey = null; return { ok: true }; });
@@ -324,7 +331,10 @@ io.on('connection', (socket) => {
     return r.ok ? { ok: true, key: r.key, pwSource: auth.source() } : r;
   });
   adminOn('admin:list', () => adminBase());
-  adminOn('admin:rooms', m => hub.setAllowRooms(m.allow));
+  adminOn('admin:rooms', m => {
+    if (config.demo) return { ok: false, allowRooms: hub.allowRooms, error: '체험 서버에서는 자유 플레이를 끌 수 없어요' };
+    return hub.setAllowRooms(m.allow);
+  });
   adminOn('admin:records', m => ({ ok: true, games: db.recentGames(m.n || 30) }));
   // 1.2.0 통계 — 통계 비밀번호는 '있으면 쓰고 없으면 안 씀'
   //   · 없음(보통의 설치): 교사 로그인만으로 열림 — 교사 = 운영자
@@ -370,13 +380,21 @@ io.on('connection', (socket) => {
   adminOn('class:create', m => {
     const s = cleanClass(m.settings);
     if (!s) return { ok: false, error: '태그를 하나 이상 고르세요' };
-    const r = hub.create(s);
+    const r = hub.create(s, teacherId);
     if (!r.ok) return r;
     return { ok: true, cls: watch(r.code).teacherDetail() };
   });
   adminOn('class:watch', m => {
+    // 1.2.1 체험 서버: 코드 찍어 보기를 막는다 (학생 입장과 같은 규칙 — 1분에 5번)
+    const tkey = 'teacher:' + (teacherId || socket.id);
+    if (config.demo) { const locked = hub.triesLeft(tkey); if (locked) return locked; }
     const c = watch(m.code);
-    return c ? { ok: true, cls: c.teacherDetail() } : { ok: false, error: '없는 공식전이에요' };
+    if (!c) {
+      if (config.demo) hub.failTry(tkey);
+      return { ok: false, error: config.demo ? '그런 공식전 코드가 없어요' : '없는 공식전이에요' };
+    }
+    hub.addOwner(c, teacherId); // 한 번 코드로 연 공식전은 이 브라우저의 '내 공식전'
+    return { ok: true, cls: c.teacherDetail() };
   });
   function withClass(fn) {
     return m => { const c = cls(); return c ? fn(c, m) : { ok: false, error: '공식전을 먼저 고르세요' }; };
