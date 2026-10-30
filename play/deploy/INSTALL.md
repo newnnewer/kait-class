@@ -30,7 +30,7 @@ free -h      # Swap 줄에 2.0Gi 가 보이면 완료
 ### KAIT-CLASS 와 함께 (보통)
 
 KAIT-CLASS 의 `sudo bash install.sh` 가 14단계에서 KAIT-PLAY 를 설치합니다. 따로 할 일이 없습니다.
-(`--no-play` 를 붙이면 빼고 설치합니다.)
+(`--class-only` 를 붙이면 빼고 설치합니다. 예전 이름 `--no-play` 도 됩니다.)
 
 ### KAIT-PLAY 만
 
@@ -38,9 +38,15 @@ KAIT-CLASS 는 그대로 두고 KAIT-PLAY 만 설치하거나 새 버전으로 �
 
 ```bash
 cd ~/kait-class-버전          # 새 소스를 푼 폴더
-sudo bash play/install.sh
+sudo bash install.sh --play-only
 ```
 
+한 줄 설치로 받으면서 하려면 `wget -qO- https://raw.githubusercontent.com/newnnewer/kait-class/main/get.sh | sudo bash -s -- --play-only`.
+옵션 없이 `sudo bash install.sh` 를 실행해도 이미 설치된 서버면 무엇을 업데이트할지 묻습니다(3번이 KAIT-PLAY 만).
+KAIT-CLASS 1.1 이하가 설치된 서버에 더할 때는 `sudo bash play/install.sh` 를 직접 실행합니다.
+
+- KAIT-CLASS(웹 폴더 · 설정 · DB · nginx 사이트 설정)는 손대지 않습니다. 고쳐 쓰는 KAIT-CLASS 가 있어도 안전합니다.
+- 덮어쓰기 전 소스를 `/root/kait-play-backup/kait-play-src.날짜시각.tgz` 로 백업합니다 (최근 5개).
 - `/opt/kait-play/.env`(설정)와 `/opt/kait-play/data/`(기록 · 문제 은행 · 바꾼 교사 비밀번호)는 그대로 유지됩니다.
 - 예전 이름(코딩 대항전: `/opt/coding-game`, 컨테이너 `coding-battle`, 주소 `/game/`)으로 설치된 것이 있으면
   **자료와 설정을 옮기고** 예전 컨테이너 · nginx 연결을 정리합니다. 예전 폴더는 `/opt/coding-game.old-날짜` 로 남겨 둡니다.

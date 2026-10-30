@@ -3,19 +3,20 @@
 #  KAIT-PLAY 설치 · 업데이트  (KAIT-CLASS 가 이미 설치된 서버에서)
 #
 #  보통은 따로 실행할 일이 없습니다. KAIT-CLASS 의 install.sh 가 이 파일을 불러
-#  함께 설치합니다 (sudo bash install.sh --no-play 로 빼고 설치할 수 있음).
+#  함께 설치합니다 (sudo bash install.sh --class-only 로 빼고 설치할 수 있음).
 #
-#  이 파일을 직접 쓰는 때
-#    · KAIT-PLAY 만 새 버전으로 바꿀 때 (KAIT-CLASS 전체를 다시 설치하지 않고)
-#    · KAIT-CLASS 1.1 이하가 설치된 서버에 KAIT-PLAY 를 더할 때
-#
+#  KAIT-PLAY 만 새 버전으로 바꿀 때는 (KAIT-CLASS 는 손대지 않음)
+#      sudo bash install.sh --play-only     ← 이 파일을 실행합니다
+#  또는 이 파일을 직접:
 #      cd ~/kait-class-버전          # 소스를 푼 폴더
 #      sudo bash play/install.sh
+#  KAIT-CLASS 1.1 이하가 설치된 서버에 KAIT-PLAY 를 더할 때도 이 파일을 직접 씁니다.
 #
 #  하는 일 (여러 번 실행해도 안전)
 #    1) KAIT-CLASS · Docker 확인
 #    2) 예전 이름(코딩 대항전, /opt/coding-game)으로 설치된 것이 있으면 자료를 옮기고 정리
-#    3) 소스를 /opt/kait-play 에 복사 (data/ 와 .env 는 그대로 둠)
+#    3) 지금 소스를 /root/kait-play-backup 에 백업한 뒤, 새 소스를 /opt/kait-play 에 복사
+#       (data/ 와 .env 는 그대로 둠)
 #    4) 게임 서버를 만들어 띄움 (Docker, 127.0.0.1:3100 에서만 열림)
 #    5) nginx 에 연결: /etc/nginx/kait-class.d/kait-play.conf → 주소/play/
 #    6) 접속 확인
@@ -107,6 +108,14 @@ fi
 # ── 3. 소스 복사 ─────────────────────────────────────────────────
 say "3. 소스를 $APP_DIR 에 복사"
 mkdir -p "$APP_DIR"
+# 덮어쓰기 전에 지금 소스를 백업한다 (KAIT-PLAY 를 고쳐 쓰던 경우를 위해). 최근 5개만 남긴다.
+# data/ · .env 는 덮어쓰지 않으므로 넣지 않는다.
+if [[ -f "$APP_DIR/server/index.js" ]]; then
+  tar -czf "$BACKUP_DIR/kait-play-src.$STAMP.tgz" -C "$APP_DIR" \
+    --exclude='./data' --exclude='./.env' --exclude='./node_modules' --exclude='./*.tgz' .
+  ok "지금 소스 백업: $BACKUP_DIR/kait-play-src.$STAMP.tgz"
+  ls -1 "$BACKUP_DIR"/kait-play-src.*.tgz 2>/dev/null | sort | head -n -5 | xargs -r rm -f
+fi
 # --delete: 새 버전에서 사라진 파일을 지운다. data/ · .env 는 건드리지 않는다.
 rsync -a --delete \
   --exclude='/data/' --exclude='/.env' --exclude='/node_modules/' --exclude='/*.tgz' \

@@ -8,6 +8,11 @@
 #      wget -qO- https://raw.githubusercontent.com/newnnewer/kait-class/main/get.sh \
 #        | sudo bash -s -- --domain class.example.kr --email 나@example.com
 #
+#  이미 설치된 서버에서 하나만 업데이트할 때:
+#      … | sudo bash -s -- --play-only     KAIT-PLAY 만 (KAIT-CLASS 는 손대지 않음)
+#      … | sudo bash -s -- --class-only    KAIT-CLASS 만 (KAIT-PLAY 는 그대로)
+#  옵션이 없으면 install.sh 가 무엇을 업데이트할지 터미널에서 묻는다.
+#
 #  하는 일
 #    1. GitHub 의 최신 릴리스 소스를 내려받아 홈 폴더에 푼다 (~/kait-class-버전)
 #    2. 그 폴더에서 install.sh 를 실행한다

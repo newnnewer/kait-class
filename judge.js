@@ -256,6 +256,18 @@ async function apiThenReload(action, data, confirmMsg){
   /* ── 결과 표시 ── */
   function show(html) { out.innerHTML = html; out.hidden = false; }
 
+  /* 채점이 진행 중인지 (제출 ~ 결과가 나올 때까지).
+     실행을 눌러도 이 동안에는 결과 상자를 숨기지 않는다 — 판정을 못 보고 지나치지 않게. */
+  var judging = false;
+
+  /* [실행]을 누르면 지난 채점 결과를 치운다 (1.16.0).
+     코드를 고친 뒤 실행하는 것이라 예전 판정이 남아 있으면 지금 코드의 결과로 착각하기 쉽다.
+     기록은 '내 제출'에 남고, 틀린 곳 비교도 거기서 다시 볼 수 있다. */
+  function hideResult() {
+    if (judging) return;
+    out.hidden = true; out.innerHTML = '';
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -365,15 +377,17 @@ async function apiThenReload(action, data, confirmMsg){
     fetch(apiUrl + '?action=poll&id=' + id)
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        if (!j.ok) { show('<div class="note err">' + esc(j.error) + '</div>'); btn.disabled = false; return; }
+        if (!j.ok) { judging = false; show('<div class="note err">' + esc(j.error) + '</div>'); btn.disabled = false; return; }
         if (!j.done) {
           if (tries > 180) {
+            judging = false;
             show('<div class="note err">채점이 너무 오래 걸립니다. 선생님께 알려주세요.</div>');
             btn.disabled = false; return;
           }
           setTimeout(function () { poll(id, tries + 1); }, 1000);
           return;
         }
+        judging = false;
         renderResult(j);
         if (assess && j.verdict === 'AC' && j.assess) afterAC(j.assess);
         else btn.disabled = false;
@@ -389,6 +403,7 @@ async function apiThenReload(action, data, confirmMsg){
   btn.addEventListener('click', function () {
     if (getCode().trim() === '') { show('<div class="note err">코드를 입력하세요.</div>'); return; }
     btn.disabled = true;
+    judging = true;
     if (after) after.innerHTML = '';
     show('<div class="rbox wait"><div class="rhead"><span class="v v-wait">◌ 채점 중</span>'
        + ' <b>제출했습니다</b></div></div>');
@@ -403,10 +418,11 @@ async function apiThenReload(action, data, confirmMsg){
     })
       .then(function (r) { return r.json(); })
       .then(function (j) {
-        if (!j.ok) { show('<div class="note err">' + esc(j.error) + '</div>'); btn.disabled = false; return; }
+        if (!j.ok) { judging = false; show('<div class="note err">' + esc(j.error) + '</div>'); btn.disabled = false; return; }
         poll(j.id, 0);
       })
       .catch(function () {
+        judging = false;
         show('<div class="note err">제출하지 못했습니다. 잠시 뒤 다시 시도하세요.</div>');
         btn.disabled = false;
       });
@@ -484,6 +500,7 @@ async function apiThenReload(action, data, confirmMsg){
     function run() {
       var my = ++seq;
       clearOut();
+      hideResult();
       if (getCode().trim() === '') { fail('코드를 입력하세요.'); return; }
       rbtn.disabled = true;
       status('실행 중…', 'wait');

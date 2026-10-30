@@ -98,13 +98,14 @@ cd /var/www/html && sudo -u www-data php reset-admin.php
 
 ### KAIT-PLAY 없이 설치하려면
 
-KAIT-PLAY(코딩 게임)는 기본으로 함께 설치됩니다. 빼고 싶다면 `--no-play` 를 붙입니다.
+KAIT-PLAY(코딩 게임)는 기본으로 함께 설치됩니다. 빼고 싶다면 `--class-only` 를 붙입니다.
 
 ```bash
-sudo bash install.sh --no-play
+sudo bash install.sh --class-only
 ```
 
-이미 설치된 KAIT-PLAY 는 `--no-play` 로 업데이트해도 지워지지 않고 그대로 동작합니다.
+한 줄 설치라면 `… | sudo bash -s -- --class-only` 처럼 붙입니다. 재부팅 뒤 이어서 실행할 때는 옵션 없이 쳐도 처음 고른 대로 진행합니다.
+KAIT-PLAY 는 나중에 `--play-only` 로 더할 수 있습니다 ([업데이트](#업데이트) 참고).
 
 
 ---
@@ -146,6 +147,33 @@ sudo bash install.sh
 - 기존에 진행되었던 단계들은 건너뛰므로 몇 분이면 끝납니다.
 - 바뀐 화면이 안 보이면 브라우저에서 `Ctrl+F5`
 
+### 하나만 업데이트하기
+
+이미 설치된 서버에서 실행하면 무엇을 업데이트할지 묻습니다.
+
+```
+  이미 설치된 서버입니다. 무엇을 업데이트할까요?
+
+      KAIT-CLASS   1.15.1  →  1.16.0
+      KAIT-PLAY    1.2.1  →  1.2.1
+
+    1) KAIT-CLASS + KAIT-PLAY   ← 기본
+    2) KAIT-CLASS 만            (KAIT-PLAY 는 그대로)
+    3) KAIT-PLAY 만             (KAIT-CLASS 는 손대지 않음 — KAIT-CLASS 를 고쳐 쓰고 있다면 이것)
+```
+
+묻지 않고 바로 정하려면 옵션을 붙입니다. 한 줄 설치라면 `… | sudo bash -s -- --play-only` 처럼 붙입니다.
+
+| 옵션 | 하는 일 |
+|---|---|
+| `--play-only` | **KAIT-PLAY 만** 새 버전으로. KAIT-CLASS 의 웹 폴더 · 설정 · DB · nginx 는 손대지 않습니다. |
+| `--class-only` | **KAIT-CLASS 만** 새 버전으로. 설치된 KAIT-PLAY 는 그대로 둡니다. |
+
+> **KAIT-CLASS 를 고쳐 쓰고 있다면** 꼭 `--play-only`(또는 3번)로 업데이트하세요.
+> KAIT-CLASS 를 업데이트하면 웹 폴더(`/var/www/html`)가 새 소스로 바뀌어 고친 내용이 사라집니다.
+> 실수로 업데이트했더라도 덮어쓰기 직전의 웹 폴더가 `/var/backups/kait-class/html-날짜시각/` 에 남습니다 (최근 5개).
+> KAIT-PLAY 도 업데이트 전 소스를 `/root/kait-play-backup/kait-play-src.날짜시각.tgz` 로 남깁니다 (최근 5개).
+
 바뀐 내용은 [CHANGELOG.md](CHANGELOG.md) 에 있습니다.
 
 
@@ -170,7 +198,7 @@ sudo bash install.sh
 - **교사 화면 비밀번호는 KAIT-CLASS 관리자 비밀번호와 따로**입니다. 처음 비밀번호는 설치 끝 화면에 나오고, 교사 화면에서 바꿀 수 있습니다.
   잊었다면: `sudo docker exec kait-play node scripts/admin-password.js`
 - 게임 서버는 Docker 컨테이너 하나(`kait-play`, `/opt/kait-play`)로 돌아가며, 바깥에서는 nginx 를 거쳐서만 들어옵니다.
-- **KAIT-PLAY 만 새 버전으로 바꿀 때**는 새 소스 폴더에서 `sudo bash play/install.sh` (KAIT-CLASS 1.1 이하가 설치된 서버에 더할 때도 같은 명령)
+- **KAIT-PLAY 만 새 버전으로 바꿀 때**는 새 소스 폴더에서 `sudo bash install.sh --play-only` (KAIT-CLASS 1.1 이하가 설치된 서버에 더할 때는 `sudo bash play/install.sh`)
 - 진행 중인 게임은 서버 메모리에만 있습니다. **수업 중에는 설치·업데이트·재시작을 하지 마세요.**
 
 자세한 내용은 [play/README.md](play/README.md) 에 있습니다.
@@ -202,7 +230,7 @@ sudo bash install.sh
 | 6 방화벽 | SSH 포트를 찾지 못함 → `sudo ufw allow <포트>/tcp` 후 다시 |
 | 7 채점 엔진 | `toomanyrequests` → Docker Hub 받기 횟수 제한. 시간을 두고 다시 |
 | 9 웹 서버 | apache2 가 실행 중 → `sudo systemctl disable --now apache2` |
-| 14 KAIT-PLAY | `toomanyrequests`(Docker Hub 제한)·인터넷 연결. **KAIT-CLASS 는 정상 설치됩니다.** 나중에 `sudo bash play/install.sh` |
+| 14 KAIT-PLAY | `toomanyrequests`(Docker Hub 제한)·인터넷 연결. **KAIT-CLASS 는 정상 설치됩니다.** 나중에 `sudo bash install.sh --play-only` |
 
 전체 기록:
 

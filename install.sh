@@ -9,8 +9,11 @@
 #      sudo bash install.sh --domain class.example.kr --email 나@example.com
 #  도메인을 떼고 http 로 돌아갈 때:
 #      sudo bash install.sh --no-domain
-#  KAIT-PLAY(코딩 게임, 주소/play/) 없이 KAIT-CLASS 만 설치할 때:
-#      sudo bash install.sh --no-play
+#  KAIT-CLASS 만 설치·업데이트할 때 (KAIT-PLAY 는 설치하지 않거나, 있으면 그대로 둔다):
+#      sudo bash install.sh --class-only        (예전 이름 --no-play 도 같다)
+#  KAIT-PLAY 만 업데이트할 때 (KAIT-CLASS 는 손대지 않는다 — 고쳐 쓰는 KAIT-CLASS 를 지킬 때):
+#      sudo bash install.sh --play-only
+#  이미 설치된 서버에서 옵션 없이 실행하면 무엇을 업데이트할지 화면에서 묻는다.
 #
 #  ● 설치는 두 번에 나뉜다.
 #    1단계에서 커널 부팅 설정(cgroup v1)을 바꾸므로 재부팅이 필요하다.
@@ -39,6 +42,7 @@ CGROUP_PARAM="systemd.unified_cgroup_hierarchy=0"
 ACME_ROOT="/var/www/letsencrypt"
 CERTBOT_HOOK="/etc/letsencrypt/renewal-hooks/deploy/kait-class-nginx.sh"
 NGINX_SLOT_DIR="/etc/nginx/kait-class.d"   # 추가 프로그램(KAIT-PLAY 등)이 nginx 설정을 두는 자리
+CLASS_BACKUP_DIR="/var/backups/kait-class" # 업데이트 때 덮어쓰기 전 웹 폴더 백업
 TOTAL=15
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -516,8 +520,20 @@ step_source() {
 
   # --delete: 이름이 바뀌거나 사라진 옛 파일을 지운다 (업데이트할 때 중요).
   # 제외 목록에 있는 것은 웹 루트에 복사하지 않고, 이미 있으면 지우지도 않는다.
-  local upgrade=0
+  local upgrade=0 bak_dir=""
   [[ -f "$WEB_ROOT/lib.php" ]] && upgrade=1
+
+  # 업데이트라면 덮어쓰기 전에 지금 웹 폴더를 통째로 백업한다 (uploads/ 는 손대지 않으므로 뺌).
+  # KAIT-CLASS 를 고쳐 쓰던 학교가 실수로 업데이트해도 고친 파일을 되찾을 수 있게. 최근 5개만 남긴다.
+  if (( upgrade )); then
+    mkdir -p "$CLASS_BACKUP_DIR"
+    chmod 700 "$CLASS_BACKUP_DIR"            # config.php(비밀 값)가 들어 있다
+    bak_dir="$CLASS_BACKUP_DIR/html-$(date +%Y%m%d-%H%M%S)"
+    rsync -a --exclude='/uploads/' "$WEB_ROOT/" "$bak_dir/"
+    echo "웹 폴더 백업: $bak_dir"
+    ls -1d "$CLASS_BACKUP_DIR"/html-* 2>/dev/null | sort | head -n -5 | xargs -r rm -rf
+  fi
+
   rsync -a --delete \
     --exclude='/install.sh' \
     --exclude='/get.sh' \
@@ -541,7 +557,10 @@ step_source() {
   chown -R www-data:www-data "$WEB_ROOT"
   chmod 640 "$WEB_ROOT/config.php"
 
-  (( upgrade )) && result "완료 (기존 설치 위에 업데이트, 설정·업로드 유지)"
+  if (( upgrade )); then
+    result "완료 (기존 설치 위에 업데이트, 설정·업로드 유지)"
+    note "덮어쓰기 전 웹 폴더 백업: $bak_dir (고친 파일이 있었다면 여기서 꺼내세요. 최근 5개만 남김)"
+  fi
   return 0
 }
 
@@ -877,11 +896,11 @@ step_worker() {
 #   실패해도 KAIT-CLASS 설치는 멈추지 않는다 (SSL 과 같은 방식) — 끝 화면에 원인을 알린다.
 step_play() {
   rm -f "$STATE_DIR/play_ok" "$STATE_DIR/play_error"
-  if (( ARG_NO_PLAY )); then
+  if [[ "$MODE" == class ]]; then
     if [[ -f "$NGINX_SLOT_DIR/kait-play.conf" ]]; then
-      result "건너뜀 (--no-play) · 이미 설치된 KAIT-PLAY 는 그대로"
+      result "건너뜀 (KAIT-CLASS 만) · 이미 설치된 KAIT-PLAY 는 그대로"
     else
-      result "건너뜀 (--no-play)"
+      result "건너뜀 (KAIT-CLASS 만)"
     fi
     return 0
   fi
@@ -957,8 +976,13 @@ usage() {
     sudo bash install.sh --domain 도메인 --email 메일
                                           도메인과 https(SSL) 붙이기
     sudo bash install.sh --no-domain      도메인을 떼고 http 로 돌아가기
-    sudo bash install.sh --no-play        KAIT-PLAY(코딩 게임) 없이 설치·업데이트
+    sudo bash install.sh --class-only     KAIT-CLASS 만 설치·업데이트 (예전 이름 --no-play)
                                           (이미 설치된 KAIT-PLAY 는 지우지 않고 그대로 둡니다)
+    sudo bash install.sh --play-only      KAIT-PLAY(코딩 게임)만 설치·업데이트
+                                          (KAIT-CLASS 는 손대지 않습니다. 고쳐 쓰는 KAIT-CLASS 를 지킬 때)
+
+  이미 설치된 서버에서 옵션 없이 실행하면 무엇을 업데이트할지 묻습니다.
+  KAIT-CLASS 를 업데이트할 때는 덮어쓰기 전 웹 폴더를 /var/backups/kait-class/ 에 백업합니다.
 
   --domain 은 여러 번 쓸 수 있습니다 (첫 번째가 대표 주소).
     예) --domain class.example.kr --domain www.class.example.kr
@@ -970,7 +994,7 @@ EOF
 ARG_DOMAINS=()
 ARG_EMAIL=""
 ARG_NO_DOMAIN=0
-ARG_NO_PLAY=0
+ARG_MODE=""          # both | class | play — 옵션으로 정했을 때만
 while (( $# )); do
   case "$1" in
     --domain)    [[ -n "${2:-}" ]] || { echo "--domain 뒤에 도메인을 적으세요."; exit 1; }
@@ -980,7 +1004,11 @@ while (( $# )); do
                  ARG_EMAIL="$2"; shift 2 ;;
     --email=*)   ARG_EMAIL="${1#*=}"; shift ;;
     --no-domain) ARG_NO_DOMAIN=1; shift ;;
-    --no-play)   ARG_NO_PLAY=1; shift ;;
+    --no-play|--class-only)
+                 [[ -z "$ARG_MODE" || "$ARG_MODE" == class ]] || { echo "--class-only 와 --play-only 는 함께 쓸 수 없습니다."; exit 1; }
+                 ARG_MODE=class; shift ;;
+    --play-only) [[ -z "$ARG_MODE" || "$ARG_MODE" == play ]] || { echo "--class-only 와 --play-only 는 함께 쓸 수 없습니다."; exit 1; }
+                 ARG_MODE=play; shift ;;
     -h|--help)   usage; exit 0 ;;
     *)           echo "알 수 없는 옵션: $1"; echo; usage; exit 1 ;;
   esac
@@ -1004,6 +1032,10 @@ if (( ARG_NO_DOMAIN )) && (( ${#ARG_DOMAINS[@]} )); then
   echo "--domain 과 --no-domain 은 함께 쓸 수 없습니다."
   exit 1
 fi
+if [[ "$ARG_MODE" == play ]] && { (( ARG_NO_DOMAIN )) || (( ${#ARG_DOMAINS[@]} )); }; then
+  echo "도메인은 KAIT-CLASS 가 맡습니다. --play-only 와 --domain·--no-domain 은 함께 쓸 수 없습니다."
+  exit 1
+fi
 
 if [[ $EUID -ne 0 ]]; then
   echo "관리자 권한이 필요합니다. 아래처럼 실행하세요."
@@ -1013,6 +1045,90 @@ fi
 
 mkdir -p "$STATE_DIR"
 touch "$LOG"; chmod 600 "$LOG"
+
+# ── 무엇을 설치·업데이트할지 ─────────────────────────────────────
+#   both  : KAIT-CLASS + KAIT-PLAY (기본)
+#   class : KAIT-CLASS 만 — KAIT-PLAY 는 설치하지 않거나, 이미 있으면 그대로 둔다
+#   play  : KAIT-PLAY 만 — KAIT-CLASS 는 손대지 않는다 (이미 설치된 서버에서만)
+#   옵션이 없으면: 이미 설치된 서버는 화면에서 묻고, 처음 설치는 both.
+#   처음 설치는 중간에 재부팅이 있으므로, 고른 것을 저장해 두었다가 이어서 할 때 그대로 쓴다.
+
+# KAIT-CLASS 설치가 끝난 서버인가 (처음 설치를 하는 중이면 아님)
+class_installed() {
+  [[ -f "$WEB_ROOT/lib.php" && -f "$NGINX_SITE" ]] || return 1
+  [[ ! -f "$STATE_DIR/phase1.done" || -f "$STATE_DIR/install.done" ]]
+}
+play_present() { [[ -f "$NGINX_SLOT_DIR/kait-play.conf" ]]; }
+# 파이프로 실행되어도(한 줄 설치) 터미널에서 직접 물을 수 있는가
+tty_ok() { [[ -r /dev/tty ]] && { : < /dev/tty; } 2>/dev/null; }
+class_ver() { sed -n "s/^const APP_VERSION = '\([^']*\)'.*/\1/p" "$1/lib.php" 2>/dev/null | head -n 1 || true; }
+json_ver()  { sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$1" 2>/dev/null | head -n 1 || true; }
+
+ask_mode() {
+  local cv_old cv_new pv_old pv_new ans
+  cv_old=$(class_ver "$WEB_ROOT"); cv_new=$(class_ver "$SRC")
+  pv_old=$(json_ver "$DATA_DIR/play.json"); pv_new=$(json_ver "$SRC/play/package.json")
+  echo
+  line
+  printf '  %s이미 설치된 서버입니다. 무엇을 업데이트할까요?%s\n' "$B" "$N"
+  echo
+  printf '      KAIT-CLASS   %s  →  %s\n' "${cv_old:-?}" "${cv_new:-?}"
+  if play_present; then
+    printf '      KAIT-PLAY    %s  →  %s\n' "${pv_old:-?}" "${pv_new:-?}"
+  else
+    printf '      KAIT-PLAY    (설치 안 됨)  →  %s\n' "${pv_new:-?}"
+  fi
+  echo
+  echo "    1) KAIT-CLASS + KAIT-PLAY   ← 기본"
+  echo "    2) KAIT-CLASS 만            (KAIT-PLAY 는 그대로)"
+  echo "    3) KAIT-PLAY 만             (KAIT-CLASS 는 손대지 않음 — KAIT-CLASS 를 고쳐 쓰고 있다면 이것)"
+  line
+  while true; do
+    printf '  번호 [1]: '
+    read -r ans < /dev/tty || ans=1
+    case "${ans//[[:space:]]/}" in
+      ''|1) MODE=both;  return ;;
+      2)    MODE=class; return ;;
+      3)    MODE=play;  return ;;
+      *)    echo "  1, 2, 3 중에서 골라 주세요." ;;
+    esac
+  done
+}
+
+MODE="$ARG_MODE"
+if [[ -z "$MODE" ]]; then
+  if class_installed; then
+    MODE=both
+    # 소스에 KAIT-PLAY 가 없으면 고를 것이 없다
+    if [[ -f "$SRC/play/install.sh" ]] && tty_ok; then ask_mode; fi
+  else
+    MODE=$(cat "$STATE_DIR/mode" 2>/dev/null || true)
+  fi
+fi
+case "$MODE" in both|class|play) ;; *) MODE=both ;; esac
+
+if ! class_installed; then
+  if [[ "$MODE" == play ]]; then
+    echo "KAIT-CLASS 가 아직 설치되지 않았습니다. KAIT-PLAY 는 KAIT-CLASS 위에서만 동작합니다."
+    echo "먼저 KAIT-CLASS 를 설치하세요 (KAIT-PLAY 도 함께 설치됩니다):"
+    echo "    sudo bash install.sh"
+    exit 1
+  fi
+  echo "$MODE" > "$STATE_DIR/mode"
+fi
+
+# ── KAIT-PLAY 만: KAIT-CLASS 의 단계는 하나도 거치지 않고 play/install.sh 만 실행한다 ──
+if [[ "$MODE" == play ]]; then
+  [[ -f "$SRC/play/install.sh" ]] || { echo "이 소스에는 KAIT-PLAY(play/ 폴더)가 없습니다."; exit 1; }
+  echo
+  line
+  printf '  %sKAIT-PLAY 만 설치·업데이트%s\n' "$B" "$N"
+  echo "  KAIT-CLASS(웹 폴더 · 설정 · DB · nginx 사이트 설정)는 손대지 않습니다."
+  echo "  게임 기록 · 문제 은행 · 교사 비밀번호는 그대로 유지됩니다."
+  line
+  printf '\n\n########## KAIT-PLAY 만 설치·업데이트 %s (소스: %s) ##########\n' "$(date '+%F %T')" "$SRC" >> "$LOG"
+  exec bash "$SRC/play/install.sh"
+fi
 
 # 도메인·메일 저장. 메일은 처음 도메인을 붙일 때 반드시 받는다.
 if (( ARG_NO_DOMAIN )); then
@@ -1041,6 +1157,10 @@ else
 fi
 [[ -n "$(primary_domain)" ]] && echo "  도메인: $(saved_domains)"
 (( ARG_NO_DOMAIN )) && echo "  도메인을 떼고 http 로 돌아갑니다."
+if [[ "$MODE" == class ]]; then
+  if play_present; then echo "  KAIT-CLASS 만 업데이트합니다. 설치된 KAIT-PLAY 는 그대로 둡니다."
+  else echo "  KAIT-CLASS 만 설치합니다 (KAIT-PLAY 는 나중에 --play-only 로 더할 수 있습니다)."; fi
+fi
 echo "  기록: $LOG"
 line
 
@@ -1070,7 +1190,7 @@ if [[ -f "$STATE_DIR/need_reboot" ]]; then
   echo
   echo "  (잊어도 괜찮습니다. 설치가 끝날 때까지 터미널을 열거나 접속하면 이 안내가 다시 나옵니다.)"
   line
-  if [[ -r /dev/tty ]] && { : < /dev/tty; } 2>/dev/null; then
+  if tty_ok; then
     printf '  지금 재부팅할까요? [Y/n] '
     read -r ans < /dev/tty || ans="n"
     if [[ -z "$ans" || "$ans" =~ ^[Yy] ]]; then
@@ -1098,6 +1218,7 @@ run_step "마무리 확인"                 step_final
 
 remind_remove
 touch "$STATE_DIR/install.done"
+rm -f "$STATE_DIR/mode"   # 처음 설치 때 고른 것 — 다음 업데이트부터는 다시 묻는다
 
 printf '\n########## 설치 끝 %s ##########\n' "$(date '+%F %T')" >> "$LOG"
 
@@ -1161,13 +1282,13 @@ elif [[ -s "$STATE_DIR/play_error" ]]; then
   printf '  %s%s※ KAIT-PLAY(코딩 게임)를 설치하지 못했습니다. KAIT-CLASS 는 정상입니다.%s\n' "$Y" "$B" "$N"
   echo "     흔한 원인: Docker Hub 받기 횟수 제한(toomanyrequests), 인터넷 연결"
   echo "     시간을 두고 KAIT-PLAY 만 다시 설치할 수 있습니다:"
-  printf '         %scd "%s" && sudo bash play/install.sh%s\n' "$C" "$SRC" "$N"
+  printf '         %scd "%s" && sudo bash install.sh --play-only%s\n' "$C" "$SRC" "$N"
 fi
 echo
 echo "  ● 관리자(admin) 비밀번호 정하기 — 처음 한 번, 그리고 잊었을 때:"
 printf '         %scd /var/www/html && sudo -u www-data php reset-admin.php%s\n' "$C" "$N"
 echo "  ● 새 버전으로 바꿀 때도 새 소스 폴더에서 같은 명령을 실행하면 됩니다."
-echo "    설정·업로드 파일·DB 는 그대로 유지됩니다."
+echo "    설정·업로드 파일·DB 는 그대로 유지됩니다. 무엇을 업데이트할지(둘 다 · CLASS 만 · PLAY 만) 묻습니다."
 echo "  ● 기록: $LOG"
 line
 echo
