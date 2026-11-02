@@ -27,7 +27,7 @@ if ($id && ($_POST['do'] ?? '') === 'delete') {
       $d->prepare("DELETE FROM problem_tags WHERE problem_id = ?")->execute([$id]);
       $d->prepare("DELETE FROM problems     WHERE id = ?")->execute([$id]);
     });
-    header('Location: problems.php'); exit;
+    header('Location: ../problems.php'); exit;
   }
 }
 $subCnt = $id ? (int)col("SELECT COUNT(*) FROM submissions WHERE problem_id = ?", [$id]) : 0;
@@ -90,7 +90,7 @@ if (isset($_GET['saved'])) {
 /* ── 화면에 채울 값 ─────────────────────────── */
 if ($id) {
   $p = one("SELECT * FROM problems WHERE id = ?", [$id]);
-  if (!$p) { header('Location: problems.php'); exit; }
+  if (!$p) { header('Location: ../problems.php'); exit; }
   $tcCnt  = (int)col("SELECT COUNT(*) FROM testcases WHERE problem_id = ?", [$id]);
   $tagCsv = implode(', ', tags_of($id));
 } else {
@@ -121,7 +121,7 @@ page_head(['title' => $id ? '문제 수정' : '새 문제', 'root' => '../', 'us
     <h1><?= $id ? '문제 수정' : '새 문제' ?></h1>
     <?php if ($id): ?><span class="sub pno"><?= (int)$p['prob_no'] ?></span><?php endif; ?>
     <div class="grow"></div>
-    <a class="btn" href="problems.php">목록</a>
+    <a class="btn" href="../problems.php">목록</a>
   </div>
 
   <?php if ($err): ?><div class="note err"><?= h($err) ?></div><?php endif; ?>
@@ -226,7 +226,7 @@ page_head(['title' => $id ? '문제 수정' : '새 문제', 'root' => '../', 'us
 
     <div class="actions">
       <button class="btn primary" type="submit">저장</button>
-      <a class="btn" href="problems.php">취소</a>
+      <a class="btn" href="../problems.php">취소</a>
       <div class="grow"></div>
       <?php if ($id): ?>
         <button class="btn danger" type="submit" form="delform"

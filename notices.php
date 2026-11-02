@@ -5,6 +5,17 @@ require __DIR__ . '/guard.php';
 require __DIR__ . '/layout.php';
 $u = me();
 
+/* 교사 화면 (1.17.0) — 예전 admin/notices.php. 관리 동작은 교사인지 다시 확인한다 */
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+  require_once __DIR__ . '/teacher_lib.php';
+  teacher_notices_post($u);
+}
+if (teacher_view($u)) {
+  require_once __DIR__ . '/teacher_lib.php';
+  teacher_notices_page($u);
+  exit;
+}
+
 $all   = notices_public();
 $total = count($all);
 $per   = 20;
@@ -19,10 +30,6 @@ page_head(['title' => '공지사항', 'root' => '', 'user' => $u, 'nav' => 'noti
   <div class="phead">
     <h1>공지사항</h1>
     <span class="sub"><?= number_format($total) ?>건</span>
-    <div class="grow"></div>
-    <?php if ($u && $u['role'] === 'admin'): ?>
-      <a class="btn" href="admin/notices.php">관리</a>
-    <?php endif; ?>
   </div>
 
   <?php if (!$rows): ?>

@@ -5,9 +5,6 @@ require __DIR__ . '/guard.php';
 require __DIR__ . '/layout.php';
 $u = me();
 
-$probCnt  = (int)col("SELECT COUNT(*) FROM problems");
-$solveCnt = (int)col("SELECT COUNT(*) FROM submissions WHERE verdict='AC'");
-
 /* 로그인 전 첫 화면은 제목판이 커서, 공지를 4개까지만 보여야
    1920×1080 화면에서 스크롤 없이 들어온다. */
 $notices = notices_public($u ? 6 : 4);
@@ -19,39 +16,20 @@ $assess  = $u ? array_slice(array_filter(sets_for_student($u, 'assessment'),
 
 page_head(['title' => '', 'root' => '', 'user' => $u, 'nav' => '']);
 ?>
-<div class="wrap home">
+<?php
+  $site   = site_name();
+  $heroOn = setting('hero_on') === '1';
+  /* 첫 화면 제목판 (1.17.0) — 화면 끝까지 꽉 차는 띠. 이름은 본문 폭 안에 놓인다.
+     연출을 켜 두면 hero.js 가 픽토그램으로 이름을 만들고, 이 글자는 화면 읽기 프로그램용으로만 남는다.
+     연출을 껐거나 자바스크립트가 없으면 이 글자가 그대로 보인다. */
+?>
+<section class="hero<?= $u ? ' small' : '' ?><?= $heroOn ? ' anim' : '' ?>" id="hero"
+         <?= $heroOn ? 'title="마우스를 대 보거나 눌러 보세요"' : '' ?>>
+  <?php if ($heroOn): ?><canvas aria-hidden="true"></canvas><?php endif; ?>
+  <h1 class="heroname"><?= h($site) ?></h1>
+</section>
 
-  <?php
-    $site   = site_name();
-    $heroOn = setting('hero_on') === '1';
-    /* ★ str_split 은 바이트로 자른다. 한글 이름이면 글자가 깨진다.
-       preg_split 으로 글자 단위로 나눈다. */
-    $chars  = preg_split('//u', $site, -1, PREG_SPLIT_NO_EMPTY);
-  ?>
-  <section class="hero <?= $u ? 'small' : '' ?>">
-    <?php if ($heroOn): ?>
-    <div class="codeplay" id="codeplay">
-      <div class="cpwin">
-        <div class="cpbar"><i></i><i></i><i></i><b id="cpLang">Python3</b></div>
-        <pre class="cpcode"><code id="cpCode"></code><i class="cpcaret"></i></pre>
-      </div>
-      <div class="cparrow">실행</div>
-      <h1 id="cpTitle"><?php foreach ($chars as $ch): ?><span><?= h($ch) ?></span><?php endforeach; ?></h1>
-    </div>
-    <?php else: ?>
-      <h1 class="heroname"><?= h($site) ?></h1>
-    <?php endif; ?>
-    <p><b>컴퓨팅 사고력</b>이 자라는 특별한 프로그래밍 수업</p>
-    <?php if (!$u): ?>
-      <div class="herobtns">
-        <a class="btn primary big" href="problems.php">문제 보러 가기</a>
-        <a class="btn big" href="login.php">로그인</a>
-      </div>
-      <p class="small muted" style="margin-top:14px">
-        문제 <?= number_format($probCnt) ?>개 · 지금까지 맞은 제출 <?= number_format($solveCnt) ?>건
-      </p>
-    <?php endif; ?>
-  </section>
+<div class="wrap home">
 
   <div class="homecols">
     <section class="homecol">

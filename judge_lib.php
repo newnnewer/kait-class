@@ -372,6 +372,14 @@ const SET_VISIBLE_SQL =
      OR EXISTS(SELECT 1 FROM set_targets t WHERE t.set_id = s.id AND t.group_id = :gid) )";
 
 function is_admin(?array $u): bool { return $u !== null && ($u['role'] ?? '') === 'admin'; }
+
+/* 교사 화면인지 (1.17.0) — 교사 계정이면서 '학생 화면으로 보기'를 켜지 않았을 때.
+   문제 모음 · 수업 · 평가 · 공지사항은 학생과 교사가 같은 주소를 쓰고,
+   교사 화면일 때만 관리 버튼과 정보를 더 보여 준다.
+   ★ 권한이 아니라 '무엇을 보여 줄지'만 정한다. 관리 동작(POST)은 언제나 is_admin() 으로 확인한다. */
+function teacher_view(?array $u): bool {
+  return is_admin($u) && (bool)($_SESSION['admin_view'] ?? true);
+}
 function admin_user_id(int $uid): bool { return (string)col("SELECT role FROM users WHERE id=?", [$uid]) === 'admin'; }
 
 /* 관리자는 모든 수업·평가를 본다 — 잠긴 것 · 반이 다른 것 · 기간 밖의 것까지 (1.5.0).

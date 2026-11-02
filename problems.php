@@ -5,6 +5,17 @@ require_once __DIR__ . '/guard.php';
 require_once __DIR__ . '/layout.php';
 $u = me();   /* 로그인하지 않아도 볼 수 있다 */
 
+/* 교사 화면 (1.17.0) — 예전 admin/problems.php. 관리 동작은 교사인지 다시 확인한다 */
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+  require_once __DIR__ . '/teacher_lib.php';
+  teacher_problems_post($u);
+}
+if (teacher_view($u)) {
+  require_once __DIR__ . '/teacher_lib.php';
+  teacher_problems_page($u);
+  exit;
+}
+
 $q     = trim((string)($_GET['q'] ?? ''));
 $tag   = trim((string)($_GET['tag'] ?? ''));
 $only  = (string)($_GET['only'] ?? '');   /* '' | 'todo' | 'solved' */

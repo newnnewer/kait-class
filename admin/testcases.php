@@ -9,7 +9,7 @@ $u = need_admin('../');
 
 $id = (int)($_GET['id'] ?? 0);
 $p  = $id ? one("SELECT id, prob_no, title FROM problems WHERE id = ?", [$id]) : null;
-if (!$p) { header('Location: problems.php'); exit; }
+if (!$p) { header('Location: ../problems.php'); exit; }
 
 $err = ''; $msg = ''; $warn = [];
 
@@ -157,7 +157,7 @@ page_head(['title' => $p['prob_no'] . ' 테스트케이스', 'root' => '../',
     <span class="sub">테스트케이스 <?= count($tcs) ?>개</span>
     <div class="grow"></div>
     <a class="btn" href="problem.php?id=<?= $id ?>">문항 수정</a>
-    <a class="btn" href="problems.php">목록</a>
+    <a class="btn" href="../problems.php">목록</a>
   </div>
 
   <?php if ($err): ?><div class="note err"><?= h($err) ?></div><?php endif; ?>
@@ -227,7 +227,7 @@ page_head(['title' => $p['prob_no'] . ' 테스트케이스', 'root' => '../',
 
     <div class="actions">
       <button class="btn primary" type="submit">저장</button>
-      <a class="btn" href="problems.php">취소</a>
+      <a class="btn" href="../problems.php">취소</a>
       <div class="grow"></div>
       <a class="btn" href="judge.php?problem_id=<?= $id ?>"
          title="테스트케이스를 고쳤다면 이미 낸 제출을 다시 채점해야 합니다">재채점</a>

@@ -72,7 +72,7 @@ page_head(['title' => '문제 통계', 'root' => '../', 'user' => $u, 'nav' => '
     <h1>문제 통계</h1>
     <span class="sub"><?= count($rows) ?>문제</span>
     <div class="grow"></div>
-    <a class="btn" href="problems.php">문제 관리</a>
+    <a class="btn" href="../problems.php">문제 모음</a>
   </div>
 
   <form class="searchbar" method="get">

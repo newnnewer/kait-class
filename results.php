@@ -74,6 +74,9 @@ $rows = all("SELECT s.id, s.lang, s.state, s.verdict, s.passed_count, s.total_co
 $backQ = $_GET; unset($backQ['id']);
 $backUrl = 'results.php' . ($backQ ? '?' . http_build_query($backQ) : '');
 
+/* 재채점한 뒤 넘어왔을 때의 안내 (1.17.0, 교사만) */
+[$flashMsg, $flashErr] = is_admin($u) ? flash_take() : ['', ''];
+
 page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'results']);
 ?>
 <div class="wrap">
@@ -82,6 +85,9 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
     <h1>채점 결과</h1>
     <span class="sub">전체 <?= number_format($total) ?>건<?= $pages > 1 ? ' · ' . $page . ' / ' . number_format($pages) . '쪽' : '' ?></span>
   </div>
+
+  <?php if ($flashMsg): ?><div class="note ok"><?= h($flashMsg) ?></div><?php endif; ?>
+  <?php if ($flashErr): ?><div class="note err"><?= h($flashErr) ?></div><?php endif; ?>
 
   <?php if ($detail): ?>
     <?php $canSeeCode = $u && ((int)$detail['user_id'] === (int)$u['id'] || $u['role'] === 'admin'); ?>

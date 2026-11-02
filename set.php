@@ -40,6 +40,10 @@ page_head(['title' => $s['title'], 'root' => '', 'user' => $u,
     <h1><?= h($s['title']) ?></h1>
     <span class="v <?= $state === 'open' ? 'v-open' : 'v-wait' ?>"><?= h(SET_STATE_NAME[$state]) ?></span>
     <div class="grow"></div>
+    <?php if (teacher_view($u)): /* 교사 화면에만 (1.17.0) */ ?>
+      <a class="btn" href="admin/progress.php?id=<?= (int)$s['id'] ?>">현황</a>
+      <a class="btn" href="admin/set.php?id=<?= (int)$s['id'] ?>">수정</a>
+    <?php endif; ?>
     <a class="btn" href="<?= $isAssess ? 'assessments.php' : 'lessons.php' ?>">목록</a>
   </div>
 

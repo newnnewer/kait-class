@@ -56,7 +56,17 @@ if ($do === 'count' || $do === 'run') {
                        fail_input=NULL, fail_expected=NULL, fail_output=NULL
                        WHERE id IN (SELECT s.id FROM submissions s WHERE $where)")
             ->execute(array_merge([now()], $args));
-        $msg = $n . '건을 다시 채점합니다. 학생이 지금 내는 제출이 먼저 처리되고, 그다음 순서로 돌아갑니다.';
+        /* 1.17.0 — 재채점한 문제로 걸러 둔 채점 결과로 간다. 새 판정은 [찾기]를 누르면 보인다.
+           제출 하나만 다시 채점했으면(채점 결과의 [재채점]) 그 제출을 연 채로 돌아간다. */
+        $sid  = (int)($o['submission_id'] ?? 0);
+        $pno  = (int)col("SELECT p.prob_no FROM submissions s JOIN problems p ON p.id = s.problem_id
+                          WHERE " . ($sid ? "s.id = ?" : "p.id = ?") . " LIMIT 1",
+                         [$sid ?: (int)$form['problem_id']]);
+        $_SESSION['flash'] = ['msg' => $n . '건을 다시 채점합니다. 학생이 지금 내는 제출이 먼저 처리되고, 그다음 순서로 돌아갑니다. '
+                                     . '잠시 뒤 [찾기]를 누르면 새 판정이 보입니다.', 'err' => ''];
+        $q = ['prob' => $pno];
+        if ($sid) $q['id'] = $sid;
+        header('Location: ../results.php?' . http_build_query($q)); exit;
       }
     }
   }

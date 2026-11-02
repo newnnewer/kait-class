@@ -109,17 +109,32 @@ function site_image_url(string $key, string $root = ''): string {
   return h($root . 'uploads/site/' . $f) . '?v=' . filemtime($abs);
 }
 
-/* 메뉴는 학생과 관리자가 같다. 가는 곳만 다르다.
-   [이름, 학생이 갈 곳, 관리자가 갈 곳, 로그인 없이 볼 수 있는지, 관리자 전용인지] */
+/* 메뉴는 학생과 관리자가 같다.
+   [이름, 학생이 갈 곳, 관리자가 갈 곳, 로그인 없이 볼 수 있는지, 관리자 전용인지]
+   1.17.0 — 공지사항 · 문제 모음 · 수업 · 평가는 교사도 학생과 같은 화면으로 간다.
+   그 화면이 교사에게만 관리 버튼 · 정보를 더 보여 준다 (예전 admin/ 목록은 이리로 넘겨 준다). */
 const JNAV = [
-  'notices'     => ['공지사항',   'notices.php',     'admin/notices.php',              true,  false],
-  'problems'    => ['문제 모음',  'problems.php',    'admin/problems.php',             true,  false],
+  'notices'     => ['공지사항',   'notices.php',     'notices.php',                     true,  false],
+  'problems'    => ['문제 모음',  'problems.php',    'problems.php',                    true,  false],
   'tags'        => ['출처·분류',  'tags.php',        'tags.php',                        true,  false],
   'results'     => ['채점 결과',  'results.php',     'results.php',                     true,  false],
-  'lessons'     => ['수업',      'lessons.php',     'admin/sets.php?type=lesson',     false, false],
-  'assessments' => ['평가',      'assessments.php', 'admin/sets.php?type=assessment', false, false],
+  'lessons'     => ['수업',      'lessons.php',     'lessons.php',                     false, false],
+  'assessments' => ['평가',      'assessments.php', 'assessments.php',                 false, false],
   'ops'         => ['운영',      '',                'admin/users.php',                false, true],
 ];
+
+/* 교사 화면 ↔ 학생 화면 전환 주소 (1.17.0).
+   루트 화면에서는 지금 보던 화면에 그대로 머문다 (주소의 view 값만 바꾼다).
+   admin/ 화면에는 학생용이 없으므로 학생 화면으로 갈 때는 첫 화면으로 간다. */
+function view_switch_url(string $root, string $to): string {
+  if ($root !== '') return $root . 'index.php?view=' . $to;
+  $uri  = (string)($_SERVER['REQUEST_URI'] ?? '');
+  $path = basename((string)parse_url($uri, PHP_URL_PATH));
+  if ($path === '' || !preg_match('/^[a-z0-9_-]+\.php$/i', $path)) $path = 'index.php';
+  parse_str((string)parse_url($uri, PHP_URL_QUERY), $q);
+  $q['view'] = $to;
+  return $path . '?' . http_build_query($q);
+}
 
 /* 운영 화면 안의 갈래.
    콘텐츠(문제·수업·평가)가 아니라 시스템을 다루는 것들을 여기 모은다. */
@@ -155,7 +170,7 @@ function page_head(array $o): void {
   $isAdmin  = ($u['role'] ?? '') === 'admin';
   /* admin/ 아래 화면은 언제나 관리자 메뉴, 그 밖에서는 세션에 기억된 선택을 따른다 */
   $inAdminDir  = ($o['root'] ?? '') === '../';
-  $isAdminArea = $isAdmin && ($inAdminDir || ($_SESSION['admin_view'] ?? true));
+  $isAdminArea = $isAdmin && ($inAdminDir || teacher_view($u));
   $here = $_SERVER['REQUEST_URI'] ?? '/';
   ?><!DOCTYPE html>
 <html lang="ko">
@@ -203,9 +218,9 @@ function page_head(array $o): void {
       <div class="util">
         <?php if ($isAdmin): ?>
           <?php if ($isAdminArea): ?>
-            <a href="<?= h($root) ?>index.php?view=student">학생 화면</a>
+            <a href="<?= h(view_switch_url($root, 'student')) ?>" title="교사용 버튼과 정보를 감추고 학생에게 보이는 대로 봅니다">학생 화면</a>
           <?php else: ?>
-            <a class="viewmark" href="<?= h($root) ?>admin/problems.php?view=admin">관리자로 돌아가기</a>
+            <a class="viewmark" href="<?= h(view_switch_url($root, 'admin')) ?>">교사 화면으로</a>
           <?php endif; ?>
         <?php endif; ?>
         <a href="<?= h($root) ?>password.php">비밀번호</a>
@@ -216,6 +231,12 @@ function page_head(array $o): void {
     <?php endif; ?>
   </div>
 </header>
+<?php /* 교사가 학생 화면으로 보는 중이면 띠로 알린다 (1.17.0).
+         교사용 버튼이 모두 감춰지므로, 로그인이 풀린 것으로 착각하지 않게. */ ?>
+<?php if ($isAdmin && !$isAdminArea): ?>
+<div class="viewbar">학생 화면으로 보는 중입니다 · 교사용 버튼과 정보가 감춰져 있습니다
+  <a href="<?= h(view_switch_url($root, 'admin')) ?>">교사 화면으로 돌아가기</a></div>
+<?php endif; ?>
 <?php /* 교사용 AI 도우미 (1.8.0) — 교사 계정에만, 켜 두었고 키가 있을 때만. 체험 서버에서는 언제나 끈다.
          ai_lib.php 를 매 화면 불러오지 않으려고 같은 조건을 여기서 바로 본다 (ai_enabled() 와 같게 유지). */ ?>
 <?php if ($isAdmin && !DEMO_MODE && setting('ai_on') === '1' && trim(setting('ai_key')) !== ''): ?>

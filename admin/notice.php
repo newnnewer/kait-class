@@ -39,7 +39,7 @@ if (isset($_GET['saved'])) $msg = '저장했습니다.';
 
 if ($id) {
   $n = one("SELECT * FROM notices WHERE id = ?", [$id]);
-  if (!$n) { header('Location: notices.php'); exit; }
+  if (!$n) { header('Location: ../notices.php'); exit; }
 } else {
   $n = ['title' => '', 'body' => '', 'pinned' => 0, 'active' => 1];
 }
@@ -55,7 +55,7 @@ page_head(['title' => $id ? '공지 수정' : '새 공지', 'root' => '../', 'us
   <div class="phead">
     <h1><?= $id ? '공지 수정' : '새 공지' ?></h1>
     <div class="grow"></div>
-    <a class="btn" href="notices.php">목록</a>
+    <a class="btn" href="../notices.php">목록</a>
   </div>
 
   <?php if ($err): ?><div class="note err"><?= h($err) ?></div><?php endif; ?>
@@ -103,7 +103,7 @@ page_head(['title' => $id ? '공지 수정' : '새 공지', 'root' => '../', 'us
 
     <div class="actions">
       <button class="btn primary" type="submit">저장</button>
-      <a class="btn" href="notices.php">취소</a>
+      <a class="btn" href="../notices.php">취소</a>
       <div class="grow"></div>
       <?php if ($id): ?>
         <a class="btn" href="../notice.php?id=<?= $id ?>">보기</a>

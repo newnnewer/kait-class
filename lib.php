@@ -56,7 +56,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.16.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '1.17.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
@@ -185,7 +185,7 @@ const SETTING_DEFAULTS = [
   'site_name'    => '',       // 비면 APP_NAME 을 쓴다 (layout.php 의 site_name())
   'logo'         => '',       // uploads/ 아래 파일명. 비면 사이트 이름을 글자로 보여준다
   'favicon'      => '',
-  'hero_on'      => '1',      // 첫 화면 코드 타이핑 연출
+  'hero_on'      => '1',      // 첫 화면 픽토그램 연출 (1.17.0 부터)
   'signup_on'    => '0',      // 회원가입 허용
   'footer_extra' => '',       // 관리자가 넣는 추가 안내 (마크다운)
   'play_menu'    => '1',      // KAIT-PLAY 가 설치되어 있으면 위쪽 메뉴에 링크 보이기
@@ -321,15 +321,29 @@ function next_prob_no(PDO $p): int {
   return $m === null || $m === false ? 1001 : (int)$m + 1;
 }
 
-/* "1001, 1002 1005" → 문제 목록. 없는 번호와 중복 번호를 갈라 돌려준다. */
+/* "1001, 1002 1005" → 문제 목록. 없는 번호와 중복 번호를 갈라 돌려준다.
+   1.17.0 — 범위도 받는다: "1001-1010" 또는 "1001~1010" (앞뒤 빈칸 · 거꾸로 써도 됨).
+   범위는 '그 사이에 있는 문제'라는 뜻이다. 중간에 지운 번호가 있어도 없는 번호로 치지 않고,
+   범위 안에 문제가 하나도 없을 때만 없는 번호로 알린다. 너무 넓은 범위(1000개 넘게)는 받지 않는다. */
 function resolve_prob_nos(string $nos): array {
-  $wanted = [];
-  foreach (preg_split('/[,\s]+/', trim($nos)) as $tok) {
+  $wanted = []; $emptyRanges = [];
+  $nos = (string)preg_replace('/\s*[-~]\s*/u', '-', trim($nos));
+  foreach (preg_split('/[,\s]+/', $nos) as $tok) {
     if ($tok === '') continue;
+    if (preg_match('/^(\d+)-(\d+)$/', $tok, $m)) {
+      [$a, $b] = [(int)$m[1], (int)$m[2]];
+      if ($a > $b) [$a, $b] = [$b, $a];
+      if ($b - $a >= 1000) return ['found' => [], 'bad' => [$tok], 'dup' => []];
+      $inRange = array_map('intval', array_column(
+        all("SELECT prob_no FROM problems WHERE prob_no BETWEEN ? AND ? ORDER BY prob_no", [$a, $b]), 'prob_no'));
+      if (!$inRange) { $emptyRanges[] = $a . '-' . $b; continue; }   /* 하나도 없으면 범위째 '없는 번호'로 */
+      foreach ($inRange as $no) $wanted[] = $no;
+      continue;
+    }
     if (!ctype_digit($tok)) return ['found' => [], 'bad' => [$tok], 'dup' => []];
     $wanted[] = (int)$tok;
   }
-  if (!$wanted) return ['found' => [], 'bad' => [], 'dup' => []];
+  if (!$wanted) return ['found' => [], 'bad' => $emptyRanges, 'dup' => []];
   $ph = implode(',', array_fill(0, count($wanted), '?'));
   $byNo = [];
   foreach (all("SELECT id AS problem_id, prob_no, title FROM problems WHERE prob_no IN ($ph)", $wanted) as $r)
@@ -341,7 +355,7 @@ function resolve_prob_nos(string $nos): array {
     $seen[$no] = true;
     $found[] = $byNo[$no];
   }
-  return ['found' => $found, 'bad' => $bad, 'dup' => $dup];
+  return ['found' => $found, 'bad' => array_merge($bad, $emptyRanges), 'dup' => $dup];
 }
 
 /* ── KAIT-PLAY (코딩 게임) ───────────────────────

@@ -13,7 +13,7 @@ if ($next !== '' && !preg_match('#^/[^/\\\\]#', $next)) $next = '';
 
 function after_login(array $u, string $next): string {
   if ($next !== '') return $next;
-  return $u['role'] === 'admin' ? 'admin/problems.php' : 'index.php';
+  return $u['role'] === 'admin' ? 'problems.php' : 'index.php';   /* 1.17.0 — 교사도 문제 모음 하나로 */
 }
 
 if ($u = me()) { header('Location: ' . after_login($u, $next)); exit; }

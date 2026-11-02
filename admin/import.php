@@ -78,7 +78,7 @@ page_head(['title' => '문제 가져오기', 'root' => '../', 'user' => $u, 'nav
   <div class="phead">
     <h1>문제 가져오기</h1>
     <div class="grow"></div>
-    <a class="btn" href="problems.php">목록</a>
+    <a class="btn" href="../problems.php">목록</a>
   </div>
 
   <?php if ($err): ?><div class="note err"><?= h($err) ?></div><?php endif; ?>
@@ -92,7 +92,7 @@ page_head(['title' => '문제 가져오기', 'root' => '../', 'user' => $u, 'nav
       <div class="note info">번호가 이미 있어 건너뛰었습니다: <?= h(implode(', ', array_slice($done['skipped'], 0, 30))) ?></div>
     <?php endif; ?>
     <?php if ($done['made'] || $done['updated']): ?>
-      <p><a class="btn primary" href="problems.php">문제 목록에서 확인</a></p>
+      <p><a class="btn primary" href="../problems.php">문제 목록에서 확인</a></p>
     <?php endif; ?>
   <?php endif; ?>
 
@@ -127,7 +127,7 @@ page_head(['title' => '문제 가져오기', 'root' => '../', 'user' => $u, 'nav
 
     <div class="actions">
       <button class="btn primary" type="submit">가져오기</button>
-      <a class="btn" href="problems.php">취소</a>
+      <a class="btn" href="../problems.php">취소</a>
     </div>
   </form>
 

@@ -52,7 +52,7 @@ page_head(['title' => $n['title'], 'root' => '', 'user' => $u, 'nav' => 'notices
   <div class="actions">
     <a class="btn" href="notices.php">목록</a>
     <div class="grow"></div>
-    <?php if ($isAdmin): ?>
+    <?php if (teacher_view($u)): /* 학생 화면으로 볼 때는 감춘다 (1.17.0) */ ?>
       <a class="btn" href="admin/notice.php?id=<?= $id ?>">수정</a>
     <?php endif; ?>
   </div>

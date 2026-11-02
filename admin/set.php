@@ -22,7 +22,7 @@ if ($id && ($_POST['do'] ?? '') === 'delete') {
       $d->prepare("DELETE FROM set_targets  WHERE set_id = ?")->execute([$id]);
       $d->prepare("DELETE FROM sets WHERE id = ?")->execute([$id]);
     });
-    header('Location: sets.php?type=' . urlencode($type)); exit;
+    header('Location: ../' . ($type === 'assessment' ? 'assessments.php' : 'lessons.php')); exit;
   }
 }
 
@@ -152,7 +152,7 @@ if (isset($_GET['saved'])) {
 /* ── 화면 값 ──────────────────────────────────── */
 if ($id) {
   $s = one("SELECT * FROM sets WHERE id=?", [$id]);
-  if (!$s) { header('Location: sets.php'); exit; }
+  if (!$s) { header('Location: ../lessons.php'); exit; }
   $items = all("SELECT sp.id, sp.problem_id, sp.required_ac, sp.sort,
                        p.prob_no, p.title,
                        (SELECT COUNT(*) FROM testcases t WHERE t.problem_id=p.id) AS tc_cnt
@@ -187,7 +187,7 @@ page_head(['title' => ($id ? '수정' : '새로 만들기'), 'root' => '../', 'u
     <h1><?= $id ? h($s['title']) : '새 ' . h(SET_TYPE_NAME[$s['set_type']]) ?></h1>
     <div class="grow"></div>
     <?php if ($id): ?><a class="btn" href="progress.php?id=<?= $id ?>">현황 보기</a><?php endif; ?>
-    <a class="btn" href="sets.php?type=<?= h($s['set_type']) ?>">목록</a>
+    <a class="btn" href="../<?= $s['set_type'] === 'assessment' ? 'assessments' : 'lessons' ?>.php">목록</a>
   </div>
 
   <?php if ($err): ?><div class="note err"><?= h($err) ?></div><?php endif; ?>
@@ -366,8 +366,8 @@ page_head(['title' => ($id ? '수정' : '새로 만들기'), 'root' => '../', 'u
 
       <div class="row" style="margin-top:16px">
         <div class="field" style="flex:3">
-          <label for="add_nos">문제 번호로 추가</label>
-          <input class="code" type="text" id="add_nos" name="add_nos" placeholder="1001, 1003 1007"
+          <label for="add_nos">문제 번호로 추가 <span class="hint">1010-1015 처럼 범위도 됩니다</span></label>
+          <input class="code" type="text" id="add_nos" name="add_nos" placeholder="1001, 1003, 1010-1015"
                  value="<?= h($preNos) ?>">
         </div>
         <?php if ($isAssess): ?>
@@ -382,7 +382,7 @@ page_head(['title' => ($id ? '수정' : '새로 만들기'), 'root' => '../', 'u
 
     <div class="actions">
       <button class="btn primary" type="submit">저장</button>
-      <a class="btn" href="sets.php?type=<?= h($s['set_type']) ?>">취소</a>
+      <a class="btn" href="../<?= $s['set_type'] === 'assessment' ? 'assessments' : 'lessons' ?>.php">취소</a>
       <div class="grow"></div>
       <?php if ($id): ?>
         <button class="btn danger" type="submit" form="delform"

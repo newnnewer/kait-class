@@ -170,10 +170,10 @@ page_head(['title' => '설정', 'root' => '../', 'user' => $me, 'nav' => 'ops'])
       <div class="chips">
         <label class="chip">
           <input type="checkbox" name="hero_on" value="1" <?= $v('hero_on') === '1' ? 'checked' : '' ?>>
-          <span>코드가 한 글자씩 쳐지는 연출 보여주기</span>
+          <span>픽토그램이 모여 사이트 이름을 만드는 연출 보여주기</span>
         </label>
       </div>
-      <div class="small muted">일부 컴퓨터에서 멈추는 일이 보고되어 있습니다. 이상하면 꺼 두세요.</div>
+      <div class="small muted">모양 세 가지가 들어올 때마다 번갈아 나옵니다. 느린 컴퓨터에서 버벅이면 꺼 두세요 — 끄면 사이트 이름 글자만 보입니다.</div>
     </div>
 
     <div class="field">

@@ -144,7 +144,7 @@ page_head(['title' => '문제 번호 일괄 수정', 'root' => '../', 'user' => 
     <h1>문제 번호 일괄 수정</h1>
     <span class="sub"><?= number_format(count($nos)) ?>개</span>
     <div class="grow"></div>
-    <a class="btn" href="problems.php">문제 관리로</a>
+    <a class="btn" href="../problems.php">문제 모음으로</a>
   </div>
 
   <?php if ($msg): ?><div class="note ok"><?= h($msg) ?></div><?php endif; ?>

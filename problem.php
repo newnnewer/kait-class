@@ -17,6 +17,17 @@ if (!problem_visible($u, $p, !empty($_GET['set']) ? (int)$_GET['set'] : null)) {
   header('Location: problems.php'); exit;
 }
 
+/* 교사 화면 버튼의 열기 · 잠그기 (1.17.0) — 교사만. 처리한 뒤 같은 주소로 다시 이동한다 */
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+  $do = (string)($_POST['do'] ?? '');
+  if (!is_admin($u) || ($do !== 'open' && $do !== 'lock')) { header('Location: problems.php'); exit; }
+  db()->prepare("UPDATE problems SET active = ? WHERE id = ?")->execute([$do === 'open' ? 1 : 0, $pid]);
+  redirect_with($do === 'open' ? '열었습니다. 문제 모음에 보입니다.'
+                               : '잠갔습니다. 문제 모음에 보이지 않습니다.');
+}
+$tv = teacher_view($u);
+[$flashMsg, $flashErr] = $tv ? flash_take() : ['', ''];
+
 /* ── 묶음 안에서 들어온 경우 ─────────────────── */
 $set = null; $isAssess = false; $need = 0; $canSubmit = true; $setId = null;
 /* 붙여넣기 차단 — 평가는 언제나 막고, 수업은 묶음마다 정한다.
@@ -82,8 +93,23 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
       <span class="v v-AC">✓ 해결</span>
     <?php endif; ?>
     <div class="grow"></div>
+    <?php if ($tv): /* 교사 화면에만 (1.17.0) — 제출 기록은 수업 · 평가 안이면 그 묶음의 기록, 아니면 채점 결과 */ ?>
+      <div class="tbtns">
+        <a class="btn" href="admin/problem.php?id=<?= $pid ?>">수정</a>
+        <a class="btn" href="admin/testcases.php?id=<?= $pid ?>">테스트케이스</a>
+        <a class="btn" href="<?= $setId ? 'admin/submissions.php?set_id=' . $setId . '&amp;problem_id=' . $pid
+                                         : 'results.php?prob=' . (int)$p['prob_no'] ?>">제출 기록</a>
+        <form method="post">
+          <button class="btn<?= (int)$p['active'] ? '' : ' primary' ?>" type="submit" name="do"
+                  value="<?= (int)$p['active'] ? 'lock' : 'open' ?>"><?= (int)$p['active'] ? '잠그기' : '열기' ?></button>
+        </form>
+      </div>
+    <?php endif; ?>
     <a class="btn" href="<?= $set ? 'set.php?id=' . $setId : 'problems.php' ?>">목록</a>
   </div>
+
+  <?php if ($flashMsg): ?><div class="note ok"><?= h($flashMsg) ?></div><?php endif; ?>
+  <?php if ($flashErr): ?><div class="note err"><?= h($flashErr) ?></div><?php endif; ?>
 
   <?php if ((int)$p['active'] === 0): ?>
     <div class="note info">이 문제는 잠겨 있어 문제 모음에 보이지 않습니다.</div>

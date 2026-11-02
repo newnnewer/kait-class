@@ -393,6 +393,29 @@ a.codelink:hover{text-decoration-color:var(--b600)}
 .setrow .smeta{margin-top:5px; font-size:12.5px; color:var(--ink-3); font-family:var(--mono)}
 .setrow .sbadges{display:flex; align-items:center; gap:7px; flex-wrap:wrap; justify-content:flex-end}
 
+/* 교사 화면의 수업 · 평가 카드 (1.17.0) — 학생 카드 모양에 정보 · 버튼을 더한다.
+   카드 전체가 링크인 학생 카드와 달리 제목만 링크다 (안에 버튼이 있으므로).
+   좁은 화면에서는 버튼 줄이 카드 아래로 내려간다. */
+.tsets.wrap.narrow{max-width:1040px}
+.setrow.tset{flex-wrap:wrap; row-gap:10px}
+.setrow.tset:hover{border-color:var(--line); background:#fff}
+.setrow.tset.off:hover{background:var(--fill)}
+.setrow.tset .sinfo{min-width:240px}
+.setrow.tset a.stitle{display:inline-block}
+.setrow.tset a.stitle:hover{color:var(--b600); text-decoration:underline}
+.tbtns{display:flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:flex-end}
+.tbtns form{display:inline; margin:0}
+.tbtns .tgrp{display:inline-flex; align-items:center; gap:5px}
+.tbtns .sepline{margin:0 7px}
+.tbtns .tgrp > .v{margin-right:4px}
+/* 문제 모음 교사 화면 — 번호로 내보내기 칸 (1.17.0) */
+.bulkbar .brk{flex-basis:100%; height:0}
+.bulkbar input.nosin{width:150px; height:34px; padding:0 9px; font-size:13px}
+table.list.tprobs td.title{min-width:220px}
+@media (max-width:900px){
+  .setrow.tset .tbtns{flex-basis:100%}
+}
+
 .donebox{margin-top:20px}
 .donebox > summary{cursor:pointer; font-size:13.5px; color:var(--ink-2); padding:6px 2px;
                    list-style:none}
@@ -541,16 +564,31 @@ table.list tr.isadmin td{background:var(--b25)}
 .loginbox .btn{width:auto}
 
 /* ═══ 첫 화면 ═══════════════════════════════ */
-.hero{text-align:center; padding:22px 20px 24px}
-.hero h1{margin:0; font-size:64px; font-weight:800; letter-spacing:-.04em; color:var(--b700);
-         line-height:1}
-.hero p{margin:14px 0 0; font-size:17px; color:var(--b500)}
-.hero p b{color:var(--b700); font-weight:700}
-.hero.small{padding:26px 20px 22px}
-.hero.small h1{font-size:34px}
-.hero.small p{font-size:14.5px; margin-top:8px}
-.herobtns{display:flex; gap:10px; justify-content:center; margin-top:24px; flex-wrap:wrap}
-.herobtns .btn{width:auto; min-width:150px}
+/* 제목판 (1.17.0) — 바탕은 화면 끝까지, 이름은 본문 폭 안에 (hero.js 가 맞춘다).
+   1920×1080 화면에서 공지 칸까지 스크롤 없이 보이는 높이. 로그인한 뒤에는 낮게. */
+.hero{position:relative; height:clamp(260px, 40vh, 400px); overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(180deg, var(--b25), #fff 92%);
+      border-bottom:1px solid var(--line-2)}
+.hero.small{height:150px}
+.hero canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.heroname{margin:0; padding:0 20px; text-align:center; font-size:72px; font-weight:700;
+          letter-spacing:-.04em; line-height:1.1; color:var(--b700); word-break:keep-all}
+.hero.small .heroname{font-size:40px}
+@media(max-width:760px){ .hero{height:240px} .heroname{font-size:48px} .hero.small .heroname{font-size:30px} }
+
+/* 연출이 준비되면(.live) 글자는 화면 읽기 프로그램용으로만 남긴다 */
+.hero.anim.live{cursor:pointer; touch-action:pan-y; -webkit-tap-highlight-color:transparent}
+.hero.live .heroname{position:absolute; width:1px; height:1px; padding:0; overflow:hidden;
+                     clip:rect(0 0 0 0); white-space:nowrap}
+/* 모양마다 바탕 무늬 — A 점, B 은은한 빛, C 모눈 */
+.hero[data-v="A"]{background:
+  radial-gradient(circle, rgba(66,102,180,.10) 1px, transparent 1.2px) 0 0/22px 22px,
+  linear-gradient(180deg, var(--b25), #fff 95%)}
+.hero[data-v="B"]{background:radial-gradient(ellipse at 50% 55%, var(--b50), #fff 70%)}
+.hero[data-v="C"]{background:
+  linear-gradient(var(--line-2) 1px, transparent 1px) 0 0/28px 28px,
+  linear-gradient(90deg, var(--line-2) 1px, transparent 1px) 0 0/28px 28px, #fff}
 
 .homecols{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:10px}
 @media(max-width:860px){ .homecols{grid-template-columns:1fr} }
@@ -730,65 +768,14 @@ a.solved:hover{background:var(--ok); color:#fff; border-color:var(--ok); text-de
 a.solved.locked{border-style:dashed}   /* 잠긴 문제 (본인 · 선생님에게만 보임, 1.6.2) */
 
 
-/* ═══ 첫 화면 코드 연출 ═══════════════════════ */
-.codeplay{display:flex; flex-direction:column; align-items:center; gap:10px}
-
-/* 작은 편집기 창 */
-.cpwin{width:min(420px,92vw); text-align:left; background:#fff;
-       border:1px solid var(--b200); border-radius:10px; overflow:hidden;
-       box-shadow:0 1px 3px rgba(19,31,61,.06)}
-.cpbar{display:flex; align-items:center; gap:5px; padding:7px 11px;
-       background:var(--b25); border-bottom:1px solid var(--b100)}
-.cpbar i{width:8px; height:8px; border-radius:50%; background:var(--b200)}
-.cpbar b{margin-left:auto; font-size:11.5px; font-weight:600; color:var(--b500);
-         font-family:var(--mono)}
-/* 높이는 가장 긴 스니펫의 줄 수(--cp-lines, hero.js 가 정한다)에 맞춰 고정 — 쳐지는 동안 창이 들썩이지 않게 (1.8.0) */
-.cpcode{margin:0; padding:12px 14px; height:calc(var(--cp-lines, 3) * 1.6em + 24px);
-        font-family:var(--mono); font-size:13px; line-height:1.6; color:var(--ink);
-        white-space:pre; overflow-x:auto; text-align:left}
-.cpcode code{font:inherit}
-.cpcaret{display:inline-block; width:2px; height:1.05em; vertical-align:-2px;
-         background:var(--b600); animation:cpblink 1s steps(1) infinite}
-@keyframes cpblink{50%{opacity:0}}
-
-/* 문법 색은 편집기와 같은 계열 */
-.cpcode .t-k{color:#8B3FA8}
-.cpcode .t-s{color:#1A7F4B}
-.cpcode .t-f{color:#2B6CB0}
-.cpcode .t-n{color:#B4531F}
-.cpcode .t-c{color:#7C89A3; font-style:italic}
-
-/* 실행 화살표 */
-.cparrow{font-size:11.5px; font-weight:600; color:var(--b300); letter-spacing:.04em;
-         opacity:0; transform:translateY(-4px); transition:opacity .25s, transform .25s}
-.cparrow::before{content:'↓ '}
-.codeplay.ran .cparrow{opacity:1; transform:none; color:var(--b500)}
-
-/* 출력 — 이것이 곧 제목이다 */
-.hero .codeplay h1{margin:2px 0 0}
-.hero .codeplay h1 span{display:inline-block; opacity:1}
-/* 자바스크립트가 준비되면 숨겼다가 한 글자씩 나타낸다 */
-.codeplay.ready h1 span{opacity:0; transform:translateY(10px) scale(.9)}
-.codeplay.ready h1 span.on{opacity:1; transform:none;
-  transition:opacity .18s ease-out, transform .34s cubic-bezier(.2,1.5,.4,1)}
-.codeplay h1.done span{animation:cppop .5s ease-out}
-@keyframes cppop{0%{text-shadow:0 0 0 rgba(47,81,160,0)}
-                 40%{text-shadow:0 6px 22px rgba(47,81,160,.28)}
-                 100%{text-shadow:0 0 0 rgba(47,81,160,0)}}
-
-/* 로그인한 뒤에는 자리를 덜 차지하게 */
-.hero.small .cpwin{width:min(340px,92vw)}
-.hero.small .cpcode{height:calc(var(--cp-lines, 3) * 1.6em + 18px); font-size:12px; padding:9px 12px}
-.hero.small .cparrow{font-size:10.5px}
-
-@media(prefers-reduced-motion: reduce){
-  .cpcaret{animation:none}
-  .codeplay.ready h1 span{opacity:1; transform:none}
-}
-
 /* 체험 서버 안내 띠 (config.php 의 demo) */
 .demobar{background:#FFF4C2; color:#6B4E00; border-bottom:1px solid #F1D98A; text-align:center;
   font-size:13px; font-weight:600; padding:7px 16px; line-height:1.5}
+
+/* 교사가 학생 화면으로 보는 중일 때의 띠 (1.17.0) */
+.viewbar{background:var(--warn-soft); color:var(--warn); border-bottom:1px solid #E8C989; text-align:center;
+  font-size:13px; font-weight:600; padding:7px 16px; line-height:1.5}
+.viewbar a{margin-left:10px; color:var(--warn); text-decoration:underline}
 
 /* 채점 결과: 수업 · 평가에서 낸 제출 표시 (1.5.0) */
 .setmark{display:inline-block; vertical-align:middle; margin:-2px 0 0 7px; padding:0 7px; border-radius:5px;

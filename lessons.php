@@ -5,6 +5,17 @@ require_once __DIR__ . '/guard.php';
 require_once __DIR__ . '/layout.php';
 $u = need_login();
 
+/* 교사 화면 (1.17.0) — 예전 admin/sets.php?type=lesson. 관리 동작은 교사인지 다시 확인한다 */
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+  require_once __DIR__ . '/teacher_lib.php';
+  teacher_sets_post($u, 'lesson');
+}
+if (teacher_view($u)) {
+  require_once __DIR__ . '/teacher_lib.php';
+  teacher_sets_page($u, 'lesson');
+  exit;
+}
+
 $sets = sets_for_student($u, 'lesson');
 
 /* 내가 손댄 묶음 (제출이 하나라도 있으면 '참여 중', 전부 완료했으면 '완료') */
