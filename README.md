@@ -51,61 +51,27 @@ KAIT-CLASS 는 AI 사용 자체를 막으려는 것이 아니라, **코드를 �
 
 ## 설치
 
-### 방법 1. 한 줄 설치
-
-터미널을 열고 다음 명령어를 실행합니다.
+터미널을 열고 한 줄을 실행합니다.
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/newnnewer/kait-class/main/get.sh | sudo bash
 ```
 
-명령어를 실행하면 최신 버전을 홈 폴더(`~/kait-class-버전`)에 내려받아 설치를 시작합니다.
-
-### 방법 2. zip 을 받아서
-
-1. [Releases](https://github.com/newnnewer/kait-class/releases) 에서 최신 버전의 **Source code (zip)** 을 받습니다.
-2. 파일 앱에서 zip 을 **오른쪽 클릭 → 압축 풀기**
-3. 풀린 폴더 안 빈 곳을 **오른쪽 클릭 → 터미널에서 열기**
-4. 입력
-   ```bash
-   sudo bash install.sh
-   ```
-
-> 클라우드 서버라면 zip 을 **홈 폴더**에 올려서 푸세요. `/tmp` 는 중간 재부팅 때 지워질 수 있습니다.
-
-### 재부팅 후 한 번 더
-
-설치는 두 번에 나뉩니다. 설치 도중에 채점 엔진 설정을 위해 **재부팅**을 묻습니다.
-
-재부팅한 뒤 터미널을 열면 노란 안내가 나옵니다. 안내대로 **같은 명령을 한 번 더** 입력하면 나머지가 설치됩니다.
+**KAIT-PLAY(코딩 게임) 없이 KAIT-CLASS 만** 설치하려면 끝에 `-s -- --class-only` 를 붙입니다.
 
 ```bash
-cd ~/kait-class-버전      # 안내에 나온 폴더
-sudo bash install.sh
+wget -qO- https://raw.githubusercontent.com/newnnewer/kait-class/main/get.sh | sudo bash -s -- --class-only
 ```
 
-처음 설치는 인터넷 속도에 따라 10~30분 걸립니다. 끝나면 접속 주소가 나옵니다.
+> 한 줄 설치가 안 되면 [Releases](https://github.com/newnnewer/kait-class/releases) 에서 **Source code (zip)** 을 받아 홈 폴더에 풀고, 그 폴더에서 `sudo bash install.sh` (KAIT-CLASS 만이면 `--class-only`).
 
-### 처음 로그인
-
-관리자 아이디는 `admin` 입니다. **설치가 끝나면 다음 명령어를 실행하여 관리자 비밀번호를 설정하세요.**
-
-```bash
-cd /var/www/html && sudo -u www-data php reset-admin.php
-```
-
-그 뒤 브라우저로 접속해 로그인하고, **운영 > 설정** 에서 사이트 이름과 로고를 바꿀 수 있습니다.
-
-### KAIT-PLAY 없이 설치하려면
-
-KAIT-PLAY(코딩 게임)는 기본으로 함께 설치됩니다. 빼고 싶다면 `--class-only` 를 붙입니다.
-
-```bash
-sudo bash install.sh --class-only
-```
-
-한 줄 설치라면 `… | sudo bash -s -- --class-only` 처럼 붙입니다. 재부팅 뒤 이어서 실행할 때는 옵션 없이 쳐도 처음 고른 대로 진행합니다.
-KAIT-PLAY 는 나중에 `--play-only` 로 더할 수 있습니다 ([업데이트](#업데이트) 참고).
+- 중간에 **재부팅**을 묻습니다. 재부팅 뒤 터미널을 열면 나오는 안내대로 **같은 명령을 한 번 더** 치면 나머지가 설치됩니다.
+- 처음 설치는 10~30분 걸립니다. 끝나면 접속 주소가 나옵니다.
+- 설치가 끝나면 **관리자(`admin`) 비밀번호**를 정합니다.
+  ```bash
+  cd /var/www/html && sudo -u www-data php reset-admin.php
+  ```
+  로그인한 뒤 **운영 > 설정** 에서 사이트 이름과 로고를 바꿀 수 있습니다.
 
 
 ---
@@ -137,44 +103,22 @@ KAIT-PLAY 는 나중에 `--play-only` 로 더할 수 있습니다 ([업데이트
 
 ## 업데이트
 
-새 버전을 **새 폴더에 받아서 같은 명령**을 실행합니다. 한 줄 설치를 다시 실행해도 됩니다.
-
-```bash
-sudo bash install.sh
-```
-
-- 설정, 올린 이미지, DB(학생·제출 기록)는 **그대로** 남습니다.
-- 기존에 진행되었던 단계들은 건너뛰므로 몇 분이면 끝납니다.
-- 바뀐 화면이 안 보이면 브라우저에서 `Ctrl+F5`
-
-### 하나만 업데이트하기
-
-이미 설치된 서버에서 실행하면 무엇을 업데이트할지 묻습니다.
+**한 줄 설치를 다시 실행**하면 됩니다. 이미 설치된 서버에서는 무엇을 업데이트할지 번호로 묻습니다.
 
 ```
-  이미 설치된 서버입니다. 무엇을 업데이트할까요?
-
-      KAIT-CLASS   1.15.1  →  1.16.0
-      KAIT-PLAY    1.2.1  →  1.2.1
-
     1) KAIT-CLASS + KAIT-PLAY   ← 기본
-    2) KAIT-CLASS 만            (KAIT-PLAY 는 그대로)
-    3) KAIT-PLAY 만             (KAIT-CLASS 는 손대지 않음 — KAIT-CLASS 를 고쳐 쓰고 있다면 이것)
+    2) KAIT-CLASS 만
+    3) KAIT-PLAY 만
 ```
 
-묻지 않고 바로 정하려면 옵션을 붙입니다. 한 줄 설치라면 `… | sudo bash -s -- --play-only` 처럼 붙입니다.
+- 설정, 올린 이미지, DB(학생·제출 기록)는 **그대로** 남습니다. 몇 분이면 끝납니다.
+- 바뀐 화면이 안 보이면 브라우저에서 `Ctrl+F5`
+- 바뀐 내용은 [CHANGELOG.md](CHANGELOG.md) 에 있습니다.
 
-| 옵션 | 하는 일 |
-|---|---|
-| `--play-only` | **KAIT-PLAY 만** 새 버전으로. KAIT-CLASS 의 웹 폴더 · 설정 · DB · nginx 는 손대지 않습니다. |
-| `--class-only` | **KAIT-CLASS 만** 새 버전으로. 설치된 KAIT-PLAY 는 그대로 둡니다. |
+> **KAIT-CLASS 를 고쳐 쓰고 있다면 3번**을 고르세요. KAIT-CLASS 를 업데이트하면 고친 내용이 새 소스로 바뀝니다.
+> 실수했더라도 바로 전 웹 폴더가 `/var/backups/kait-class/` 에 남습니다.
 
-> **KAIT-CLASS 를 고쳐 쓰고 있다면** 꼭 `--play-only`(또는 3번)로 업데이트하세요.
-> KAIT-CLASS 를 업데이트하면 웹 폴더(`/var/www/html`)가 새 소스로 바뀌어 고친 내용이 사라집니다.
-> 실수로 업데이트했더라도 덮어쓰기 직전의 웹 폴더가 `/var/backups/kait-class/html-날짜시각/` 에 남습니다 (최근 5개).
-> KAIT-PLAY 도 업데이트 전 소스를 `/root/kait-play-backup/kait-play-src.날짜시각.tgz` 로 남깁니다 (최근 5개).
-
-바뀐 내용은 [CHANGELOG.md](CHANGELOG.md) 에 있습니다.
+묻지 않고 정하는 옵션 등은 `sudo bash install.sh --help` 로 볼 수 있습니다.
 
 
 ---
