@@ -59,6 +59,18 @@ foreach (langs() as $k => $L) $langModes[$k] = $L['editor'];
 $samples = all("SELECT input, expected FROM testcases
                 WHERE problem_id = ? AND is_sample = 1 ORDER BY seq, id", [$pid]);
 $hasTc   = (int)col("SELECT COUNT(*) FROM testcases WHERE problem_id = ?", [$pid]) > 0;
+
+/* 예시 입력 · 출력을 좌우로 놓을지 — 둘 다 가장 긴 줄이 반 칸에 들어갈 때만 (입력이 없으면 위아래 그대로).
+   고정폭 글꼴이라 글자 폭으로 잰다 (한글은 2칸). 24칸 = style.css 의 .sample pre 15px 기준 반 칸. */
+$sampleSide = function (array $s): bool {
+  if (trim((string)$s['input']) === '') return false;
+  foreach ([$s['input'], $s['expected']] as $t) {
+    foreach (preg_split('/\R/u', (string)$t) ?: [] as $ln) {
+      if (mb_strwidth(rtrim($ln), 'UTF-8') > 24) return false;
+    }
+  }
+  return true;
+};
 $tags    = tags_of($pid);
 
 /* 내 제출 — 묶음 안이면 그 묶음 것만, 아니면 수업·자유 풀이만 */
@@ -130,19 +142,19 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
       <div class="md"><?= md($p['description']) ?></div>
 
       <?php if (trim((string)$p['input_desc']) !== ''): ?>
-        <h2 class="ph"><span class="emo" aria-hidden="true">📥</span>입력</h2>
+        <h2 class="ph"><span class="emo" aria-hidden="true">📥</span>입력 설명</h2>
         <div class="md"><?= md($p['input_desc']) ?></div>
       <?php endif; ?>
 
       <?php if (trim((string)$p['output_desc']) !== ''): ?>
-        <h2 class="ph"><span class="emo" aria-hidden="true">📤</span>출력</h2>
+        <h2 class="ph"><span class="emo" aria-hidden="true">📤</span>출력 설명</h2>
         <div class="md"><?= md($p['output_desc']) ?></div>
       <?php endif; ?>
 
       <?php if ($samples): ?>
-        <h2 class="ph"><span class="emo" aria-hidden="true">💡</span>예시</h2>
+        <h2 class="ph"><span class="emo" aria-hidden="true">💡</span>입/출력 예시</h2>
         <?php foreach ($samples as $i => $s): ?>
-          <div class="sample">
+          <div class="sample<?= $sampleSide($s) ? ' side' : '' ?>">
             <div class="sblock">
               <div class="cap">
                 입력 <?= count($samples) > 1 ? $i + 1 : '' ?>
@@ -174,8 +186,8 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
       <?php endif; ?>
     </section>
 
-    <!-- ── 오른쪽: 제출 ── -->
-    <section class="pane">
+    <!-- ── 오른쪽: 제출 — 스크롤해도 화면 위쪽에 붙어 있다 (.pane.stick) ── -->
+    <section class="pane stick">
       <?php if ($isAssess): ?>
         <div class="note <?= $myAc >= $need ? 'ok' : 'info' ?>" id="acNote">
           <?php if ($myAc >= $need): ?>
@@ -218,9 +230,9 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
             <div class="grow"></div>
             <span class="fsbtns" id="fsBtns" hidden>
               <button class="btn sm" type="button" id="fsDown" title="글자 작게">−</button>
+              <span class="fsval" id="fsVal" title="코드창 글자 크기"></span>
               <button class="btn sm" type="button" id="fsUp" title="글자 크게">＋</button>
             </span>
-            <span class="small muted">Ctrl + Enter 로도 제출</span>
           </div>
 
           <?php
@@ -229,6 +241,8 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
             $ph = !$noPaste ? '여기에 코드를 작성하세요'
                 : ($isAssess ? '이 평가에서는 붙여넣기를 할 수 없습니다. 직접 입력하세요.'
                              : '이 수업에서는 붙여넣기를 할 수 없습니다. 직접 입력하세요.');
+            /* 단축키 안내도 여기에 (여러 줄 — 편집기가 줄바꿈 그대로 보여 준다) */
+            $ph .= "\n제출하기: Ctrl + Enter\n실행하기: Ctrl + Shift + Enter";
           ?>
           <!-- 코드창 + 버튼 줄을 한 테두리 안에 — 코드와 입력·출력 사이를 줄인다 -->
           <div class="edframe" id="edFrame">

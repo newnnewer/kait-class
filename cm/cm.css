@@ -346,7 +346,7 @@ span.CodeMirror-selectedtext { background: none; }
 /* ── 이 사이트에 맞춘 손질 ─────────────────── */
 .CodeMirror{
   height:auto; min-height:340px;
-  font-family:var(--mono); font-size:var(--edfs,13.5px); line-height:1.6;
+  font-family:var(--mono); font-size:var(--edfs,15px); line-height:1.6;
   border:1px solid var(--line); border-radius:8px; background:#fff;
   padding:8px 0;
 }
@@ -376,5 +376,7 @@ span.CodeMirror-selectedtext { background: none; }
 
 /* 글자 크기 버튼 */
 .fsbtns{display:inline-flex; gap:4px; align-items:center}
+/* − 와 ＋ 사이의 지금 글자 크기 (예: 15px) — 폭을 정해 두어 숫자가 바뀌어도 버튼이 움직이지 않는다 */
+.fsbtns .fsval{min-width:46px; text-align:center; font:12px var(--mono); color:var(--ink-3)}
 .fsbtns button{width:26px; height:26px; padding:0; font-size:14px; line-height:1;
   display:flex; align-items:center; justify-content:center}

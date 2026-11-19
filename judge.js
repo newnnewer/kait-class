@@ -95,6 +95,11 @@ async function apiThenReload(action, data, confirmMsg){
      CodeMirror 를 textarea 위에 씌운다. 스크립트가 안 뜨면 평범한 textarea 가
      그대로 남아 학생이 코드를 쓸 수 있다 — 평가 중에 입력조차 못 하는 일을 막는다. */
   var ed = null;
+  /* Ctrl+Shift+Enter — [실행하기] 버튼을 누른 것과 같다 (버튼이 없거나 실행 중이면 아무 일도 없다) */
+  function runByKey() {
+    var t = document.getElementById('runToggle');
+    if (t && !t.disabled) t.click();
+  }
 
   var MODE = {
     python:'text/x-python', c:'text/x-csrc', cpp:'text/x-c++src',
@@ -160,7 +165,9 @@ async function apiThenReload(action, data, confirmMsg){
         },
         'Shift-Tab': function (cm) { cm.indentSelection('subtract'); },
         'Ctrl-Enter': function () { btn.click(); },
-        'Cmd-Enter':  function () { btn.click(); }
+        'Cmd-Enter':  function () { btn.click(); },
+        'Shift-Ctrl-Enter': runByKey,
+        'Shift-Cmd-Enter':  runByKey
       }
     });
     ed.on('keydown', function (cm, e) { countKey(e); });
@@ -195,9 +202,12 @@ async function apiThenReload(action, data, confirmMsg){
       ta.addEventListener('paste', blockPaste);
       ta.addEventListener('drop',  blockPaste);
     }
-    /* 편집기가 없을 때를 위한 Ctrl+Enter */
+    /* 편집기가 없을 때를 위한 Ctrl+Enter (제출) · Ctrl+Shift+Enter (실행) */
     ta.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); btn.click(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) runByKey(); else btn.click();
+      }
     });
   }
   bindTextarea();
@@ -215,7 +225,7 @@ async function apiThenReload(action, data, confirmMsg){
       ed.setSize(null, Math.ceil(rows * ed.defaultTextHeight()) + 8);
     } else {
       var n  = ta.value.split('\n').length;
-      var fs = parseFloat(ta.style.fontSize) || 13.5;
+      var fs = parseFloat(ta.style.fontSize) || 15;
       ta.style.minHeight = Math.ceil(Math.max(n + EXTRA_ROWS, MIN_ROWS) * fs * 1.6 + 26) + 'px';
     }
   }
@@ -227,18 +237,36 @@ async function apiThenReload(action, data, confirmMsg){
   }   /* 편집기가 없을 때는 bindTextarea 가 input 이벤트에 건다 */
   fitEditor();
 
+  /* ── 오른쪽 칸 안 스크롤 따라가기 ──
+     오른쪽 칸은 화면 위쪽에 붙어 있고(style.css .pane.stick), 화면보다 길어지면 칸 안에서 스크롤한다.
+     편집기는 창 밖으로 나간 커서만 챙기므로, 칸에 가려진 커서는 여기서 보이게 맞춘다. */
+  if (ed) {
+    var stickPane = ed.getWrapperElement().closest('.pane.stick');
+    if (stickPane) ed.on('cursorActivity', function () {
+      if (stickPane.scrollHeight <= stickPane.clientHeight) return;
+      var c = ed.cursorCoords(null, 'window'), r = stickPane.getBoundingClientRect(), pad = 8;
+      if (c.bottom > r.bottom - pad)   stickPane.scrollTop += c.bottom - (r.bottom - pad);
+      else if (c.top < r.top + pad)    stickPane.scrollTop -= (r.top + pad) - c.top;
+    });
+  }
+
   /* ── 글자 크기 ── */
   (function () {
     var box2 = document.getElementById('fsBtns');
     if (!box2) return;
     box2.hidden = false;
-    var size = 13.5;
-    try { size = parseFloat(localStorage.getItem('edFontSize')) || 13.5; } catch (e) {}
+    /* 기본 15px, 1px 단위. 예전 기본값 13.5 가 저장되어 있으면(버튼을 안 눌러도 저장됐다) 새 기본값으로,
+       그 밖의 소수(14.5 등)는 반올림한다. */
+    var size = 15;
+    try { size = parseFloat(localStorage.getItem('edFontSize')) || 15; } catch (e) {}
+    size = size === 13.5 ? 15 : Math.round(size);
 
     function apply() {
       size = Math.max(11, Math.min(24, size));
       document.documentElement.style.setProperty('--edfs', size + 'px');
       ta.style.fontSize = size + 'px';
+      var fv = document.getElementById('fsVal');
+      if (fv) fv.textContent = size + 'px';
       if (ed) ed.refresh();
       fitEditor();   /* 글자 크기가 바뀌면 한 줄 높이도 바뀐다 */
       try { localStorage.setItem('edFontSize', String(size)); } catch (e) {}
@@ -446,6 +474,10 @@ async function apiThenReload(action, data, confirmMsg){
     var rout   = document.getElementById('runOut');
     var rerr   = document.getElementById('runErr');
     if (!toggle || !rbox) return;
+    /* 입력 상자에서 입력값을 고친 뒤에도 Ctrl+Shift+Enter 로 바로 실행 */
+    rin.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') { e.preventDefault(); runByKey(); }
+    });
     var rerrPre = rerr.querySelector('pre');
     var seq = 0;   /* 앞선 실행의 늦은 응답이 새 결과를 덮지 않게 */
 
