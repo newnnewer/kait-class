@@ -230,7 +230,7 @@ function teacher_problems_page(array $u): void {
           <td class="title"><a href="problem.php?no=<?= (int)$r['prob_no'] ?>"><?= h($r['title']) ?></a></td>
           <td>
             <?php foreach ($tmap[$pid] ?? [] as $tn): ?>
-              <a class="tag" href="?tag=<?= rawurlencode($tn) ?>"><?= h($tn) ?></a>
+              <a class="tag"<?= tag_attr($tn) ?> href="?tag=<?= rawurlencode($tn) ?>"><?= h($tn) ?></a>
             <?php endforeach; ?>
           </td>
           <td class="center num">

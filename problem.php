@@ -131,28 +131,28 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
     <span>시간 제한 <b><?= rtrim(rtrim(number_format((float)$p['time_limit'], 1), '0'), '.') ?>초</b></span>
     <span>메모리 제한 <b><?= (int)round($p['memory_limit'] / 1000) ?>MB</b></span>
     <?php foreach ($tags as $t): ?>
-      <a class="tag" href="problems.php?tag=<?= rawurlencode($t) ?>"><?= h($t) ?></a>
+      <a class="tag"<?= tag_attr($t) ?> href="problems.php?tag=<?= rawurlencode($t) ?>"><?= h($t) ?></a>
     <?php endforeach; ?>
   </div>
 
   <div class="split">
     <!-- ── 왼쪽: 문제 ── -->
     <section class="pane">
-      <h2 class="ph"><span class="emo" aria-hidden="true">📝</span>문제 설명</h2>
+      <h2 class="ph"><?= icon('desc', '📝') ?>문제 설명</h2>
       <div class="md"><?= md($p['description']) ?></div>
 
       <?php if (trim((string)$p['input_desc']) !== ''): ?>
-        <h2 class="ph"><span class="emo" aria-hidden="true">📥</span>입력 설명</h2>
+        <h2 class="ph"><?= icon('input', '📥') ?>입력 설명</h2>
         <div class="md"><?= md($p['input_desc']) ?></div>
       <?php endif; ?>
 
       <?php if (trim((string)$p['output_desc']) !== ''): ?>
-        <h2 class="ph"><span class="emo" aria-hidden="true">📤</span>출력 설명</h2>
+        <h2 class="ph"><?= icon('output', '📤') ?>출력 설명</h2>
         <div class="md"><?= md($p['output_desc']) ?></div>
       <?php endif; ?>
 
       <?php if ($samples): ?>
-        <h2 class="ph"><span class="emo" aria-hidden="true">💡</span>입/출력 예시</h2>
+        <h2 class="ph"><?= icon('example', '💡') ?>입/출력 예시</h2>
         <?php foreach ($samples as $i => $s): ?>
           <div class="sample<?= $sampleSide($s) ? ' side' : '' ?>">
             <div class="sblock">
@@ -291,7 +291,7 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
 
       <?php if ($u): ?>
       <div class="sec" id="mySubs">
-        <h2><span class="emo" aria-hidden="true">📋</span>내 제출</h2>
+        <h2><?= icon('subs', '📋') ?>내 제출</h2>
         <?php if (!$mine): ?>
           <p class="small muted">아직 제출한 적이 없습니다.</p>
         <?php else: ?>

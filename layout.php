@@ -93,6 +93,49 @@ function asset(string $path, string $root = ''): string {
   return h($root . $path) . '?v=' . $v;
 }
 
+/* ── 테마 (2.0.0) ───────────────────────────────
+   운영 > 설정에서 고른다. '' = 기본(지금까지의 모습). 그 밖의 테마는
+   <html data-theme="이름"> 을 달고 themes/이름.css 를 style.css 뒤에 더 불러온다 —
+   테마 파일은 style.css 의 쓰임새 변수 값과 몇몇 모양만 바꾼다. 화면 배치는 바꾸지 않는다.
+   어두운 화면(달 · 해 단추)은 기본 테마에만 있다. */
+const THEMES = ['' => '기본', 'arcade' => '아케이드', 'terminal' => '터미널'];
+/* 선 아이콘(icons.php)을 쓰는 테마. 터미널은 그림 대신 글자 기호를 CSS 로 붙인다 */
+const THEME_ICONS = ['arcade' => true];
+function site_theme(): string {
+  /* 체험 서버에서는 방문자가 안내 띠에서 테마를 골라 볼 수 있다 — 그 사람의 세션에만 기억하고
+     사이트 설정은 건드리지 않는다 (설정 저장은 체험 서버에서 여전히 막혀 있다). */
+  if (DEMO_MODE && isset($_SESSION['demo_theme']) && isset(THEMES[(string)$_SESSION['demo_theme']])) {
+    return (string)$_SESSION['demo_theme'];
+  }
+  $t = setting('theme');
+  return isset(THEMES[$t]) ? $t : '';
+}
+
+/* 아이콘. 테마가 아이콘을 쓰면 icons.php 의 선 그림을, 아니면 $emoji(있을 때)를 낸다.
+   기본 테마는 지금까지와 같은 HTML 이 나간다 — 메뉴에는 아무것도 없고 문제 화면 구역 제목에는 이모지. */
+function icon(string $name, string $emoji = ''): string {
+  static $set = null;
+  if ($set === null) $set = isset(THEME_ICONS[site_theme()]) ? (require __DIR__ . '/icons.php') : [];
+  if (isset($set[$name])) {
+    return '<span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"'
+         . ' stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' . $set[$name] . '</svg></span>';
+  }
+  return $emoji !== '' ? '<span class="emo" aria-hidden="true">' . $emoji . '</span>' : '';
+}
+
+/* 분류 딱지의 색 번호(1 ~ 8) — 테마가 분류마다 다른 색을 줄 때 쓴다.
+   분류 이름은 학교마다 다르므로 이름이 아니라 만들어진 순서대로 돌려 쓴다.
+   기본 테마에서는 아무것도 내지 않는다(조회도 하지 않는다). */
+function tag_attr(string $name): string {
+  static $m = null;
+  if (site_theme() === '') return '';
+  if ($m === null) {
+    $m = []; $i = 0;
+    foreach (all("SELECT name FROM tags ORDER BY id") as $r) $m[$r['name']] = ($i++ % 8) + 1;
+  }
+  return ' data-c="' . ($m[$name] ?? 1) . '"';
+}
+
 /* 화면에 보일 사이트 이름. 운영 > 설정에서 바꾼다.
    비어 있으면 프로그램 이름을 그대로 쓴다. */
 function site_name(): string {
@@ -172,8 +215,33 @@ function page_head(array $o): void {
   $inAdminDir  = ($o['root'] ?? '') === '../';
   $isAdminArea = $isAdmin && ($inAdminDir || teacher_view($u));
   $here = $_SERVER['REQUEST_URI'] ?? '/';
+  /* 체험 서버의 '테마 바꿔 보기' — 주소의 demo_theme 을 세션에 적고 같은 화면으로 다시 간다 */
+  if (DEMO_MODE && isset($_GET['demo_theme'])) {
+    $dt = (string)$_GET['demo_theme'];
+    if (isset(THEMES[$dt])) $_SESSION['demo_theme'] = $dt;
+    $q = $_GET; unset($q['demo_theme']);
+    $path = (string)strtok((string)$here, '?');
+    if (!preg_match('#^/(?![/\\\\])#', $path)) $path = '/';          /* 바깥 주소로 보내지 않게 */
+    header('Location: ' . $path . ($q ? '?' . http_build_query($q) : ''));
+    exit;
+  }
+  $theme = site_theme();
+  /* 화면 제목(.phead h1) 앞에 지금 메뉴의 아이콘을 두는 테마를 위해 — 그림을 CSS 변수로 넘긴다.
+     화면마다 PHP 를 고치지 않아도 되게. 테마 CSS 가 mask 로 쓴다. */
+  $navIc = '';
+  if ($theme !== '' && $nav !== '' && icon($nav) !== '') {
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2"'
+         . ' stroke-linecap="round" stroke-linejoin="round">' . (require __DIR__ . '/icons.php')[$nav] . '</svg>';
+    $navIc = " data-navic style=\"--nav-ic:url('data:image/svg+xml," . rawurlencode($svg) . "')\"";
+  }
+  /* 어두운 화면 / 밝은 화면 단추 — 로그인 전에도 보인다. 고른 것은 그 브라우저에만 저장된다.
+     기본 테마에만 있다 (다른 테마는 밝고 어두운 모습이 하나뿐) */
+  $modeBtn = $theme !== '' ? '' : '<button class="modebtn" type="button" id="modeBtn" title="어두운 화면 / 밝은 화면" aria-label="어두운 화면" aria-pressed="false">'
+    . '<svg class="moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>'
+    . '<svg class="sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>'
+    . '</button>';
   ?><!DOCTYPE html>
-<html lang="ko">
+<html lang="ko"<?= $theme !== '' ? ' data-theme="' . h($theme) . '"' : '' ?>>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -181,13 +249,29 @@ function page_head(array $o): void {
 <?php $fav = site_image_url('favicon', $root); if ($fav !== ''): ?>
 <link rel="icon" href="<?= $fav ?>">
 <?php endif; ?>
+<?php /* 어두운 화면 (2.0.0) — 화면을 그리기 전에 브라우저에 저장된 선택을 먼저 읽는다.
+         스타일보다 앞에 두어야 흰 화면이 번쩍였다가 어두워지지 않는다. */ ?>
+<?php if ($theme === ''): ?>
+<script>try{if(localStorage.getItem('kc.mode')==='dark')document.documentElement.setAttribute('data-mode','dark')}catch(e){}</script>
+<?php endif; ?>
 <link rel="stylesheet" href="<?= asset('style.css', $root) ?>">
+<?php if ($theme !== ''): ?>
+<link rel="stylesheet" href="<?= asset('themes/' . $theme . '.css', $root) ?>">
+<?php endif; ?>
 <script>window.API = <?= json_encode($root . 'api.php') ?>;</script>
 </head>
-<body>
+<body<?= $navIc ?>>
 
 <?php if (DEMO_MODE): ?>
-<div class="demobar">체험 서버입니다 · 매일 새벽 4시에 처음 상태로 돌아갑니다 · 비밀번호 바꾸기 · 사이트 설정 · 파일 올리기는 쓸 수 없습니다</div>
+<div class="demobar">체험 서버입니다 · 매일 새벽 4시에 처음 상태로 돌아갑니다 · 비밀번호 바꾸기 · 사이트 설정 · 파일 올리기는 쓸 수 없습니다
+  <?php /* 테마 바꿔 보기 — 이 방문자의 화면만 바뀐다 (site_theme()) */
+    $dq = $_GET; $dpath = (string)strtok((string)$here, '?'); ?>
+  <span class="demotheme">테마 바꿔 보기
+    <?php foreach (THEMES as $tk => $tl): ?>
+      <a class="<?= $theme === $tk ? 'on' : '' ?>" href="<?= h($dpath . '?' . http_build_query(['demo_theme' => $tk] + $dq)) ?>"><?= h($tl) ?></a>
+    <?php endforeach; ?>
+  </span>
+</div>
 <?php endif; ?>
 <?php /* 관리자 화면은 위쪽 메뉴 띠를 어둡게 (1.5.0) — 학생 화면과 한눈에 구분되게.
          메뉴가 두 줄로 넘어가지 않게 로고 옆 '관리자' 표시 · 이름 옆 '(나의 활동)' 은 뺐다 (1.6.1) */ ?>
@@ -206,16 +290,17 @@ function page_head(array $o): void {
           $href = ($isAdminArea && $aHref !== '') ? $aHref : $sHref;
           if ($href === '') continue;
         ?>
-        <a class="<?= $nav === $k ? 'on' : '' ?>" href="<?= h($root . $href) ?>"><?= h($label) ?></a>
+        <a class="<?= $nav === $k ? 'on' : '' ?>" href="<?= h($root . $href) ?>"><?= icon($k) ?><?= h($label) ?></a>
       <?php endforeach; ?>
       <?php if (play_menu_on()): /* KAIT-PLAY 는 로그인 없이 쓰므로 누구에게나 보인다. 새 탭으로 연다 */ ?>
-        <a class="navplay" href="/play/" target="_blank" rel="noopener" title="KAIT-PLAY 코딩 게임 (새 탭)">KAIT-PLAY<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2H2v8h8V7.5M7 2h3v3M10 2 5.5 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <a class="navplay" href="/play/" target="_blank" rel="noopener" title="KAIT-PLAY 코딩 게임 (새 탭)"><?= icon('play') ?>KAIT-PLAY<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2H2v8h8V7.5M7 2h3v3M10 2 5.5 6.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       <?php endif; ?>
     </nav>
     <?php if ($u): ?>
       <a class="who" href="<?= h($root) ?>user.php" title="나의 활동"
          ><b><?= h($u['name'] !== '' ? $u['name'] : $u['login_id']) ?></b></a>
       <div class="util">
+        <?= $modeBtn ?>
         <?php if ($isAdmin): ?>
           <?php if ($isAdminArea): ?>
             <a href="<?= h(view_switch_url($root, 'student')) ?>" title="교사용 버튼과 정보를 감추고 학생에게 보이는 대로 봅니다">학생 화면</a>
@@ -227,10 +312,28 @@ function page_head(array $o): void {
         <a href="<?= h($root) ?>logout.php">로그아웃</a>
       </div>
     <?php else: ?>
+      <?= $modeBtn ?>
       <a class="btn sm primary" href="<?= h($root) ?>login.php?next=<?= rawurlencode($here) ?>">로그인</a>
     <?php endif; ?>
   </div>
 </header>
+<script>
+/* 어두운 화면 단추 — 누르면 바로 바꾸고 이 브라우저에 기억한다.
+   첫 화면 제목판(hero.js)은 색을 그림으로 구워 두므로 그 화면에서는 다시 불러온다. */
+(function () {
+  var b = document.getElementById('modeBtn'), h = document.documentElement;
+  if (!b) return;
+  function dark() { return h.getAttribute('data-mode') === 'dark'; }
+  b.setAttribute('aria-pressed', dark() ? 'true' : 'false');
+  b.addEventListener('click', function () {
+    var on = !dark();
+    if (on) h.setAttribute('data-mode', 'dark'); else h.removeAttribute('data-mode');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    try { localStorage.setItem('kc.mode', on ? 'dark' : 'light'); } catch (e) {}
+    if (document.getElementById('hero')) location.reload();
+  });
+})();
+</script>
 <?php /* 교사가 학생 화면으로 보는 중이면 띠로 알린다 (1.17.0).
          교사용 버튼이 모두 감춰지므로, 로그인이 풀린 것으로 착각하지 않게. */ ?>
 <?php if ($isAdmin && !$isAdminArea): ?>
@@ -305,7 +408,11 @@ function page_foot(string $root = ''): void {
       소스 <a href="<?= h(APP_REPO) ?>" target="_blank" rel="noopener"><?= h(preg_replace('#^https?://#', '', APP_REPO)) ?></a>
     </div>
     <div class="small foot-lic">
-      글꼴 <a href="https://github.com/orioncactus/pretendard" target="_blank" rel="noopener">Pretendard</a> (SIL OFL 1.1)
+      글꼴 <a href="https://github.com/orioncactus/pretendard" target="_blank" rel="noopener">Pretendard</a> ·
+      <a href="https://fonts.google.com/specimen/Do+Hyeon" target="_blank" rel="noopener">Do Hyeon</a> ·
+      <a href="https://fonts.google.com/specimen/Nanum+Gothic+Coding" target="_blank" rel="noopener">나눔고딕코딩</a> (SIL OFL 1.1)
+      <span class="sep">·</span>
+      아이콘 <a href="https://lucide.dev/" target="_blank" rel="noopener">Lucide</a> (ISC)
       <span class="sep">·</span>
       편집기 <a href="https://codemirror.net/5/" target="_blank" rel="noopener">CodeMirror 5</a> (MIT)
       <span class="sep">·</span>

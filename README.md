@@ -22,6 +22,7 @@ KAIT-CLASS 는 AI 사용 자체를 막으려는 것이 아니라, **코드를 �
 - **회원** — CSV 로 반 학생 일괄 등록, 회원가입(승인제 적용 가능)
 - **문제 관리** — 마크다운 문제 설명, 테스트케이스, 번호 일괄 수정, FPS XML 가져오기·내보내기
 - **운영** — 공지, 사이트 이름·로고, 채점 대기열 확인과 재채점, 언어 관리
+- **테마와 어두운 화면** — 운영자가 사이트의 모습을 고릅니다(기본 · 아케이드 · 터미널). 기본 테마에서는 사용자마다 어두운 화면으로 바꿔 쓸 수 있습니다.
 - **간단한 설치** — 단 한 줄의 명령어로 설치할 수 있으며, 도메인이 있다면 https(SSL)까지 붙입니다.
 - **KAIT-PLAY (코딩 게임)** — 함께 설치되는 팀 코딩 게임입니다. 아래 [KAIT-PLAY](#kait-play-코딩-게임) 를 보세요.
 
@@ -115,6 +116,8 @@ wget -qO- https://raw.githubusercontent.com/newnnewer/kait-class/main/get.sh | s
 - 바뀐 화면이 안 보이면 브라우저에서 `Ctrl+F5`
 - 바뀐 내용은 [CHANGELOG.md](CHANGELOG.md) 에 있습니다.
 
+> **2.0 으로 올릴 때** — 화면은 그대로이고(기본 테마), 테마는 운영 › 설정에서 고릅니다. `style.css` 를 고쳐 쓰고 있었다면 [CHANGELOG.md](CHANGELOG.md) 의 '고쳐 쓰는 분께'를 먼저 보세요.
+>
 > **KAIT-CLASS 를 고쳐 쓰고 있다면 3번**을 고르세요. KAIT-CLASS 를 업데이트하면 고친 내용이 새 소스로 바뀝니다.
 > 실수했더라도 바로 전 웹 폴더가 `/var/backups/kait-class/` 에 남습니다.
 
@@ -221,6 +224,8 @@ KAIT-CLASS 는 **[PolyForm Noncommercial 1.0.0](LICENSE)** 으로 소스를 공�
 |---|---|---|
 | [Judge0](https://judge0.com/) | 채점 엔진 (설치할 때 따로 내려받음) | GPL-3.0 |
 | [Pretendard](https://github.com/orioncactus/pretendard) | 글꼴 | SIL OFL 1.1 |
+| [Do Hyeon](https://fonts.google.com/specimen/Do+Hyeon) · [나눔고딕코딩](https://fonts.google.com/specimen/Nanum+Gothic+Coding) | 테마 글꼴 (아케이드 · 터미널) | SIL OFL 1.1 |
+| [Lucide](https://lucide.dev/) | 테마의 선 아이콘 | ISC |
 | [CodeMirror 5](https://codemirror.net/5/) | 코드 편집기 | MIT |
 | [Parsedown](https://github.com/erusev/parsedown) | 마크다운 변환 | MIT |
 | [Socket.IO](https://socket.io/) | KAIT-PLAY 실시간 연결 | MIT |

@@ -119,7 +119,7 @@ page_head(['title' => '문제 모음', 'root' => '', 'user' => $u, 'nav' => 'pro
           </td>
           <td>
             <?php foreach ($tmap[$pid] ?? [] as $tn): ?>
-              <a class="tag" href="?tag=<?= rawurlencode($tn) ?>"><?= h($tn) ?></a>
+              <a class="tag"<?= tag_attr($tn) ?> href="?tag=<?= rawurlencode($tn) ?>"><?= h($tn) ?></a>
             <?php endforeach; ?>
           </td>
           <td class="right num"><?= (int)$r['solver_cnt'] ?></td>

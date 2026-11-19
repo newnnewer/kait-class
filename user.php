@@ -151,7 +151,7 @@ page_head(['title' => $name . ' 님의 활동', 'root' => '', 'user' => $me, 'na
       <h2>분류별</h2>
       <div class="tagbars">
         <?php foreach ($byTag as $b): $r = (int)$b['total'] ? (int)$b['solved'] / (int)$b['total'] : 0; ?>
-          <a class="tagbar" href="problems.php?tag=<?= rawurlencode($b['name']) ?>">
+          <a class="tagbar"<?= tag_attr($b['name']) ?> href="problems.php?tag=<?= rawurlencode($b['name']) ?>">
             <span class="tb-name"><?= h($b['name']) ?></span>
             <span class="bar"><span style="width:<?= (int)round($r * 100) ?>%"></span></span>
             <span class="tb-num num small"><?= (int)$b['solved'] ?> / <?= (int)$b['total'] ?></span>

@@ -92,6 +92,11 @@ if (DEMO_MODE && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!$err) {
     setting_set('site_name',    $name);
     setting_set('hero_on',      empty($_POST['hero_on'])   ? '0' : '1');
+    /* 첫 화면 소개글 — 한 줄, 40자까지 (테마의 첫 화면에 가장 크게 나온다) */
+    $hm = trim(preg_replace('/\s+/u', ' ', (string)($_POST['home_msg'] ?? '')));
+    setting_set('home_msg',     function_exists('mb_substr') ? mb_substr($hm, 0, 40) : substr($hm, 0, 120));
+    $th = (string)($_POST['theme'] ?? '');
+    setting_set('theme',        isset(THEMES[$th]) ? $th : '');
     setting_set('signup_on',    empty($_POST['signup_on']) ? '0' : '1');
     setting_set('footer_extra', nl_clean((string)($_POST['footer_extra'] ?? '')));
     setting_set('play_menu',    empty($_POST['play_menu']) ? '0' : '1');
@@ -166,6 +171,26 @@ page_head(['title' => '설정', 'root' => '../', 'user' => $me, 'nav' => 'ops'])
     </div>
 
     <div class="field">
+      <label>테마</label>
+      <div class="chips">
+        <?php foreach (THEMES as $tk => $tl): ?>
+          <label class="chip">
+            <input type="radio" name="theme" value="<?= h($tk) ?>" <?= site_theme() === $tk ? 'checked' : '' ?>>
+            <span><?= h($tl) ?></span>
+          </label>
+        <?php endforeach; ?>
+      </div>
+      <div class="small muted">사이트 전체의 색 · 모양 · 아이콘을 바꿉니다. 화면 배치는 그대로입니다. 어두운 화면(달 모양 단추)은 기본 테마에서만 쓸 수 있습니다. 터미널은 늘 어두운 화면이라 프로젝터로 띄울 때는 뒤에서 잘 보이는지 확인하세요.</div>
+    </div>
+
+    <div class="field">
+      <label for="home_msg">첫 화면 소개글 <span class="hint">아케이드 · 터미널 테마에서만 보입니다</span></label>
+      <input type="text" id="home_msg" name="home_msg" maxlength="40" value="<?= h($v('home_msg')) ?>"
+             placeholder="예) 치는 만큼 실력이 된다, 오늘도 한 문제">
+      <div class="small muted">첫 화면에 가장 큰 글자로 나옵니다. 40자까지, 20자 안팎이 가장 보기 좋습니다. 비워 두면 사이트 이름이 그 자리에 나옵니다.</div>
+    </div>
+
+    <div class="field">
       <label>첫 화면</label>
       <div class="chips">
         <label class="chip">
@@ -173,7 +198,7 @@ page_head(['title' => '설정', 'root' => '../', 'user' => $me, 'nav' => 'ops'])
           <span>픽토그램이 모여 사이트 이름을 만드는 연출 보여주기</span>
         </label>
       </div>
-      <div class="small muted">모양 세 가지가 들어올 때마다 번갈아 나옵니다. 느린 컴퓨터에서 버벅이면 꺼 두세요 — 끄면 사이트 이름 글자만 보입니다.</div>
+      <div class="small muted">모양 세 가지가 들어올 때마다 번갈아 나옵니다. 느린 컴퓨터에서 버벅이면 꺼 두세요 — 끄면 사이트 이름 글자만 보입니다. 아케이드 · 터미널 테마에서는 첫 화면 배경의 움직임을 켜고 끕니다.</div>
     </div>
 
     <div class="field">

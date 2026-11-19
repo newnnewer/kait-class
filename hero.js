@@ -12,7 +12,7 @@
    · 외부 라이브러리 · 그림 파일을 쓰지 않는다 (그림은 SVG 문자열로 만들어 한 번만 굽는다)
    · 화면 밖 · 다른 탭이면 멈추고, 다 모여 가만히 있으면 그리기를 쉰다 (노트북 배터리)
    · 자바스크립트가 없으면 사이트 이름 글자가 그냥 보인다
-   · '동작 줄이기'를 켠 사람에게는 다 모인 모습만 보인다
+   · 컴퓨터의 '동작 줄이기' 설정은 따르지 않는다 (2.0.0 부터 — 예전에는 다 모인 모습만 보였다)
    ═══════════════════════════════════════════════ */
 (function () {
   'use strict';
@@ -24,7 +24,10 @@
 
   var NAME = String(window.SITE_NAME || 'OJ');
   var small = hero.classList.contains('small');
-  var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* 컴퓨터의 '움직임 줄이기'(윈도의 애니메이션 효과 끔 등) 설정을 따르지 않는다 (2.0.0, 사용자 결정) —
+     학교 컴퓨터는 그 설정이 켜진 경우가 많아 연출이 아예 안 보였다. KAIT-PLAY 인트로 · 테마의 첫 화면(home.js)과 같게.
+     멈추려면 운영 > 설정의 '첫 화면 연출'을 끈다. calm 을 true 로 두면 예전처럼 모인 모습만 보인다. */
+  var calm = false;
 
   /* ── 모양 고르기: 무작위, 바로 전과 다르게 ──
      브라우저 저장소를 못 쓰면(사생활 보호 모드 등) 그냥 무작위 */
@@ -51,6 +54,21 @@
   var BLUES = ['#2F51A0', '#243F80', '#4266B4', '#6D8DCA', '#1B2F5E', '#5B5BF5'];
   var TILE  = ['#2F51A0', '#243F80', '#4266B4', '#1B2F5E'];
   var FLIP  = ['#E5484D', '#F06A3C'];      // 뒤집힌 블록 — 플립 배틀의 빨강
+  /* 어두운 화면 (2.0.0) — 같은 파랑은 어두운 바탕에 묻히므로 밝은 쪽 파랑을 쓴다.
+     블록(TILE)은 위에 흰 그림이 올라가므로 너무 밝지 않게. 값은 style.css 의 어두운 화면 묶음과 맞춘 것. */
+  /* 테마 (2.0.0) — 테마가 자기 색을 쓴다. 값은 themes/이름.css 와 맞춘 것 */
+  if (document.documentElement.getAttribute('data-theme') === 'arcade') {
+    BLUES = ['#3B5BFF', '#16163A', '#8B5CF6', '#E5484D', '#0FA968', '#E09B00'];
+    TILE  = ['#3B5BFF', '#16163A', '#8B5CF6', '#2A3FD0'];
+  }
+  if (document.documentElement.getAttribute('data-theme') === 'terminal') {
+    BLUES = ['#5BE37D', '#8CF0A4', '#74B088', '#F2B84B', '#B6F5C5', '#7FD8E8'];
+    TILE  = ['#1F7A3A', '#17602D', '#2A9148', '#8A6A1E'];
+  }
+  if (document.documentElement.getAttribute('data-mode') === 'dark') {
+    BLUES = ['#93B4F5', '#B4CBF8', '#7C97D0', '#6B80B3', '#D3E0FB', '#9C9CFF'];
+    TILE  = ['#4266B4', '#3A5AA6', '#5273C4', '#2F51A0'];
+  }
 
   /* ── KAIT-PLAY 캐릭터 8종 ──
      play/public/js/avatar.js 의 PARTS 를 그대로 옮겨 왔다.

@@ -344,34 +344,40 @@ div.CodeMirror-dragcursors {
 span.CodeMirror-selectedtext { background: none; }
 
 /* ── 이 사이트에 맞춘 손질 ─────────────────── */
+/* 코드창에만 쓰는 색 — 나머지 변수는 style.css 의 :root 에 있다. 다크모드 · 테마는 이 값들도 바꾼다. */
+:root{
+  --ed-sel:var(--b200);                                    /* 초점이 있을 때 고른 글자 바탕 */
+  --tk-kw:#8B3FA8; --tk-def:var(--link); --tk-str:#1A7F4B; --tk-num:#B4531F;
+  --tk-com:#7C89A3; --tk-bi:#2B6CB0; --tk-meta:#8A6100;      /* 문법 색 */
+}
 .CodeMirror{
   height:auto; min-height:340px;
   font-family:var(--mono); font-size:var(--edfs,15px); line-height:1.6;
-  border:1px solid var(--line); border-radius:8px; background:#fff;
+  border:1px solid var(--line); border-radius:var(--r8); background:var(--surface);
   padding:8px 0;
 }
-.CodeMirror-focused{border-color:var(--b500); box-shadow:0 0 0 3px rgba(47,81,160,.15)}
-.CodeMirror-gutters{background:var(--b25); border-right:1px solid var(--line-2)}
-.CodeMirror-linenumber{color:var(--b300); padding:0 8px 0 6px}
-.CodeMirror-cursor{border-left:2px solid var(--b700)}
-.CodeMirror-activeline-background{background:var(--b25)}
-.CodeMirror-selected{background:var(--b100)}
-.CodeMirror-focused .CodeMirror-selected{background:var(--b200)}
-.CodeMirror-matchingbracket{color:var(--b700) !important; font-weight:700;
-  background:var(--b100); border-radius:2px}
-.CodeMirror pre.CodeMirror-placeholder{color:var(--b300)}
+.CodeMirror-focused{border-color:var(--focus); box-shadow:0 0 0 3px var(--focus-ring)}
+.CodeMirror-gutters{background:var(--fill); border-right:1px solid var(--line-2)}
+.CodeMirror-linenumber{color:var(--faint-2); padding:0 8px 0 6px}
+.CodeMirror-cursor{border-left:2px solid var(--accent-ink)}
+.CodeMirror-activeline-background{background:var(--fill)}
+.CodeMirror-selected{background:var(--fill-3)}
+.CodeMirror-focused .CodeMirror-selected{background:var(--ed-sel)}
+.CodeMirror-matchingbracket{color:var(--accent-ink) !important; font-weight:700;
+  background:var(--fill-3); border-radius:2px}
+.CodeMirror pre.CodeMirror-placeholder{color:var(--faint-2)}
 
 /* 문법 색 — 본문과 같은 계열로 차분하게 */
-.cm-s-default .cm-keyword{color:#8B3FA8}
-.cm-s-default .cm-def,.cm-s-default .cm-variable-2{color:var(--b600)}
+.cm-s-default .cm-keyword{color:var(--tk-kw)}
+.cm-s-default .cm-def,.cm-s-default .cm-variable-2{color:var(--tk-def)}
 .cm-s-default .cm-variable{color:var(--ink)}
-.cm-s-default .cm-string,.cm-s-default .cm-string-2{color:#1A7F4B}
-.cm-s-default .cm-number{color:#B4531F}
-.cm-s-default .cm-comment{color:#7C89A3; font-style:italic}
-.cm-s-default .cm-builtin{color:#2B6CB0}
-.cm-s-default .cm-meta{color:#8A6100}
+.cm-s-default .cm-string,.cm-s-default .cm-string-2{color:var(--tk-str)}
+.cm-s-default .cm-number{color:var(--tk-num)}
+.cm-s-default .cm-comment{color:var(--tk-com); font-style:italic}
+.cm-s-default .cm-builtin{color:var(--tk-bi)}
+.cm-s-default .cm-meta{color:var(--tk-meta)}
 .cm-s-default .cm-operator{color:var(--ink-2)}
-.cm-s-default .cm-atom{color:#B4531F}
+.cm-s-default .cm-atom{color:var(--tk-num)}
 .cm-s-default .cm-error{background:var(--bad-soft); color:var(--bad)}
 
 /* 글자 크기 버튼 */
@@ -380,3 +386,14 @@ span.CodeMirror-selectedtext { background: none; }
 .fsbtns .fsval{min-width:46px; text-align:center; font:12px var(--mono); color:var(--ink-3)}
 .fsbtns button{width:26px; height:26px; padding:0; font-size:14px; line-height:1;
   display:flex; align-items:center; justify-content:center}
+
+/* ── 어두운 화면 (2.0.0) ──
+   색은 변수가 바꾼다. 여기서는 위쪽 CodeMirror 원본에 검정 · 흰색으로 적혀 있는 곳만 덮는다. */
+html[data-mode="dark"]{
+  --ed-sel:#34446C;
+  --tk-kw:#C9A0F2; --tk-def:#93B4F5; --tk-str:#7FD6A0; --tk-num:#F0A878;
+  --tk-com:#8492AD; --tk-bi:#7FC1F0; --tk-meta:#E5B454;
+}
+html[data-mode="dark"] .CodeMirror{color:var(--ink)}
+html[data-mode="dark"] .CodeMirror-scrollbar-filler,
+html[data-mode="dark"] .CodeMirror-gutter-filler{background-color:var(--surface)}

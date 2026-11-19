@@ -60,6 +60,9 @@ LICENSE 원문은 "educational institution(교육기관)"의 사용을 허용합
 | 부품 | 쓰임 | 라이선스 |
 |---|---|---|
 | Pretendard | 글꼴 | SIL Open Font License 1.1 |
+| 나눔고딕코딩 | 터미널 테마의 글꼴 — 전문은 `fonts/NanumGothicCoding-OFL.txt` | SIL Open Font License 1.1 |
+| Do Hyeon (도현체) | 아케이드 테마의 제목 글꼴 — 전문은 `fonts/DoHyeon-OFL.txt` | SIL Open Font License 1.1 |
+| Lucide | 테마의 선 아이콘 (`icons.php`) — Copyright (c) Lucide Icons and Contributors, 일부는 Feather (MIT, Copyright (c) Cole Bemis) | ISC |
 | CodeMirror 5 | 코드 편집기 | MIT |
 | Parsedown | 마크다운 변환 | MIT |
 | Judge0 | 채점 엔진 (설치할 때 따로 내려받음, 소스에 포함되지 않음) | GPL-3.0 |

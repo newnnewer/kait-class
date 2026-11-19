@@ -1,0 +1,316 @@
+/* ═══════════════════════════════════════════════
+   themes/arcade.css — 아케이드 테마 (2.0.0)
+
+   운영 > 설정에서 '아케이드'를 고른 사이트에서만 style.css 뒤에 불러온다.
+   굵은 남색 테두리 · 딱 떨어지는 그림자 · 노란 강조 · 분류마다 다른 색 · 선 아이콘.
+
+   하는 일은 두 가지뿐이다.
+     ① style.css 의 쓰임새 변수 값을 바꾼다 (색 · 모서리)
+     ② 테두리 굵기 · 그림자 · 제목 글꼴처럼 변수로 안 되는 모양을 덧입힌다
+   화면 배치는 바꾸지 않는다. 문제 본문과 코드는 읽기 편하게 차분히 둔다.
+
+   글꼴 Do Hyeon (SIL OFL 1.1, fonts/DoHyeon-OFL.txt) — 화면 제목 · 구역 제목에만 쓴다.
+   담긴 한글이 2,400자쯤이라 문제 제목 · 본문처럼 사용자가 쓴 글에는 쓰지 않는다.
+   ═══════════════════════════════════════════════ */
+
+@font-face{
+  font-family:'Do Hyeon'; font-style:normal; font-weight:400; font-display:swap;
+  src:url('../fonts/DoHyeon-Regular.woff2') format('woff2');
+}
+
+html[data-theme="arcade"]{
+  --k:#16163A;                       /* 테두리 · 그림자 · 진한 글자의 남색 */
+  --y:#FFD23F;                       /* 노란 강조 */
+  --dsp:'Do Hyeon',var(--sans);      /* 제목 글꼴 */
+
+  /* 글자 */
+  --ink:#16163A; --ink-2:#4A4A72; --ink-3:#66668C;
+  --title:#16163A; --head:#1E1E5A; --accent-ink:#2A3FD0; --link:#3B5BFF; --sub:#4F46D8;
+  --faint:#6C63E0; --faint-2:#8E88E0; --on-accent:#fff; --on-ok:#16163A;
+  /* 바탕 */
+  --bg:#F3F2FF; --surface:#fff; --fill:#F3F2FF; --fill-2:#ECEAFF; --fill-3:#DFDCFF;
+  --accent:#3B5BFF; --accent-2:#2A3FD0; --accent-3:#1E1E5A; --accent-dim:#8E88E0; --meter:#3B5BFF;
+  /* 선 — 대부분의 테두리가 남색 한 줄이 된다 */
+  --line:#16163A; --line-2:#DAD9F2;
+  --edge:#DFDCFF; --edge-2:#16163A; --edge-3:#16163A; --edge-4:#16163A;
+  --focus:#3B5BFF; --focus-ring:rgba(59,91,255,.28);
+  /* 판정 · 알림 */
+  --ok:#0B7A4B; --ok-soft:#D5F7E6; --ok-soft-2:#B9F0D5; --ok-line:#16163A; --ok-line-0:#16163A;
+  --bad:#C81E36; --bad-soft:#FFE1E4; --bad-soft-0:#FFF0F1; --bad-soft-2:#FFE1E4;
+  --bad-line-0:#C81E36; --bad-line:#16163A; --bad-line-2:#C81E36;
+  --warn:#7A5000; --warn-soft:#FFF0BF; --warn-line:#16163A; --warn-line-2:#7A5000;
+  --re:#5B2DB0; --re-soft:#E9DDFF; --tle:#A34400; --tle-soft:#FFE2C7;
+  /* 교사 메뉴 띠 — 학생 띠(남색)와 구분되게 보라 */
+  --bar:#4A22B8; --bar-ink:#E4DAFF; --bar-line:#FFD23F;
+  --hero-dot:rgba(59,91,255,.14);
+  /* 그림자 */
+  --shadow-fab:rgba(22,22,58,.35); --shadow-pop:rgba(22,22,58,.3); --shadow-pop-2:rgba(22,22,58,.12);
+  /* 모서리 — 조금씩 더 둥글게 */
+  --r4:6px; --r5:7px; --r6:8px; --r7:10px; --r8:12px; --r9:12px; --r10:14px; --r11:14px;
+  --r12:16px; --r14:18px;
+  /* 코드 문법 색 (어두운 코드창용 — 아래 .CodeMirror 참고) */
+  --ed-sel:#3A3A8A;
+  --tk-kw:#FF9DE0; --tk-def:#8ECBFF; --tk-str:#8EE3B0; --tk-num:#FFB37A;
+  --tk-com:#9A98CC; --tk-bi:#FFD23F; --tk-meta:#FFB37A;
+}
+
+/* ── 바탕 · 위쪽 메뉴 ───────────────────────── */
+html[data-theme="arcade"] body{
+  background:#F3F2FF radial-gradient(#D3D0F5 1.2px, transparent 1.4px) 0 0/22px 22px;
+}
+html[data-theme="arcade"] .top{background:var(--k); border-bottom:0}
+html[data-theme="arcade"] .top-in{min-height:62px; gap:14px}
+html[data-theme="arcade"] .brand{font-family:var(--dsp); font-weight:400; font-size:25px;
+  color:var(--y); letter-spacing:.03em}
+html[data-theme="arcade"] .brand:hover{color:#fff}
+html[data-theme="arcade"] .brand.haslogo{background:#fff; padding:5px 9px; border-radius:var(--r7)}
+html[data-theme="arcade"] .ic{display:inline-flex; flex:none}
+/* 메뉴마다 아이콘이 붙어 기본 테마보다 넓다 — 한 줄에 들어가게 간격을 줄이고,
+   그래도 좁은 화면에서는 아이콘을 뺀다 (두 줄이 되면 아래 본문이 밀린다) */
+html[data-theme="arcade"] .mainnav{gap:2px}
+html[data-theme="arcade"] .mainnav a{display:inline-flex; align-items:center; gap:6px;
+  color:#D9D8FF; font-weight:700; border-radius:9px; padding:7px 8px; font-size:14px; white-space:nowrap}
+html[data-theme="arcade"] .mainnav a .ic{font-size:14px}
+html[data-theme="arcade"] .mainnav a{gap:5px}
+html[data-theme="arcade"] .top .util{gap:11px}
+@media(max-width:1120px){ html[data-theme="arcade"] .mainnav a .ic{display:none} }
+html[data-theme="arcade"] .mainnav a:hover{background:rgba(255,255,255,.12); color:#fff}
+html[data-theme="arcade"] .mainnav a.on{background:var(--y); color:var(--k); box-shadow:0 3px 0 #B88A00}
+html[data-theme="arcade"] .mainnav a.navplay{background:#8B5CF6; color:#fff; box-shadow:0 3px 0 #5B34C4}
+html[data-theme="arcade"] .mainnav a.navplay:hover{background:#9D74FF}
+html[data-theme="arcade"] .who b{color:#fff}
+html[data-theme="arcade"] .top .util a{color:#C4C3EE}
+html[data-theme="arcade"] .top .util a:hover{color:var(--y)}
+html[data-theme="arcade"] .top .btn.primary{background:var(--y); border-color:var(--y); color:var(--k); box-shadow:0 3px 0 #B88A00}
+/* 교사 메뉴 띠 */
+html[data-theme="arcade"] .top.is-admin{background:var(--bar); border-bottom:0}
+html[data-theme="arcade"] .top.is-admin .mainnav a.on{background:#fff; color:var(--bar); box-shadow:0 3px 0 #2B1278}
+html[data-theme="arcade"] .top.is-admin .mainnav a.navplay{background:var(--k); box-shadow:0 3px 0 #000}
+
+/* ── 화면 제목 ──────────────────────────────── */
+html[data-theme="arcade"] .phead{align-items:center}
+html[data-theme="arcade"] .phead h1{font-family:var(--dsp); font-weight:400; font-size:32px;
+  letter-spacing:.01em; line-height:1.2}
+/* 제목 앞의 메뉴 아이콘 — 그림은 layout.php 가 --nav-ic 로 넘긴다. 문제 화면(번호가 앞에 있음)에는 두지 않는다 */
+html[data-theme="arcade"] body[data-navic] .phead > h1:first-child::before{
+  content:''; display:inline-block; width:.82em; height:.82em; margin-right:.3em; vertical-align:-.08em;
+  background:var(--accent);
+  -webkit-mask:var(--nav-ic) center/contain no-repeat; mask:var(--nav-ic) center/contain no-repeat;
+}
+html[data-theme="arcade"] .phead .sub{background:#fff; border:2px solid var(--k); border-radius:20px;
+  padding:2px 12px; color:var(--k); font-weight:700; font-size:13px}
+html[data-theme="arcade"] .pno{color:var(--sub)}
+html[data-theme="arcade"] .phead .pno{background:var(--k); color:var(--y); padding:3px 11px;
+  border-radius:9px; font-weight:700; font-size:18px !important}
+html[data-theme="arcade"] .sec > h2,
+html[data-theme="arcade"] .subhead2{font-family:var(--dsp); font-weight:400; font-size:21px; letter-spacing:.01em}
+
+/* ── 단추 · 입력칸 ──────────────────────────── */
+html[data-theme="arcade"] .btn{border:2px solid var(--k); color:var(--k); font-weight:700; box-shadow:0 3px 0 var(--k)}
+html[data-theme="arcade"] .btn:not(:disabled):hover{background:#FFF6CC; border-color:var(--k);
+  transform:translateY(1px); box-shadow:0 2px 0 var(--k)}
+html[data-theme="arcade"] .btn.primary{background:var(--y); border-color:var(--k); color:var(--k)}
+html[data-theme="arcade"] .btn.primary:not(:disabled):hover{background:#FFE06E; border-color:var(--k)}
+html[data-theme="arcade"] .btn.danger{color:var(--bad); border-color:var(--bad); box-shadow:0 3px 0 var(--bad)}
+html[data-theme="arcade"] .btn.danger:not(:disabled):hover{background:var(--bad-soft); border-color:var(--bad); box-shadow:0 2px 0 var(--bad)}
+html[data-theme="arcade"] .btn.sm{box-shadow:0 2px 0 var(--k)}
+html[data-theme="arcade"] .btn.sm:not(:disabled):hover{box-shadow:0 1px 0 var(--k)}
+html[data-theme="arcade"] .btn.sm.danger{box-shadow:0 2px 0 var(--bad)}
+html[data-theme="arcade"] .pager .btn.on,
+html[data-theme="arcade"] #runToggle.on{background:var(--accent); border-color:var(--k); color:#fff}
+html[data-theme="arcade"] input[type=text],
+html[data-theme="arcade"] input[type=number],
+html[data-theme="arcade"] input[type=password],
+html[data-theme="arcade"] input[type=search],
+html[data-theme="arcade"] input[type=date],
+html[data-theme="arcade"] input[type=time],
+html[data-theme="arcade"] input[type=datetime-local],
+html[data-theme="arcade"] input[type=file],
+html[data-theme="arcade"] select,
+html[data-theme="arcade"] textarea{border-width:2px}
+html[data-theme="arcade"] .chip{border-width:2px; font-weight:600}
+html[data-theme="arcade"] .chip:has(input:checked){background:var(--y); border-color:var(--k); color:var(--k)}
+
+/* ── 분류 딱지 — 분류마다 다른 색 (번호는 layout.php 의 tag_attr) ── */
+html[data-theme="arcade"] .tag{border:2px solid var(--k); border-radius:8px; font-weight:700;
+  color:var(--k); background:var(--tc,#fff); padding:1px 9px}
+html[data-theme="arcade"] a.tag:hover{background:var(--k); border-color:var(--k); color:#fff}
+html[data-theme="arcade"] .limits .tag{padding:0 8px}
+html[data-theme="arcade"] [data-c="1"]{--tc:#FFD23F}
+html[data-theme="arcade"] [data-c="2"]{--tc:#8EE3B0}
+html[data-theme="arcade"] [data-c="3"]{--tc:#8ECBFF}
+html[data-theme="arcade"] [data-c="4"]{--tc:#FFB37A}
+html[data-theme="arcade"] [data-c="5"]{--tc:#D7B8FF}
+html[data-theme="arcade"] [data-c="6"]{--tc:#FF9FB0}
+html[data-theme="arcade"] [data-c="7"]{--tc:#A6F0EC}
+html[data-theme="arcade"] [data-c="8"]{--tc:#D9D9E6}
+/* 나의 활동 › 분류별 막대도 같은 색으로 */
+html[data-theme="arcade"] .tagbar .bar,
+html[data-theme="arcade"] .prog .bar{height:11px; border:2px solid var(--k); background:#fff; border-radius:7px}
+html[data-theme="arcade"] .tagbar .bar span{background:var(--tc,#3DDC97); border-radius:0}
+html[data-theme="arcade"] .prog .bar span{border-radius:0}
+
+/* ── 판정 배지 ──────────────────────────────── */
+html[data-theme="arcade"] .v{border:2px solid var(--k); border-radius:7px; color:var(--k)}
+html[data-theme="arcade"] .v-AC{background:#3DDC97}
+html[data-theme="arcade"] .v-WA{background:#FF8A94}
+html[data-theme="arcade"] .v-RE{background:#D7B8FF}
+html[data-theme="arcade"] .v-TLE,
+html[data-theme="arcade"] .v-MLE{background:#FFB37A}
+html[data-theme="arcade"] .v-CE,
+html[data-theme="arcade"] .v-IE{background:#FFE58A}
+html[data-theme="arcade"] .v-wait{background:#fff}
+html[data-theme="arcade"] .v-open{background:#8ECBFF}
+
+/* ── 카드 — 굵은 테두리 + 딱 떨어지는 그림자 ── */
+html[data-theme="arcade"] .homecol,
+html[data-theme="arcade"] .stat,
+html[data-theme="arcade"] .logincard,
+html[data-theme="arcade"] .setrow,
+html[data-theme="arcade"] .panel,
+html[data-theme="arcade"] .rbox,
+html[data-theme="arcade"] .detail,
+html[data-theme="arcade"] .tc,
+html[data-theme="arcade"] .bulkbar{border:2px solid var(--k); box-shadow:4px 4px 0 var(--k)}
+html[data-theme="arcade"] .detail,
+html[data-theme="arcade"] .rbox{background:#fff}
+html[data-theme="arcade"] .setrow:hover{border-color:var(--k); background:#FFF6CC; transform:translate(-1px,-1px); box-shadow:5px 5px 0 var(--k)}
+html[data-theme="arcade"] .setrow.tset:hover{background:#fff; transform:none; box-shadow:4px 4px 0 var(--k)}
+html[data-theme="arcade"] .setrow.off{box-shadow:none; border-style:dashed}
+html[data-theme="arcade"] .setlist{gap:12px}
+html[data-theme="arcade"] .homecol > h2{background:var(--k); color:var(--y); font-family:var(--dsp);
+  font-weight:400; font-size:18px; letter-spacing:.02em; border-bottom:0}
+html[data-theme="arcade"] .homecol > h2 .more{color:#C4C3EE; font-family:var(--sans)}
+html[data-theme="arcade"] .homecol > h2 .more:hover{color:#fff}
+html[data-theme="arcade"] .stat .v{border:0; color:var(--k)}
+html[data-theme="arcade"] .note{border:2px solid var(--k)}
+html[data-theme="arcade"] .empty{border:2px dashed var(--k); background:#fff}
+
+/* 큰 목록 표는 카드로 */
+html[data-theme="arcade"] .wrap > table.list,
+html[data-theme="arcade"] .wrap > form > table.list{background:#fff; border:2.5px solid var(--k); border-radius:16px;
+  box-shadow:6px 6px 0 var(--k); border-collapse:separate; border-spacing:0; overflow:hidden}
+html[data-theme="arcade"] .wrap > table.list th,
+html[data-theme="arcade"] .wrap > form > table.list th{background:var(--k); color:var(--y); padding:11px 12px; border:0; font-size:13px}
+html[data-theme="arcade"] .wrap > table.list th a,
+html[data-theme="arcade"] .wrap > form > table.list th a{color:var(--y)}
+html[data-theme="arcade"] .wrap > table.list td,
+html[data-theme="arcade"] .wrap > form > table.list td{border-bottom:1.5px solid var(--line-2)}
+html[data-theme="arcade"] .wrap > table.list tr:last-child td,
+html[data-theme="arcade"] .wrap > form > table.list tr:last-child td{border-bottom:0}
+html[data-theme="arcade"] table.list tr:hover td{background:#FFF6CC}
+html[data-theme="arcade"] table.list td.num{color:var(--ink-2)}
+html[data-theme="arcade"] table.list .title a{color:var(--k); font-weight:700}
+
+/* ── 문제 화면 ──────────────────────────────── */
+html[data-theme="arcade"] .split{gap:30px}
+html[data-theme="arcade"] .split > .pane{background:#fff; border:2.5px solid var(--k); border-radius:16px;
+  padding:2px 22px 22px; margin:0; box-shadow:6px 6px 0 var(--k)}
+html[data-theme="arcade"] .split > .pane.stick{padding-top:18px}
+@media(min-width:981px){
+  /* 그림자가 칸 밖으로 나가므로, 따로 스크롤될 때 잘리지 않게 높이를 조금 줄인다 */
+  html[data-theme="arcade"] .split > .pane.stick{max-height:calc(100vh - 34px)}
+}
+html[data-theme="arcade"] h2.ph{display:flex; align-items:center; gap:9px; font-family:var(--dsp);
+  font-weight:400; font-size:20px; border-bottom:2px dashed var(--line-2); margin-top:22px}
+/* 구역 제목 · 내 제출 앞의 아이콘 칩 */
+html[data-theme="arcade"] h2.ph .ic,
+html[data-theme="arcade"] .sec > h2 .ic{width:28px; height:28px; font-size:16px; border:2px solid var(--k); border-radius:8px;
+  align-items:center; justify-content:center; background:var(--y); color:var(--k); box-shadow:0 2px 0 var(--k);
+  margin-right:9px; vertical-align:-6px}
+html[data-theme="arcade"] h2.ph .ic{margin-right:0}
+html[data-theme="arcade"] .sec > h2:has(.ic){display:flex; align-items:center}
+html[data-theme="arcade"] .sec > h2:has(.ic) .ic{vertical-align:0}
+html[data-theme="arcade"] h2.ph:nth-of-type(2) .ic{background:#8ECBFF}
+html[data-theme="arcade"] h2.ph:nth-of-type(3) .ic{background:#8EE3B0}
+html[data-theme="arcade"] h2.ph:nth-of-type(4) .ic{background:#FFB37A}
+html[data-theme="arcade"] .sec > h2 .ic{background:#D7B8FF}
+html[data-theme="arcade"] .sample .cap{color:var(--ink-2); font-weight:700}
+html[data-theme="arcade"] .sample pre{border:2px solid var(--k)}
+html[data-theme="arcade"] .copybtn{border-width:2px; color:var(--k)}
+html[data-theme="arcade"] .md pre{border-width:2px}
+html[data-theme="arcade"] .md th, html[data-theme="arcade"] .md td{border-color:var(--k)}
+html[data-theme="arcade"] .md blockquote{border-left:4px solid var(--y)}
+html[data-theme="arcade"] .iobox{border-width:2px}
+
+/* ── 코드창 — 여기만 어둡게 ─────────────────── */
+html[data-theme="arcade"] .edframe{border:2.5px solid var(--k); border-radius:12px; background:var(--k)}
+html[data-theme="arcade"] .edframe.focus{border-color:var(--k); box-shadow:0 0 0 3px var(--focus-ring)}
+html[data-theme="arcade"] .edframe .CodeMirror,
+html[data-theme="arcade"] .edframe textarea.editor{
+  /* 이 안에서만 쓰임새 변수를 어두운 값으로 — cm.css 의 규칙이 그대로 따라온다 */
+  --surface:#16163A; --fill:#1E1E5A; --fill-3:#2E2E78; --line-2:#1E1E5A;
+  --ink:#EDEBFF; --ink-2:#C9C6F5; --faint-2:#7C79C8; --accent-ink:#FFD23F;
+  color:#EDEBFF; background:#16163A;
+}
+html[data-theme="arcade"] .edframe .CodeMirror-scrollbar-filler,
+html[data-theme="arcade"] .edframe .CodeMirror-gutter-filler{background-color:#16163A}
+html[data-theme="arcade"] .edframe .CodeMirror-gutters{border-right:0}
+html[data-theme="arcade"] .edbar{background:#fff; border-top:2.5px solid var(--k); padding:10px 12px 12px}
+
+/* ── 그 밖 ──────────────────────────────────── */
+html[data-theme="arcade"] .foot{background:#fff; border-top:2.5px solid var(--k)}
+html[data-theme="arcade"] .hero{border-bottom:2.5px solid var(--k)}
+html[data-theme="arcade"] .heroname{font-family:var(--dsp); font-weight:400}
+html[data-theme="arcade"] .logincard h1{font-family:var(--dsp); font-weight:400; font-size:26px}
+html[data-theme="arcade"] .setmark{border-width:2px !important; font-weight:700}
+html[data-theme="arcade"] .viewbar,
+html[data-theme="arcade"] .demobar{border-bottom:2.5px solid var(--k); font-weight:700}
+
+/* ═══ 첫 화면 (home_theme.php · home.js) ═════
+   화면을 채우는 큰 그림 위에 소개글과 갈 곳 몇 개. 로그인 전에는 화면 가득, 로그인 후에는 낮게. */
+html[data-theme="arcade"] .thome{position:relative; overflow:hidden; border-bottom:2.5px solid var(--k);
+  background:
+    radial-gradient(rgba(22,22,58,.10) 1.2px, transparent 1.4px) 0 0/26px 26px,
+    linear-gradient(180deg, #E9E6FF 0%, #F3F2FF 55%, #FFF6CC 100%)}
+html[data-theme="arcade"] .thome.full{min-height:max(540px, calc(100vh - 62px)); display:flex}
+html[data-theme="arcade"] .thome canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+html[data-theme="arcade"] .thome-in{position:relative; width:100%; max-width:var(--w); margin:0 auto;
+  padding:60px 20px 140px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start}
+html[data-theme="arcade"] .thome.half .thome-in{padding:44px 20px 120px}
+html[data-theme="arcade"] .thome ~ .foot{margin-top:0}
+html[data-theme="arcade"] .tbrand{font-family:var(--dsp); font-size:20px; background:var(--k); color:var(--y);
+  padding:4px 14px; border-radius:10px; letter-spacing:.04em; box-shadow:4px 4px 0 var(--accent)}
+html[data-theme="arcade"] .tmsg{font-family:var(--dsp); font-weight:400; font-size:clamp(44px, 6.4vw, 92px);
+  line-height:1.1; margin:22px 0 0; letter-spacing:.005em; max-width:12em; word-break:keep-all; text-wrap:balance; color:var(--k);
+  text-shadow:4px 4px 0 #fff, 7px 7px 0 rgba(22,22,58,.18)}
+html[data-theme="arcade"] .thome.half .tmsg{font-size:clamp(32px, 4.2vw, 56px); margin-top:16px; max-width:16em}
+html[data-theme="arcade"] .tcta{display:flex; gap:14px; flex-wrap:wrap; margin-top:34px}
+html[data-theme="arcade"] .tbtn{display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:17px;
+  padding:14px 24px; border:2.5px solid var(--k); border-radius:14px; background:#fff; color:var(--k);
+  box-shadow:0 5px 0 var(--k)}
+html[data-theme="arcade"] .tbtn:hover{text-decoration:none; background:#FFF6CC; transform:translateY(2px); box-shadow:0 3px 0 var(--k)}
+html[data-theme="arcade"] .tbtn.go{background:var(--y); animation:kc-arc-pulse 1.6s ease-in-out infinite}
+html[data-theme="arcade"] .tbtn.go::before{content:"▶"; font-size:.8em}
+html[data-theme="arcade"] .tbtn.go:hover{background:#FFE06E}
+html[data-theme="arcade"] .tbtn.pl{background:#8B5CF6; color:#fff}
+html[data-theme="arcade"] .tbtn.pl:hover{background:#9D74FF}
+@keyframes kc-arc-pulse{ 50%{box-shadow:0 5px 0 var(--k), 0 0 0 8px rgba(255,210,63,.45)} }
+html[data-theme="arcade"] .tbtn.sm{font-size:14.5px; padding:9px 16px; border-width:2px; border-radius:11px; box-shadow:0 3px 0 var(--k)}
+html[data-theme="arcade"] .tbtn.sm:hover{transform:translateY(1px); box-shadow:0 2px 0 var(--k)}
+html[data-theme="arcade"] .tfeed{margin-top:36px; max-width:100%}
+html[data-theme="arcade"] .thome.half .tfeed{margin-top:22px}
+html[data-theme="arcade"] .tnote{display:inline-flex; align-items:center; gap:9px; max-width:100%; background:#fff;
+  border:2px solid var(--k); border-radius:12px; padding:8px 14px; font-weight:600; color:var(--k); box-shadow:3px 3px 0 var(--k)}
+html[data-theme="arcade"] .tnote:hover{text-decoration:none; background:#FFF6CC}
+html[data-theme="arcade"] .tnote-t{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+html[data-theme="arcade"] .tnote-d{color:var(--ink-3); font-size:13px; font-weight:500; flex:none}
+html[data-theme="arcade"] .tlab{font-size:12px; font-weight:800; border:2px solid var(--k); border-radius:7px;
+  padding:0 7px; background:#3DDC97; flex:none}
+html[data-theme="arcade"] .tgo{display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; margin-top:28px;
+  width:100%; max-width:860px}
+html[data-theme="arcade"] .tgocard{display:flex; align-items:center; gap:14px; background:#fff; color:var(--k);
+  border:2.5px solid var(--k); border-radius:16px; padding:16px 18px; box-shadow:6px 6px 0 var(--k); min-width:0}
+html[data-theme="arcade"] .tgocard:hover{text-decoration:none; background:#FFF6CC; transform:translate(-1px,-1px); box-shadow:7px 7px 0 var(--k)}
+html[data-theme="arcade"] .tgo-ic{width:46px; height:46px; border:2.5px solid var(--k); border-radius:12px; display:flex;
+  align-items:center; justify-content:center; flex:none; font-size:22px; background:#8ECBFF; box-shadow:0 3px 0 var(--k)}
+html[data-theme="arcade"] .tgocard.is-assessments .tgo-ic{background:#FFB37A}
+html[data-theme="arcade"] .tgo-b{display:flex; flex-direction:column; min-width:0}
+html[data-theme="arcade"] .tgo-k{font-size:12.5px; font-weight:800; color:var(--sub)}
+html[data-theme="arcade"] .tgo-n{font-size:18px; font-weight:800; line-height:1.35; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+html[data-theme="arcade"] .tgo-a{margin-left:auto; font-size:20px; flex:none}
+html[data-theme="arcade"] .tlinks{display:flex; gap:10px; flex-wrap:wrap; margin-top:22px}
+@media(max-width:760px){
+  html[data-theme="arcade"] .tgo{grid-template-columns:1fr}
+  html[data-theme="arcade"] .thome-in{padding-bottom:120px}
+}

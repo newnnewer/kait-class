@@ -56,7 +56,7 @@ define('SCHEMA_VERSION', 1);
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '1.18.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '2.0.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
@@ -185,7 +185,9 @@ const SETTING_DEFAULTS = [
   'site_name'    => '',       // 비면 APP_NAME 을 쓴다 (layout.php 의 site_name())
   'logo'         => '',       // uploads/ 아래 파일명. 비면 사이트 이름을 글자로 보여준다
   'favicon'      => '',
-  'hero_on'      => '1',      // 첫 화면 픽토그램 연출 (1.17.0 부터)
+  'hero_on'      => '1',      // 첫 화면 픽토그램 연출 (1.17.0 부터). 테마에서는 첫 화면 배경의 움직임
+  'theme'        => '',       // 테마 (2.0.0) — '' 기본 · 'arcade' · 'terminal' (layout.php 의 THEMES)
+  'home_msg'     => '',       // 테마의 첫 화면에 크게 나오는 소개글. 비면 사이트 이름
   'signup_on'    => '0',      // 회원가입 허용
   'footer_extra' => '',       // 관리자가 넣는 추가 안내 (마크다운)
   'play_menu'    => '1',      // KAIT-PLAY 가 설치되어 있으면 위쪽 메뉴에 링크 보이기

@@ -19,6 +19,13 @@ page_head(['title' => '', 'root' => '', 'user' => $u, 'nav' => '']);
 <?php
   $site   = site_name();
   $heroOn = setting('hero_on') === '1';
+  /* 테마(아케이드 · 터미널)는 첫 화면이 따로 있다 (2.0.0) — home_theme.php.
+     기본 테마는 아래 그대로. */
+  if (site_theme() !== '') {
+    require __DIR__ . '/home_theme.php';
+    page_foot();
+    exit;
+  }
   /* 첫 화면 제목판 (1.17.0) — 화면 끝까지 꽉 차는 띠. 이름은 본문 폭 안에 놓인다.
      연출을 켜 두면 hero.js 가 픽토그램으로 이름을 만들고, 이 글자는 화면 읽기 프로그램용으로만 남는다.
      연출을 껐거나 자바스크립트가 없으면 이 글자가 그대로 보인다. */
