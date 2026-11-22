@@ -128,6 +128,13 @@ switch ($action) {
         $names = array_map('lang_label', $allow);
         jerr('이 평가에서는 ' . implode(', ', $names) . ' 로만 제출할 수 있습니다', 403);
       }
+      /* 평가 입장 확인 (2.1.0) — 허용 IP · 입장 코드 */
+      $gate = set_gate($me, $set);
+      if ($gate) jerr($gate['msg'] . ' 평가 화면으로 돌아가 다시 들어오세요.', 403);
+      set_enter_note($me, $set);
+      /* 사용 금지 단어 (2.1.0) — 채점하지 않고 돌려보낸다. 기록도 남기지 않는다. */
+      $hit = banned_hit($src, set_banned($setId, $pid));
+      if ($hit !== null) jerr('이 문제의 사용 금지 단어가 코드에 있습니다: ' . $hit . ' — 지운 뒤 다시 제출하세요.');
     }
 
     /* 연타 방지 — 마지막 제출로부터 최소 간격 */
@@ -153,6 +160,14 @@ switch ($action) {
     });
 
     jout(['ok' => true, 'id' => $sid]);
+  }
+
+  /* ── 평가의 남은 시간 다시 맞추기 (2.1.0) — 화면이 1분마다 물어본다 ── */
+  case 'set_clock': {
+    $me  = require_login();
+    $set = student_set_or_null($me, (int)($_GET['id'] ?? 0));
+    if (!$set) jerr('참여할 수 없는 수업·평가입니다', 403);
+    jout(['ok' => true] + set_clock($set));
   }
 
   /* ── 학생: 채점 결과 확인 (화면이 1초마다 물어본다) ── */
@@ -232,6 +247,19 @@ switch ($action) {
     if ($p && !problem_visible($me, $p, isset($b['set_id']) ? (int)$b['set_id'] : null)) {
       jerr('지금은 실행할 수 없는 문제입니다', 403);
     }
+    /* 사용 금지 단어 (2.1.0) — 묶음 안에서 푸는 중이면 [실행하기]에도 같은 검사를 한다 */
+    if ($p && isset($b['set_id']) && $b['set_id'] !== null && $b['set_id'] !== '') {
+      /* 평가 입장 확인 (2.1.0) */
+      $rs = student_set_or_null($me, (int)$b['set_id']);
+      /* 기간 밖의 평가에서는 실행도 받지 않는다 (2.1.0) */
+      if ($rs && set_hidden_for($me, $rs)) {
+        jerr(set_state($rs) === 'before' ? '아직 시작 전입니다' : '종료되었습니다', 403);
+      }
+      $gate = $rs ? set_gate($me, $rs) : null;
+      if ($gate) jerr($gate['msg'] . ' 평가 화면으로 돌아가 다시 들어오세요.', 403);
+      $hit = banned_hit($src, set_banned((int)$b['set_id'], $pid));
+      if ($hit !== null) jerr('이 문제의 사용 금지 단어가 코드에 있습니다: ' . $hit . ' — 지운 뒤 다시 실행하세요.');
+    }
 
     $last = col("SELECT created_at FROM runs WHERE user_id = ? ORDER BY id DESC LIMIT 1", [$me['id']]);
     if ($last) {
@@ -247,6 +275,21 @@ switch ($action) {
     });
 
     jout(['ok' => true, 'id' => $rid]);
+  }
+
+  /* ── 학생: 엄격 모드 평가에서 화면을 떠났다 돌아옴 (2.1.0) ──
+     문제 화면(judge.js)이 돌아온 순간에 떠나 있던 시간을 보낸다. 어디로 갔는지는 브라우저가 알려 주지 않는다. */
+  case 'set_away': {
+    $me  = require_login();
+    $b   = body();
+    $sid = (int)($b['set_id'] ?? 0);
+    $ms  = max(0, min(6 * 3600 * 1000, (int)($b['ms'] ?? 0)));
+    $set = student_set_or_null($me, $sid);
+    if (!$set || is_admin($me) || !set_strict($set) || $ms < 1000) jout(['ok' => true]);
+    /* 한 학생이 한 평가에 남길 수 있는 기록 수를 묶어 둔다 (요청을 마구 보내는 경우) */
+    $n = (int)col("SELECT COUNT(*) FROM set_events WHERE set_id=? AND user_id=? AND kind='away'", [$sid, $me['id']]);
+    if ($n < 2000) set_event($sid, (int)$me['id'], 'away', $ms, client_ip(), device_token());
+    jout(['ok' => true]);
   }
 
   /* ── 학생: 실행 결과 확인 ── */

@@ -10,6 +10,89 @@ $s = student_set_or_null($u, $sid);
 if (!$s) { header('Location: problems.php'); exit; }
 
 $isAssess = $s['set_type'] === 'assessment';
+
+/* ── 평가 입장 확인 (2.1.0) — 허용 IP · 입장 코드 ──
+   통과하지 못하면 문제 목록 대신 안내(또는 코드 입력 칸)만 보여 준다. */
+$codeErr = '';
+if (($_POST['do'] ?? '') === 'enter') {
+  if (set_code_try($s, (string)($_POST['entry_code'] ?? ''))) {
+    header('Location: set.php?id=' . $sid); exit;
+  }
+  usleep(400000);                       /* 마구 넣어 보기를 늦춘다 */
+  $codeErr = '입장 코드가 맞지 않습니다.';
+}
+$gate = set_gate($u, $s);
+if ($gate) {
+  page_head(['title' => $s['title'], 'root' => '', 'user' => $u, 'nav' => 'assessments']);
+  ?>
+  <div class="wrap">
+    <div class="phead">
+      <h1><?= h($s['title']) ?></h1>
+      <div class="grow"></div>
+      <a class="btn" href="assessments.php">목록</a>
+    </div>
+    <?php if ($gate['why'] === 'ip'): ?>
+      <div class="note err">
+        <?= h($gate['msg']) ?>
+        <div class="small">지금 접속한 곳의 IP: <b><?= h(client_ip()) ?></b> — 응시 장소가 맞는데도 이 안내가 보이면 선생님께 이 숫자를 알려 주세요.</div>
+      </div>
+    <?php elseif ($gate['why'] === 'kick'): ?>
+      <div class="note err">
+        <?= h($gate['msg']) ?>
+        <div class="small">이 평가는 한 계정을 한 곳에서만 쓸 수 있습니다. 계속하려면 여기서 다시 로그인하세요 — 그러면 다른 쪽 접속이 끊깁니다.</div>
+      </div>
+      <p><a class="btn primary" href="logout.php">다시 로그인</a></p>
+    <?php else: ?>
+      <?php if ($codeErr): ?><div class="note err"><?= h($codeErr) ?></div><?php endif; ?>
+      <form method="post" class="gatebox">
+        <input type="hidden" name="do" value="enter">
+        <label for="entry_code">입장 코드</label>
+        <p class="small muted">선생님이 알려 준 코드를 넣으면 평가가 열립니다.</p>
+        <div class="gaterow">
+          <input type="text" id="entry_code" name="entry_code" class="code" maxlength="40"
+                 autocomplete="off" autocapitalize="off" spellcheck="false" required autofocus>
+          <button class="btn primary" type="submit">들어가기</button>
+        </div>
+      </form>
+    <?php endif; ?>
+  </div>
+  <?php
+  page_foot(); exit;
+}
+
+/* ── 평가는 기간 밖에서 문제를 보여 주지 않는다 (2.1.0) ──
+   시작 전에는 이름 · 기간 · '시작까지 남은 시간'만, 종료 뒤에는 끝났다는 안내와 내 완료 수만 보인다.
+   시작 시각이 되면 남은 시간 스크립트가 화면을 새로 읽어 문제가 나타난다. 수업과 교사 계정은 해당 없음. */
+if (set_hidden_for($u, $s)) {
+  $hState = set_state($s);
+  $hCnt   = (int)col("SELECT COUNT(*) FROM set_problems WHERE set_id=?", [$sid]);
+  $hDone  = $hState === 'after' ? set_my_progress((int)$u['id'], $sid, true)['done'] : 0;
+  page_head(['title' => $s['title'], 'root' => '', 'user' => $u, 'nav' => 'assessments']);
+  ?>
+  <div class="wrap">
+    <div class="phead">
+      <h1><?= h($s['title']) ?></h1>
+      <span class="v v-wait"><?= h(SET_STATE_NAME[$hState]) ?></span>
+      <div class="grow"></div>
+      <a class="btn" href="assessments.php">목록</a>
+    </div>
+    <div class="limits">
+      <?php $per = period_text($s); if ($per !== ''): ?><span>기간 <b><?= h($per) ?></b></span><?php endif; ?>
+      <span>문제 <b><?= $hCnt ?>개</b></span>
+      <?php if ($hState === 'after'): ?><span>완료 <b><?= $hDone ?> / <?= $hCnt ?></b></span><?php endif; ?>
+      <?= set_clock_tag($s) ?>
+    </div>
+    <?php if ($hState === 'before'): ?>
+      <div class="note info">아직 시작 전입니다. 시작 시각이 되면 이 화면에 문제가 나타납니다.</div>
+    <?php else: ?>
+      <div class="note info">종료된 평가입니다. 문제는 더 이상 볼 수 없습니다.</div>
+    <?php endif; ?>
+  </div>
+  <?php
+  page_foot(); exit;
+}
+set_enter_note($u, $s);     /* 엄격 모드 — 들어온 IP · 기기를 적는다 (2.1.0) */
+
 $state = set_state($s);
 $open  = set_open_for($u, $s);
 
@@ -53,11 +136,16 @@ page_head(['title' => $s['title'], 'root' => '', 'user' => $u,
     <?php endif; ?>
     <span>문제 <b><?= count($items) ?>개</b></span>
     <span>완료 <b><?= $doneCnt ?> / <?= count($items) ?></b></span>
+    <?= set_clock_tag($s) /* 평가의 남은 시간 (2.1.0) */ ?>
   </div>
 
   <?php if ($isAssess): ?>
     <div class="note info">
       코드를 직접 입력하여 문제마다 정해진 횟수만큼 통과(AC)해야 평가가 완료됩니다.
+      <?php if (set_strict($s)): ?>
+        <div class="small"><b>이 평가는 접속 기록과 화면 이탈 기록이 남습니다.</b>
+          문제를 푸는 동안 다른 창이나 탭으로 가면 떠나 있던 시간이 기록되고, 한 계정은 한 곳에서만 쓸 수 있습니다.</div>
+      <?php endif; ?>
     </div>
   <?php endif; ?>
 

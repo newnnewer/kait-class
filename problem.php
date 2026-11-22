@@ -12,6 +12,16 @@ $p  = one("SELECT * FROM problems WHERE prob_no = ?", [$no]);
 if (!$p) { header('Location: problems.php'); exit; }
 $pid = (int)$p['id'];
 
+/* 기간 밖의 평가 안에서는 문제를 보여 주지 않는다 (2.1.0) — 평가 화면으로 돌려보낸다.
+   (문제 모음에 열려 있는 문제를 평가 없이 여는 것은 여기서 막지 않는다. 가리려면 문제를 잠근다.) */
+if ($u && !empty($_GET['set'])) {
+  $hs = student_set_or_null($u, (int)$_GET['set']);
+  if ($hs && set_hidden_for($u, $hs)
+      && one("SELECT 1 x FROM set_problems WHERE set_id=? AND problem_id=?", [(int)$hs['id'], $pid])) {
+    header('Location: set.php?id=' . (int)$hs['id']); exit;
+  }
+}
+
 /* 잠긴 문제는 관리자와, 그 문제가 담긴 수업·평가 참여자만 볼 수 있다 */
 if (!problem_visible($u, $p, !empty($_GET['set']) ? (int)$_GET['set'] : null)) {
   header('Location: problems.php'); exit;
@@ -30,21 +40,27 @@ $tv = teacher_view($u);
 
 /* ── 묶음 안에서 들어온 경우 ─────────────────── */
 $set = null; $isAssess = false; $need = 0; $canSubmit = true; $setId = null;
+$banned = [];   /* 이 묶음에서 이 문제에 쓸 수 없는 단어 (2.1.0) */
 /* 붙여넣기 차단 — 평가는 언제나 막고, 수업은 묶음마다 정한다.
    묶음 밖에서 자유롭게 푸는 경우는 막지 않는다. */
 $noPaste = false;
 if ($u && !empty($_GET['set'])) {
   $set = student_set_or_null($u, (int)$_GET['set']);
   if ($set) {
-    $sp = one("SELECT required_ac FROM set_problems WHERE set_id=? AND problem_id=?",
+    $sp = one("SELECT required_ac, banned FROM set_problems WHERE set_id=? AND problem_id=?",
               [$set['id'], $pid]);
     if (!$sp) { $set = null; }                    /* 이 묶음의 문제가 아니다 */
+    elseif (set_gate($u, $set)) {                 /* 허용 IP · 입장 코드 (2.1.0) — 평가 화면에서 확인받고 온다 */
+      header('Location: set.php?id=' . (int)$set['id']); exit;
+    }
     else {
       $setId     = (int)$set['id'];
       $isAssess  = $set['set_type'] === 'assessment';
       $noPaste   = $isAssess || (int)($set['no_paste'] ?? 0) === 1;
       $need      = $isAssess ? (int)$sp['required_ac'] : 1;
       $canSubmit = set_open_for($u, $set);
+      $banned    = banned_list((string)($sp['banned'] ?? ''));
+      set_enter_note($u, $set);                    /* 엄격 모드 — 들어온 IP · 기기를 적는다 (2.1.0) */
     }
   }
 }
@@ -123,7 +139,7 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
   <?php if ($flashMsg): ?><div class="note ok"><?= h($flashMsg) ?></div><?php endif; ?>
   <?php if ($flashErr): ?><div class="note err"><?= h($flashErr) ?></div><?php endif; ?>
 
-  <?php if ((int)$p['active'] === 0): ?>
+  <?php if ((int)$p['active'] === 0 && teacher_view($u)): /* 교사 화면에만 (2.1.0) — 학생에게는 풀이와 상관없는 말이다 */ ?>
     <div class="note info">이 문제는 잠겨 있어 문제 모음에 보이지 않습니다.</div>
   <?php endif; ?>
 
@@ -188,16 +204,48 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
 
     <!-- ── 오른쪽: 제출 — 스크롤해도 화면 위쪽에 붙어 있다 (.pane.stick) ── -->
     <section class="pane stick">
-      <?php if ($isAssess): ?>
-        <div class="note <?= $myAc >= $need ? 'ok' : 'info' ?>" id="acNote">
-          <?php if ($myAc >= $need): ?>
-            <b><?= $need ?>회</b> 모두 통과 완료
-          <?php else: ?>
-            통과 조건 <b><?= $need ?>회</b> 중 <b><?= $myAc ?>회</b> 통과하였습니다.
+      <?php $clock = $set ? set_clock_tag($set) : ''; if ($clock !== ''): /* 평가의 남은 시간 (2.1.0) */ ?>
+        <div class="clockbar"><?= $clock ?></div>
+      <?php endif; ?>
+      <?php
+        /* 통과 조건 안내는 2회 이상일 때만 (2.1.0) — 1회면 '통과하면 끝'이라 따로 말하지 않는다.
+           엄격 모드의 화면 이탈 안내는 같은 상자의 둘째 줄. 통과 조건이 없으면 그 줄만 나온다. */
+        $showNeed   = $isAssess && $need > 1;
+        $showStrict = $isAssess && $set && set_strict($set);
+      ?>
+      <?php if ($showNeed || $showStrict): ?>
+        <div class="note <?= ($showNeed && $myAc >= $need) ? 'ok' : 'info' ?>" id="acNote">
+          <?php if ($showNeed): ?>
+            <?php if ($myAc >= $need): ?>
+              <b><?= $need ?>회</b> 모두 통과 완료
+            <?php else: ?>
+              통과 조건 <b><?= $need ?>회</b> 중 <b><?= $myAc ?>회</b> 통과하였습니다.
+            <?php endif; ?>
+          <?php endif; ?>
+          <?php if ($showStrict): ?>
+            <?php if (is_admin($u)): ?>
+              <div class="<?= $showNeed ? 'small' : '' ?>">엄격 모드 평가입니다. 선생님 계정은 화면 이탈을 기록하지 않습니다 — 학생 계정으로 로그인해야 확인할 수 있습니다.</div>
+            <?php else:
+              /* 지금까지 이 평가에서 남은 이탈 기록. 이탈이 있었으면 짧은 한 줄로 바꾼다 —
+                 돌아올 때마다 judge.js 가 같은 문구로 이 줄을 고쳐 쓴다 (두 곳의 문구를 같이 고칠 것). */
+              $aw = one("SELECT COUNT(*) n, COALESCE(SUM(ms),0) ms FROM set_events
+                         WHERE set_id=? AND user_id=? AND kind='away'", [$setId, $u['id']]); ?>
+              <div class="<?= $showNeed ? 'small' : '' ?>" id="awayLine" data-n="<?= (int)$aw['n'] ?>" data-ms="<?= (int)$aw['ms'] ?>"><?=
+                (int)$aw['n']
+                  ? '지금까지 화면을 떠나 있었던 시간 <b>' . h(ms_text((int)$aw['ms'])) . '(' . (int)$aw['n'] . '번)</b>가 기록되었습니다.'
+                  : '이 화면을 떠나 다른 창 · 탭으로 가면 떠나 있던 시간이 기록됩니다.' ?></div>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
       <?php endif; ?>
 
+      <?php if ($banned): ?>
+        <div class="note info bannednote">
+          <b>사용 금지</b>
+          <?php foreach ($banned as $w): ?><code><?= h($w) ?></code><?php endforeach; ?>
+          <span class="small">이 단어가 코드에 있으면 제출 · 실행할 수 없습니다. (주석 · 문자열 안도 포함)</span>
+        </div>
+      <?php endif; ?>
       <?php if ($set): ?><?= admin_preview_note($u, $set) ?><?php endif; ?>
       <?php if (!$u): ?>
         <div class="loginbox">
@@ -217,6 +265,7 @@ page_head(['title' => $p['prob_no'] . '. ' . $p['title'], 'root' => '', 'user' =
              data-set="<?= $setId !== null ? $setId : '' ?>"
              data-assess="<?= $isAssess ? '1' : '0' ?>"
              data-nopaste="<?= $noPaste ? '1' : '0' ?>"
+             data-strict="<?= ($set && set_strict($set) && !is_admin($u)) ? '1' : '0' ?>"
              data-pastemsg="<?= h($isAssess
                  ? '이 평가에서는 붙여넣기를 할 수 없습니다. 직접 입력하세요.'
                  : '이 수업에서는 붙여넣기를 할 수 없습니다. 직접 입력하세요.') ?>">

@@ -257,6 +257,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--focus); outline:none;
 .sec{margin-top:36px}
 .sec > h2{font-size:17px; font-weight:700; margin:0 0 5px; letter-spacing:-.02em; color:var(--head)}
 .sec > .desc{font-size:13.5px; color:var(--ink-3); margin:0 0 15px}
+/* 수업 · 평가 설정의 묶음 (2.1.0) — 제목 아래에 선을 그어 묶음을 가른다 */
+.sec.setgrp > h2{padding-bottom:9px; margin-bottom:18px; border-bottom:1px solid var(--line)}
+.sec.setgrp.first{margin-top:6px}
+/* 평가의 남은 시간 (2.1.0) — 문제 목록의 기간 줄 · 문제 화면 오른쪽 칸 맨 위. 마지막 5분은 빨갛게 */
+.setclock{white-space:nowrap}
+.setclock b{font-variant-numeric:tabular-nums; font-weight:700; color:var(--ink)}
+.setclock.soon, .setclock.soon b{color:var(--bad)}
+.clockbar{margin:0 0 12px; padding:9px 14px; border:1px solid var(--line); border-radius:var(--r8);
+          background:var(--surface); font-size:14.5px; text-align:center}
+.clockbar .setclock b{font-size:16px; margin-left:4px}
+/* 평가 설정의 허용 IP 칸 + 버튼, 학생의 입장 코드 화면 (2.1.0) */
+.iprow{display:flex; gap:8px; align-items:center}
+.iprow input{flex:1; min-width:0}
+.iprow .btn{white-space:nowrap}
+.gatebox{max-width:420px; margin:28px auto; padding:22px 24px; border:1px solid var(--line);
+         border-radius:var(--r10); background:var(--surface)}
+.gatebox label{font-weight:700; font-size:16px}
+.gatebox p{margin:4px 0 14px}
+.gaterow{display:flex; gap:8px}
+.gaterow input{flex:1; min-width:0; font-size:16px; letter-spacing:.06em}
+/* 문제 화면의 사용 금지 단어 안내 (2.1.0) */
+.bannednote code{font-family:var(--mono); font-size:13px; font-weight:700; background:var(--surface);
+                 padding:1px 7px; border-radius:var(--r4); margin:0 2px}
+.bannednote .small{display:block; margin-top:4px; font-weight:400}
 
 /* ── 마크다운 편집(입력 | 미리보기) ─────────── */
 .mdedit{display:grid; grid-template-columns:1fr 1fr; gap:14px}
@@ -395,15 +419,19 @@ table.list tr.me:hover td{background:var(--fill-3)}
 .detail > .dhead{display:flex; align-items:center; gap:11px; flex-wrap:wrap;
                padding:11px 15px; background:var(--fill); border-bottom:1px solid var(--edge)}
 .detail > .dhead .grow{flex:1}
+/* 번호 · 제목 = 그 문제로 가는 링크. 모양은 그대로 두고 올렸을 때만 제목에 밑줄 */
+.detail > .dhead .dprob{display:inline-flex; align-items:center; gap:11px; color:inherit}
+.detail > .dhead .dprob:hover{text-decoration:none}
+.detail > .dhead .dprob:hover b{text-decoration:underline}
 .detail .cap{font-size:12px; font-weight:600; color:var(--sub); padding:10px 16px 0}
 pre.codeview{margin:0; padding:14px 16px; font-family:var(--mono); font-size:13px;
              line-height:1.6; overflow-x:auto; background:var(--surface); white-space:pre}
 pre.codeview.msg{background:var(--fill); border-top:1px solid var(--line-2); white-space:pre-wrap}
 
-/* 코드를 볼 수 있다는 표시 */
-a.codelink{text-decoration:underline; text-underline-offset:2px;
-           text-decoration-color:var(--edge-3)}
-a.codelink:hover{text-decoration-color:var(--accent)}
+/* 코드를 볼 수 있는 곳의 링크(.codelink) — 예전에는 늘 밑줄을 그었으나 다른 링크(아이디 · 제목)와
+   맞추어 뺐다 (2.1.0). 올렸을 때의 밑줄은 a:hover 가 그린다.
+   대신 볼 수 없는 쪽(남의 제출)의 글자를 회색으로 — 테마마다 --ink-3 값이 따라간다. */
+table.list td .nolink{color:var(--ink-3)}
 
 /* ═══ 수업 · 평가 ═════════════════════════════ */
 

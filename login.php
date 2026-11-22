@@ -37,6 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($okPw) {
       session_regenerate_id(true);
       $_SESSION['uid'] = $row['id'];
+      /* 로그인할 때마다 새 표시를 이 접속과 회원 표에 함께 적는다 (2.1.0).
+         엄격 모드 평가는 둘이 같은 접속만 받아 준다 — 다른 곳에서 다시 로그인하면 먼저 접속이 끊긴다. */
+      $_SESSION['login_token'] = bin2hex(random_bytes(16));
+      db()->prepare("UPDATE users SET login_token = ? WHERE id = ?")->execute([$_SESSION['login_token'], $row['id']]);
       header('Location: ' . after_login($row, $next));
       exit;
     } else {

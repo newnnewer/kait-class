@@ -313,17 +313,21 @@ function teacher_sets_post(?array $u, string $type): void {
   } elseif ($do === 'copy') {
     $newId = tx(function (PDO $d) use ($target, $sid) {
       /* 복사본은 잠긴 채로 만든다. 기간과 문제를 손본 뒤 직접 열게 한다. */
-      $d->prepare("INSERT INTO sets(set_type,title,start_at,end_at,active,langs,show_diff,visibility,no_paste,created_at)
-                   VALUES(?,?,?,?,0,?,?,?,?,?)")
+      /* 2.1.0 — 부정행위 방지 설정(엄격 모드 · 허용 IP · 입장 코드)과 문제별 사용 금지 단어도 함께 복사 */
+      $d->prepare("INSERT INTO sets(set_type,title,start_at,end_at,active,langs,show_diff,visibility,no_paste,created_at,
+                                    strict,allow_ips,entry_code)
+                   VALUES(?,?,?,?,0,?,?,?,?,?,?,?,?)")
         ->execute([$target['set_type'], $target['title'] . ' (복사)',
                    $target['start_at'], $target['end_at'], $target['langs'] ?? 'py,c',
                    (int)($target['show_diff'] ?? 1), $target['visibility'] ?? 'groups',
-                   (int)($target['no_paste'] ?? 0), now()]);
+                   (int)($target['no_paste'] ?? 0), now(),
+                   (int)($target['strict'] ?? 0), (string)($target['allow_ips'] ?? ''),
+                   (string)($target['entry_code'] ?? '')]);
       $nid = (int)$d->lastInsertId();
       $d->prepare("INSERT INTO set_targets(set_id,group_id)
                    SELECT ?, group_id FROM set_targets WHERE set_id=?")->execute([$nid, $sid]);
-      $d->prepare("INSERT INTO set_problems(set_id,problem_id,required_ac,sort)
-                   SELECT ?, problem_id, required_ac, sort FROM set_problems WHERE set_id=?")
+      $d->prepare("INSERT INTO set_problems(set_id,problem_id,required_ac,sort,banned)
+                   SELECT ?, problem_id, required_ac, sort, banned FROM set_problems WHERE set_id=?")
         ->execute([$nid, $sid]);
       return $nid;
     });

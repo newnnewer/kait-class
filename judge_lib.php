@@ -15,7 +15,7 @@ const SUBMIT_COOLDOWN = 5;        // 제출 간 최소 간격(초)
 const RUN_COOLDOWN    = 3;        // 직접 실행 간 최소 간격(초)
 const RUN_MAX_OUTPUT  = 20000;    // 화면에 돌려줄 출력 길이 상한(자)
 const RUN_MAX_STDIN   = 10000;    // 입력 길이 상한(자)
-const DEFAULT_AC      = 2;        // 평가 기본 요구 AC 횟수
+const DEFAULT_AC      = 3;        // 평가 기본 요구 AC 횟수 (2.1.0 부터 3, 그전 2)
 
 /* 쓸 수 있는 언어. 운영 > 언어 화면에서 관리한다.
 
@@ -236,14 +236,125 @@ function dt_norm(?string $s): string {
 
 /* 기간 상태. start_at/end_at 이 비어 있으면 그 방향으로는 제한이 없다. */
 function set_state(array $s): string {
-  $now   = date('Y-m-d H:i');
-  $start = dt_norm($s['start_at'] ?? null);   /* 옛 자료에 T 가 남아 있어도 안전하게 */
-  $end   = dt_norm($s['end_at'] ?? null);
-  if ($start !== '' && $now < $start) return 'before';
-  if ($end   !== '' && $now > $end)   return 'after';
+  /* 초까지 비교한다 (2.1.0). 종료가 10:50 이면 10:50:00 부터는 종료 — 그 순간부터 제출을 받지 않는다.
+     (그전에는 분 단위로 비교해 10:50:59 까지 받았다.) 시작이 10:00 이면 10:00:00 부터 진행 중.
+     종료 전에 들어온 제출은 채점이 밀려 종료 뒤에 끝나도 그대로 채점된다 — 워커는 기간을 보지 않는다. */
+  $now   = date('Y-m-d H:i:s');
+  $start = set_time_sec($s['start_at'] ?? null);
+  $end   = set_time_sec($s['end_at'] ?? null);
+  if ($start !== '' && $now <  $start) return 'before';
+  if ($end   !== '' && $now >= $end)   return 'after';
   return 'open';
 }
+/* 저장된 시각('YYYY-MM-DD HH:MM', 옛 자료는 T 구분자나 초가 있을 수 있다)을 초까지 있는 꼴로 */
+function set_time_sec(?string $s): string {
+  $s = dt_norm($s);
+  if ($s === '') return '';
+  return strlen($s) >= 19 ? substr($s, 0, 19) : substr($s, 0, 16) . ':00';
+}
 const SET_STATE_NAME = ['before' => '시작전', 'open' => '진행중', 'after' => '종료'];
+
+/* ── 평가의 남은 시간 (2.1.0) ────────────────────
+   평가의 문제 목록과 문제 화면에 '남은 시간 1일 2시간 3분 4초'를 보여 준다 (시작 전이면 '시작까지 …').
+   시작 시각 · 종료 시각이 되면 화면을 한 번 새로 읽는다 — 평가는 기간 밖에서 문제를 가리기 때문이다.
+   학생 컴퓨터의 시계가 아니라 서버가 센 남은 초를 내려 주고 화면이 1초씩 줄인다.
+   평가 도중 교사가 종료 시각을 바꿔도 따라가도록 화면이 1분마다 api.php?action=set_clock 로 다시 맞춘다.
+
+   종료 시각이 10:50 이면 10:50:00 을 0 으로 센다. 서버(set_state)도 같은 순간부터 제출을 받지 않는다. */
+function set_clock(array $s): array {
+  $st = set_state($s); $sec = null;
+  $at = $st === 'before' ? dt_norm($s['start_at'] ?? null)
+      : ($st === 'open'  ? dt_norm($s['end_at'] ?? null) : '');
+  if ($at !== '') {
+    $t = strtotime(set_time_sec($at));
+    if ($t !== false) $sec = max(0, $t - time());
+  }
+  return ['state' => $st, 'sec' => $sec];
+}
+/* 초를 '1일 2시간 3분 4초' 꼴로 — 앞쪽의 0 인 단위는 뺀다 (화면의 스크립트도 같은 꼴) */
+function clock_text(int $s): string {
+  $d = intdiv($s, 86400); $h = intdiv($s % 86400, 3600); $m = intdiv($s % 3600, 60); $c = $s % 60;
+  $a = [];
+  if ($d)             $a[] = $d . '일';
+  if ($d || $h)       $a[] = $h . '시간';
+  if ($d || $h || $m) $a[] = $m . '분';
+  $a[] = $c . '초';
+  return implode(' ', $a);
+}
+/* 남은 시간 표시 한 조각 + 그것을 움직이는 스크립트. 한 화면에 한 번만 넣는다.
+   평가가 아니거나 보여 줄 것이 없으면(종료 시각이 없는 진행 중 · 이미 종료) 빈 문자열. */
+function set_clock_tag(array $s): string {
+  if (($s['set_type'] ?? '') !== 'assessment') return '';
+  $c = set_clock($s);
+  if ($c['sec'] === null) return '';
+  $label = $c['state'] === 'before' ? '시작까지' : '남은 시간';
+  $soon  = $c['state'] === 'open' && $c['sec'] <= 300;
+  $html  = '<span class="setclock' . ($soon ? ' soon' : '') . '" id="setClock" data-set="' . (int)$s['id'] . '"'
+         . ' data-state="' . h($c['state']) . '" data-sec="' . (int)$c['sec'] . '">'
+         . $label . ' <b>' . h(clock_text((int)$c['sec'])) . '</b></span>';
+  $js = <<<'JS'
+<script>
+/* 평가의 남은 시간 (2.1.0) — 서버가 준 남은 초를 1초씩 줄이고, 1분마다(그리고 이 탭으로 돌아올 때) 다시 맞춘다 */
+(function () {
+  var el = document.getElementById('setClock');
+  if (!el) return;
+  var state = el.dataset.state, left = parseInt(el.dataset.sec, 10), t0 = Date.now(), asked = false;
+  function txt(s) {
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), c = s % 60, a = [];
+    if (d) a.push(d + '일');
+    if (d || h) a.push(h + '시간');
+    if (d || h || m) a.push(m + '분');
+    a.push(c + '초');
+    return a.join(' ');
+  }
+  function draw() {
+    if (state === 'open' && isNaN(left)) { el.hidden = true; return; }      /* 종료 시각이 없어졌다 */
+    var s = isNaN(left) ? 0 : Math.max(0, left - Math.floor((Date.now() - t0) / 1000));
+    if (state === 'before' && s > 0) {
+      el.innerHTML = '시작까지 <b>' + txt(s) + '</b>'; el.classList.remove('soon');
+    } else if (state === 'before') {
+      /* 시작 시각이 됐다 — 문제가 나오도록 한 번 새로 읽는다 */
+      reloadOnce();
+      return;
+    } else if (state === 'open' && s > 0) {
+      el.innerHTML = '남은 시간 <b>' + txt(s) + '</b>'; el.classList.toggle('soon', s <= 300);
+    } else {
+      el.innerHTML = '<b>종료되었습니다</b>'; el.classList.add('soon');
+      /* 평가는 끝나면 문제를 볼 수 없다 — 서버에 정말 끝났는지 한 번 물어보고(그사이 연장됐을 수 있다)
+         끝났으면 화면을 새로 읽어 문제를 가린다. 제출은 이미 서버가 막고 있다. */
+      if (state === 'open' && !asked) { asked = true; sync(); }
+      else if (state === 'after') reloadOnce();
+    }
+    el.hidden = false;
+  }
+  function reloadOnce() {
+    var k = 'kc.clockReload', last = 0;
+    try { last = parseInt(sessionStorage.getItem(k), 10) || 0; } catch (e) {}
+    if (Date.now() - last > 15000) { try { sessionStorage.setItem(k, String(Date.now())); } catch (e) {} location.reload(); }
+  }
+  function sync() {
+    if (document.hidden) return;
+    fetch(window.API + '?action=set_clock&id=' + el.dataset.set, { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) return;
+        state = j.state; left = (j.sec === null ? NaN : j.sec); t0 = Date.now();
+        if (state === 'open' && !isNaN(left) && left > 2) asked = false;     /* 연장됐다 — 다음 종료 때 다시 확인 */
+        /* 화면이 서버보다 한두 초 먼저 0 에 닿은 경우 — 잠깐 뒤에 한 번 더 물어본다 */
+        if (state === 'open' && !isNaN(left) && left <= 2) setTimeout(function () { asked = false; draw(); }, 1500);
+        draw();
+      })
+      .catch(function () {});
+  }
+  draw();
+  setInterval(draw, 1000);
+  setInterval(sync, 60000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) sync(); });
+})();
+</script>
+JS;
+  return $html . $js;
+}
 
 /* 목록에서 쓰는 짧은 날짜 — 연도를 뺀다. 한 해 안에서 쓰는 화면이라 연도가 자리만 차지한다.
    해가 바뀐 항목은 헷갈리지 않게 두 자리 연도를 붙인다. */
@@ -298,6 +409,24 @@ function notices_public(int $limit = 0): array {
   return all($sql);
 }
 
+/* 평가는 기간(시작 ~ 종료) 밖에서 문제 목록과 문제 내용을 학생에게 보여 주지 않는다 (2.1.0).
+   시작 전에 미리 읽거나 끝난 뒤에 다시 보는 것을 막는다. 수업은 기간 밖에도 볼 수 있고(예습 · 복습),
+   교사(관리자)는 언제나 본다. 평가 화면 · 문제 화면 · 실행이 모두 이 함수로 판단한다.
+   주의: 문제 모음에 열려 있는 문제는 평가를 거치지 않고 볼 수 있다 — 가리려면 문제를 잠가야 한다. */
+function set_hidden_for(?array $u, array $s): bool {
+  return ($s['set_type'] ?? '') === 'assessment' && !is_admin($u) && set_state($s) !== 'open';
+}
+
+/* 기간 밖(종료 뒤)의 평가에서 낸 제출은 학생에게 코드를 보여 주지 않는다 (2.1.0).
+   문제를 가리는 것과 같은 기준(set_hidden_for)이라, 종료 시각을 미루면 문제와 코드가 함께 다시 보인다.
+   판정 · 시각 · 문제 번호는 그대로 보인다. 교사는 언제나 본다. 수업 · 자유 풀이의 제출은 해당 없음.
+   $r 에는 set_id · set_type · set_start · set_end (sets 의 start_at · end_at) 가 있어야 한다. */
+function sub_code_hidden(?array $u, array $r): bool {
+  if (empty($r['set_id']) || ($r['set_type'] ?? '') !== 'assessment') return false;
+  return set_hidden_for($u, ['set_type' => 'assessment',
+                             'start_at' => $r['set_start'] ?? null, 'end_at' => $r['set_end'] ?? null]);
+}
+
 /* 이 사람이 이 문제를 볼 수 있는지.
    잠긴 문제라도 자기가 참여하는 수업·평가에 담겨 있으면 볼 수 있다.
    그래야 평소에는 감춰 두었다가 평가 때만 여는 운영이 가능하다. */
@@ -307,6 +436,7 @@ function problem_visible(?array $u, array $p, ?int $setId = null): bool {
   if (!$u || !$setId) return false;
   $set = student_set_or_null($u, $setId);
   if (!$set) return false;
+  if (set_hidden_for($u, $set)) return false;      /* 기간 밖의 평가로는 잠긴 문제를 볼 수 없다 (2.1.0) */
   return (bool)one("SELECT 1 x FROM set_problems WHERE set_id=? AND problem_id=?",
                    [$setId, $p['id']]);
 }
@@ -405,6 +535,241 @@ function student_set_or_null(array $u, int $sid): ?array {
               WHERE s.id = :sid AND s.active = 1
                 AND " . SET_VISIBLE_SQL,
              [':sid' => $sid, ':gid' => $u['group_id']]);
+}
+
+/* ── 평가 입장 확인 (2.1.0) ─────────────────────
+   평가마다 '허용 IP'와 '입장 코드'를 둘 수 있다 (sets.allow_ips · sets.entry_code).
+   둘 다 비어 있으면 아무것도 확인하지 않는다. 수업에는 쓰지 않고, 교사(관리자)는 확인하지 않는다.
+   평가 화면 · 문제 화면 · 제출 · 실행이 모두 set_gate() 하나로 판단한다 —
+   화면에서만 막으면 요청을 직접 보내 지나갈 수 있기 때문이다. */
+
+/* 서버가 본 접속 IP. 프록시를 거치지 않는 설치(nginx → PHP)를 기준으로 한다. */
+function client_ip(): string {
+  $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+  if (stripos($ip, '::ffff:') === 0 && strpos($ip, '.') !== false) $ip = substr($ip, 7);   /* IPv4 를 IPv6 꼴로 받은 경우 */
+  return $ip;
+}
+
+/* 허용 IP 목록을 항목으로 나눈다. 쓸 수 있는 꼴:
+     203.0.113.7        한 주소 (IPv6 도 됨)
+     203.0.113.*        앞부분이 같은 주소 모두
+     203.0.113.0/24     범위 (IPv4)
+   돌려주는 값: ['ok' => 알아들은 항목, 'bad' => 못 알아들은 항목] */
+function ip_list(?string $csv): array {
+  $ok = []; $bad = [];
+  foreach (preg_split('/[\s,]+/', (string)$csv, -1, PREG_SPLIT_NO_EMPTY) as $e) {
+    if (strlen($e) > 45) { $bad[] = $e; continue; }
+    if (filter_var($e, FILTER_VALIDATE_IP) !== false)                      $ok[$e] = true;
+    elseif (preg_match('/^\d{1,3}(\.\d{1,3}){0,2}\.\*$/', $e))              $ok[$e] = true;
+    elseif (preg_match('/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/', $e, $m)
+            && filter_var($m[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false && (int)$m[2] <= 32) $ok[$e] = true;
+    else $bad[] = $e;
+    if (count($ok) >= 30) break;
+  }
+  return ['ok' => array_keys($ok), 'bad' => $bad];
+}
+
+/* 이 IP 가 목록에 드는가. 목록이 비어 있으면 누구나 된다. */
+function ip_allowed(string $ip, ?string $csv): bool {
+  $list = ip_list($csv)['ok'];
+  if (!$list) return true;
+  if ($ip === '') return false;
+  $bin = @inet_pton($ip);
+  foreach ($list as $e) {
+    if (substr($e, -2) === '.*') {
+      if (strpos($ip, substr($e, 0, -1)) === 0) return true;
+    } elseif (strpos($e, '/') !== false) {
+      [$net, $bits] = explode('/', $e, 2);
+      $a = ip2long($ip); $n = ip2long($net); $bits = (int)$bits;
+      if ($a !== false && $n !== false) {
+        $mask = $bits === 0 ? 0 : (~0 << (32 - $bits)) & 0xFFFFFFFF;
+        if (($a & $mask) === ($n & $mask)) return true;
+      }
+    } else {
+      $b = @inet_pton($e);
+      if ($bin !== false && $b !== false && $bin === $b) return true;
+    }
+  }
+  return false;
+}
+
+/* 이 로그인에서 이 평가의 입장 코드를 맞게 넣었는지. 코드를 바꾸면 다시 넣어야 한다. */
+function set_code_mark(array $set): string {
+  return sha1((int)$set['id'] . '|' . (string)($set['entry_code'] ?? ''));
+}
+function set_code_ok(array $set): bool {
+  if (trim((string)($set['entry_code'] ?? '')) === '') return true;
+  return (($_SESSION['set_code'][(int)$set['id']] ?? '') === set_code_mark($set));
+}
+/* 학생이 넣은 코드를 확인하고, 맞으면 이 로그인에 적어 둔다 */
+function set_code_try(array $set, string $code): bool {
+  if (!hash_equals(trim((string)($set['entry_code'] ?? '')), trim($code))) return false;
+  $_SESSION['set_code'][(int)$set['id']] = set_code_mark($set);
+  return true;
+}
+
+/* ── 엄격 모드 (2.1.0) ──────────────────────────
+   평가 설정의 '엄격 모드'(sets.strict)를 켜면 세 가지가 함께 켜진다.
+     1) 동시 접속 제한 — 나중에 로그인한 쪽만 유효하다. 먼저 접속은 이 평가 안에서 끊긴다.
+     2) 접속 기록      — 들어올 때 IP 와 기기 표시를 적는다 (같은 기기를 쓴 다른 계정을 찾는 데 쓴다).
+     3) 화면 이탈 기록 — 문제 화면을 떠났다 돌아오면 떠나 있던 시간을 적는다.
+   막는 것은 1) 뿐이고 나머지는 기록이다. 현황 화면이 이 기록을 보여 준다. 교사(관리자)는 대상이 아니다. */
+function set_strict(array $set): bool {
+  return ($set['set_type'] ?? '') === 'assessment' && (int)($set['strict'] ?? 0) === 1;
+}
+
+/* 이 접속이 이 계정의 마지막 로그인인가.
+   업데이트 전에 로그인해 표시가 없는 접속은 회원 표도 비어 있어 통과한다 — 다시 로그인하는 순간부터 가려진다. */
+function login_is_latest(array $u): bool {
+  $db = (string)col("SELECT COALESCE(login_token,'') FROM users WHERE id = ?", [$u['id']]);
+  return hash_equals($db, (string)($_SESSION['login_token'] ?? ''));
+}
+
+/* 브라우저에 심어 두는 기기 표시. 없으면 새로 만든다 (머리글을 보내기 전에 불러야 한다).
+   시크릿 창이나 다른 브라우저를 쓰면 달라지므로 증거가 아니라 정황이다. */
+function device_token(): string {
+  $t = (string)($_COOKIE['kc_dev'] ?? '');
+  if (preg_match('/^[a-f0-9]{24}$/', $t)) return $t;
+  $t = bin2hex(random_bytes(12));
+  if (!headers_sent()) {
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+          || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    setcookie('kc_dev', $t, ['expires' => time() + 400 * 86400, 'path' => '/', 'samesite' => 'Lax',
+                              'httponly' => true, 'secure' => $https]);
+  }
+  $_COOKIE['kc_dev'] = $t;
+  return $t;
+}
+
+function set_event(int $sid, int $uid, string $kind, int $ms = 0, string $ip = '', string $dev = ''): void {
+  db()->prepare("INSERT INTO set_events(set_id,user_id,kind,at,ms,ip,device) VALUES(?,?,?,?,?,?,?)")
+     ->execute([$sid, $uid, $kind, now(), $ms, $ip, $dev]);
+}
+
+/* 엄격 모드 평가에 들어온 것을 적는다. 같은 접속 · 같은 IP · 같은 기기면 한 번만 적는다. */
+function set_enter_note(array $u, array $set): void {
+  if (is_admin($u) || !set_strict($set)) return;
+  $sid = (int)$set['id']; $ip = client_ip(); $dev = device_token();
+  $mark = $ip . '|' . $dev;
+  if (($_SESSION['set_in'][$sid] ?? '') === $mark) return;
+  $_SESSION['set_in'][$sid] = $mark;
+  set_event($sid, (int)$u['id'], 'enter', 0, $ip, $dev);
+}
+
+/* 현황 화면의 '살펴볼 점' — 엄격 모드 평가에서 쌓인 기록을 학생별로 모은다.
+   돌려주는 값: [user_id => ['away_n','away_ms','away_max','kick','ips' => [...], 'devs' => [...],
+                             'shared' => [같은 기기를 쓴 다른 user_id ...],
+                             'enter_n' 입장 기록 수, 'first_at' 첫 입장 시각, 'last_at' 마지막 입장 시각]]
+   기록이 하나도 없는 학생은 들어 있지 않다. */
+function set_watch(int $sid): array {
+  $w = [];
+  $blank = ['away_n' => 0, 'away_ms' => 0, 'away_max' => 0, 'kick' => 0, 'ips' => [], 'devs' => [], 'shared' => [],
+            'enter_n' => 0, 'first_at' => '', 'last_at' => ''];
+  foreach (all("SELECT user_id, kind, COUNT(*) n, COALESCE(SUM(ms),0) ms, COALESCE(MAX(ms),0) mx,
+                       MIN(at) first_at, MAX(at) last_at
+                FROM set_events WHERE set_id = ? GROUP BY user_id, kind", [$sid]) as $r) {
+    $uid = (int)$r['user_id'];
+    $w[$uid] ??= $blank;
+    if ($r['kind'] === 'away') { $w[$uid]['away_n'] = (int)$r['n']; $w[$uid]['away_ms'] = (int)$r['ms']; $w[$uid]['away_max'] = (int)$r['mx']; }
+    if ($r['kind'] === 'kick') { $w[$uid]['kick'] = (int)$r['n']; }
+    if ($r['kind'] === 'enter') { $w[$uid]['enter_n'] = (int)$r['n']; $w[$uid]['first_at'] = (string)$r['first_at']; $w[$uid]['last_at'] = (string)$r['last_at']; }
+  }
+  $byDev = [];
+  foreach (all("SELECT DISTINCT user_id, ip, device FROM set_events WHERE set_id = ?", [$sid]) as $r) {
+    $uid = (int)$r['user_id'];
+    $w[$uid] ??= $blank;
+    if ($r['ip'] !== '')     $w[$uid]['ips'][$r['ip']] = true;
+    if ($r['device'] !== '') { $w[$uid]['devs'][$r['device']] = true; $byDev[$r['device']][$uid] = true; }
+  }
+  foreach ($w as $uid => &$x) {
+    $sh = [];
+    foreach (array_keys($x['devs']) as $d) foreach (array_keys($byDev[$d]) as $o) if ($o !== $uid) $sh[$o] = true;
+    $x['shared'] = array_keys($sh);
+    $x['ips']    = array_keys($x['ips']);
+    $x['devs']   = array_keys($x['devs']);
+  }
+  unset($x);
+  return $w;
+}
+/* 입장 시각을 '시작 후 1분 23초' 꼴로 (2.1.0) — 평가에 시작 시각이 없으면 시:분:초 그대로.
+   다른 학생보다 눈에 띄게 늦게 들어온 계정을 찾는 데 쓴다. */
+function enter_text(array $set, string $at): string {
+  if ($at === '') return '';
+  $start = set_time_sec($set['start_at'] ?? null);
+  $t = strtotime($at);
+  if ($start === '' || $t === false || strtotime($start) === false) return substr($at, 11, 8);
+  $d = $t - strtotime($start);
+  return $d >= 0 ? '시작 후 ' . clock_text($d) : '시작 ' . clock_text(-$d) . ' 전';
+}
+/* 밀리초를 '1분 23초' 꼴로 */
+function ms_text(int $ms): string {
+  $s = (int)round($ms / 1000);
+  if ($s < 60) return $s . '초';
+  if ($s < 3600) return intdiv($s, 60) . '분 ' . ($s % 60) . '초';
+  return intdiv($s, 3600) . '시간 ' . intdiv($s % 3600, 60) . '분';
+}
+
+/* 이 학생이 지금 이 평가에 들어올 수 있는가.
+   들어올 수 있으면 null, 아니면 ['why' => 'ip' | 'kick' | 'code', 'msg' => 학생에게 보일 말]. */
+function set_gate(array $u, array $set): ?array {
+  if (is_admin($u) || ($set['set_type'] ?? '') !== 'assessment') return null;
+  if (!ip_allowed(client_ip(), (string)($set['allow_ips'] ?? ''))) {
+    return ['why' => 'ip', 'msg' => '이 평가는 정해진 장소에서만 응시할 수 있습니다.'];
+  }
+  if (set_strict($set) && !login_is_latest($u)) {
+    $sid = (int)$set['id'];
+    if (empty($_SESSION['set_kick'][$sid])) {          /* 끊긴 사실은 접속마다 한 번만 적는다 */
+      $_SESSION['set_kick'][$sid] = 1;
+      set_event($sid, (int)$u['id'], 'kick', 0, client_ip(), device_token());
+    }
+    return ['why' => 'kick', 'msg' => '이 계정으로 다른 곳에서 로그인해서, 이 접속으로는 평가를 계속할 수 없습니다.'];
+  }
+  if (!set_code_ok($set)) {
+    return ['why' => 'code', 'msg' => '입장 코드를 넣어야 응시할 수 있습니다.'];
+  }
+  return null;
+}
+
+/* ── 사용 금지 단어 (2.1.0) ──────────────────────
+   수업 · 평가에 담긴 문제마다 '이 문제에서는 쓸 수 없는 단어'를 정한다 (set_problems.banned).
+   예) 정렬 문제에서 sort, sorted.
+
+   글자를 찾는 단순한 검사다. 언어를 가리지 않고, 주석 · 문자열 안의 단어도 걸린다 —
+   '이 단어는 코드 어디에도 쓰면 안 된다'가 규칙이다. 돌려서 쓰는 방법
+   (getattr(a, 'so' + 'rt') 등)까지 막지는 못한다. 억제가 목적이다. */
+
+/* 입력한 글자를 단어 목록으로. 쉼표 · 빈칸 · 줄바꿈으로 나누고 겹치는 것은 뺀다. */
+function banned_list(?string $csv): array {
+  $out = [];
+  foreach (preg_split('/[\s,]+/u', (string)$csv, -1, PREG_SPLIT_NO_EMPTY) as $w) {
+    if (strlen($w) > 40) continue;
+    $out[$w] = true;
+    if (count($out) >= 30) break;
+  }
+  return array_keys($out);
+}
+/* 저장할 모양으로 — 'sort, sorted' */
+function banned_norm(?string $csv): string { return implode(', ', banned_list($csv)); }
+
+/* 코드에 금지 단어가 있으면 처음 걸린 단어를, 없으면 null.
+   단어 단위 · 대소문자 구분: 단어의 앞뒤가 이름에 쓰는 글자(영문자 · 숫자 · 밑줄)가 아닐 때만 걸린다.
+   sort 금지 → a.sort() · sort(a) 는 걸리고 sorted · my_sort 는 안 걸린다.
+   기호(**, % 등)처럼 이름 글자로 시작 · 끝나지 않는 쪽은 경계를 보지 않는다. */
+function banned_hit(string $code, array $words): ?string {
+  foreach ($words as $w) {
+    $w = (string)$w;
+    if ($w === '') continue;
+    $re = (preg_match('/^[A-Za-z0-9_]/', $w) ? '(?<![A-Za-z0-9_])' : '')
+        . preg_quote($w, '/')
+        . (preg_match('/[A-Za-z0-9_]$/', $w) ? '(?![A-Za-z0-9_])' : '');
+    if (preg_match('/' . $re . '/', $code)) return $w;
+  }
+  return null;
+}
+
+/* 이 묶음의 이 문제에서 금지한 단어 목록 */
+function set_banned(int $sid, int $pid): array {
+  return banned_list((string)col("SELECT banned FROM set_problems WHERE set_id=? AND problem_id=?", [$sid, $pid]));
 }
 
 /* 평가에서 이 학생이 이 문제를 몇 번 통과했는지.

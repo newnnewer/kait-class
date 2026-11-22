@@ -74,7 +74,8 @@ $stuck = $full ? all("SELECT p.prob_no, p.title, p.active, COUNT(*) AS tries, MA
 
 /* ── 최근 제출 ── */
 $recent = all("SELECT s.id, s.verdict, s.state, s.lang, s.max_time, s.created_at, s.user_id,
-                      p.prob_no, p.title, p.active, s.set_id, st.set_type, st.title AS set_title
+                      p.prob_no, p.title, p.active, s.set_id, st.set_type, st.title AS set_title,
+                      st.start_at AS set_start, st.end_at AS set_end
                FROM submissions s JOIN problems p ON p.id = s.problem_id
                LEFT JOIN sets st ON st.id = s.set_id   -- 수업 · 평가 표시 (1.6.1)
                WHERE s.user_id=?$openOnly ORDER BY s.id DESC LIMIT 20", [$uid]);
@@ -245,9 +246,9 @@ page_head(['title' => $name . ' 님의 활동', 'root' => '', 'user' => $me, 'na
             <td class="title"><a href="<?= h(prob_href($r)) ?>"><?= h($r['title']) ?></a><?= set_mark($me, $r['set_id'], $r['set_type'], $r['set_title']) ?></td>
             <td class="center"><?= verdict_badge($r['verdict'], $r['state']) ?></td>
             <td class="center num small">
-              <?php if ($full): ?>
+              <?php if ($full && !sub_code_hidden($me, $r)): /* 종료된 평가의 제출은 코드를 볼 수 없다 (2.1.0) */ ?>
                 <a class="codelink" href="results.php?id=<?= (int)$r['id'] ?>"><?= h(lang_label($r['lang'])) ?></a>
-              <?php else: ?><?= h(lang_label($r['lang'])) ?><?php endif; ?>
+              <?php else: ?><span class="nolink"><?= h(lang_label($r['lang'])) ?></span><?php endif; ?>
             </td>
             <td class="center num small"><?= $r['max_time'] !== null ? number_format((float)$r['max_time'], 3) : '' ?></td>
             <td class="center num small"><?= h(substr((string)$r['created_at'], 5, 11)) ?></td>

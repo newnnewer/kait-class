@@ -11,7 +11,8 @@ $u = me();
 $detailId = (int)($_GET['id'] ?? 0);
 $detail = null;
 if ($detailId) {
-  $detail = one("SELECT s.*, p.prob_no, p.title, us.login_id, us.name AS uname, st.set_type, st.title AS set_title
+  $detail = one("SELECT s.*, p.prob_no, p.title, p.active, us.login_id, us.name AS uname, st.set_type, st.title AS set_title,
+                        st.start_at AS set_start, st.end_at AS set_end
                  FROM submissions s
                  JOIN problems p ON p.id = s.problem_id
                  JOIN users us ON us.id = s.user_id
@@ -62,7 +63,7 @@ $offset = ($page - 1) * $per;
 $rows = all("SELECT s.id, s.lang, s.state, s.verdict, s.passed_count, s.total_count,
                     s.max_time, s.max_memory, s.created_at, s.user_id, s.set_id,
                     p.prob_no, p.title, p.active, us.login_id, us.name AS uname,
-                    st.set_type, st.title AS set_title
+                    st.set_type, st.title AS set_title, st.start_at AS set_start, st.end_at AS set_end
              FROM submissions s
              JOIN problems p ON p.id = s.problem_id
              JOIN users us ON us.id = s.user_id
@@ -90,11 +91,16 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
   <?php if ($flashErr): ?><div class="note err"><?= h($flashErr) ?></div><?php endif; ?>
 
   <?php if ($detail): ?>
-    <?php $canSeeCode = $u && ((int)$detail['user_id'] === (int)$u['id'] || $u['role'] === 'admin'); ?>
+    <?php /* 종료된 평가의 제출은 낸 학생에게도 코드를 보여 주지 않는다 (2.1.0) — 판정과 실행 기록만 */
+          $codeHidden = sub_code_hidden($u, $detail);
+          $canSeeCode = $u && ((int)$detail['user_id'] === (int)$u['id'] || $u['role'] === 'admin') && !$codeHidden; ?>
     <div class="detail">
       <div class="dhead">
-        <span class="pno"><?= (int)$detail['prob_no'] ?></span>
-        <b><?= h($detail['title']) ?></b>
+        <?php /* 번호 · 제목을 누르면 그 문제로 (2.1.0). 잠긴 문제는 제출한 수업 · 평가 안으로 — 아래 목록의 제목 링크와 같은 규칙 */ ?>
+        <a class="dprob" title="이 문제로 가기" href="problem.php?no=<?= (int)$detail['prob_no'] ?><?= !(int)$detail['active'] && $detail['set_id'] ? '&amp;set=' . (int)$detail['set_id'] : '' ?>">
+          <span class="pno"><?= (int)$detail['prob_no'] ?></span>
+          <b><?= h($detail['title']) ?></b>
+        </a>
         <?= set_mark($u, $detail['set_id'] ?? null, $detail['set_type'] ?? null, $detail['set_title'] ?? null) ?>
         <?= verdict_badge($detail['verdict'], $detail['state']) ?>
         <span class="small muted">
@@ -127,8 +133,9 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
         <?php endif; ?>
       <?php else: ?>
         <p class="small muted" style="padding:14px 16px">
-          <?= $u ? '다른 사람의 코드는 볼 수 없습니다. 판정과 실행 기록만 공개됩니다.'
-                 : '코드를 보려면 로그인해야 합니다. 본인이 제출한 코드만 볼 수 있습니다.' ?>
+          <?= $codeHidden ? '종료된 평가의 제출 코드는 볼 수 없습니다. 판정과 실행 기록만 볼 수 있습니다.'
+               : ($u ? '다른 사람의 코드는 볼 수 없습니다. 판정과 실행 기록만 공개됩니다.'
+                 : '코드를 보려면 로그인해야 합니다. 본인이 제출한 코드만 볼 수 있습니다.') ?>
         </p>
       <?php endif; ?>
     </div>
@@ -205,11 +212,12 @@ page_head(['title' => '채점 결과', 'root' => '', 'user' => $u, 'nav' => 'res
                 ? number_format((float)$r['max_time'], 3) : '' ?></td>
           <td class="right num"><?= $r['max_memory'] ? number_format((int)$r['max_memory']) : '' ?></td>
           <td class="num">
-            <?php $canView = $u && ((int)$r['user_id'] === (int)$u['id'] || $u['role'] === 'admin'); ?>
+            <?php $canView = $u && ((int)$r['user_id'] === (int)$u['id'] || $u['role'] === 'admin')
+                           && !sub_code_hidden($u, $r);   /* 종료된 평가의 제출은 코드를 볼 수 없다 (2.1.0) */ ?>
             <?php if ($canView): ?>
               <a class="codelink" href="?id=<?= (int)$r['id'] ?>" title="코드 보기"><?= h(lang_label($r['lang'])) ?></a>
-            <?php else: ?>
-              <?= h(lang_label($r['lang'])) ?>
+            <?php else: /* 코드를 볼 수 없는 제출 — 링크와 구별되게 회색 (2.1.0) */ ?>
+              <span class="nolink"><?= h(lang_label($r['lang'])) ?></span>
             <?php endif; ?>
           </td>
           <td class="right num" title="<?= h((string)$r['created_at']) ?>"><?= h(substr((string)$r['created_at'], 5, 11)) ?></td>

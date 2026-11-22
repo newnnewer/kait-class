@@ -91,6 +91,44 @@ async function apiThenReload(action, data, confirmMsg){
 
   var keystrokes = 0, pasteBlocked = 0, startedAt = Date.now(), timer = null;
 
+  /* ═══ 엄격 모드 평가 — 화면 이탈 기록 (2.1.0) ═══
+     이 화면이 가려지거나(다른 탭 · 창 최소화) 포커스를 잃으면(다른 창을 누름) 떠난 것으로 보고,
+     돌아온 순간 떠나 있던 시간을 서버에 보낸다. 어디로 갔는지는 브라우저가 알려 주지 않는다.
+     1초가 안 되는 것은 보내지 않는다 (알림 창이 스쳐 간 경우 등). 막지는 않고 기록만 한다. */
+  if (box.dataset.strict === '1' && setId) {
+    var awayAt = 0;
+    var leave = function () { if (!awayAt) awayAt = Date.now(); };
+    var back  = function () {
+      if (!awayAt) return;
+      var ms = Date.now() - awayAt; awayAt = 0;
+      if (ms < 1000) return;
+      fetch(apiUrl + '?action=set_away', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+        body: JSON.stringify({ set_id: setId, ms: ms })
+      }).catch(function () {});
+      /* 위쪽 안내 줄을 '지금까지 화면을 떠나 있었던 시간 4분 25초(12번)가 기록되었습니다.'로 고쳐 쓴다 —
+         계속 남아 있는 표시. 문구와 시간 꼴은 problem.php · ms_text() 와 같게 둘 것. */
+      var st = document.getElementById('awayLine');
+      if (st) {
+        var n = (parseInt(st.dataset.n, 10) || 0) + 1, tot = (parseInt(st.dataset.ms, 10) || 0) + ms;
+        st.dataset.n = n; st.dataset.ms = tot;
+        var sec = Math.round(tot / 1000);
+        var txt = sec < 60 ? sec + '초'
+                : sec < 3600 ? Math.floor(sec / 60) + '분 ' + (sec % 60) + '초'
+                : Math.floor(sec / 3600) + '시간 ' + Math.floor((sec % 3600) / 60) + '분';
+        st.innerHTML = '지금까지 화면을 떠나 있었던 시간 <b>' + txt + '(' + n + '번)</b>가 기록되었습니다.';
+      }
+      if (pasteMsg) {
+        pasteMsg.textContent = '화면을 떠나 있던 시간(' + Math.round(ms / 1000) + '초)이 기록되었습니다.';
+        clearTimeout(pasteMsg._t);
+        pasteMsg._t = setTimeout(function () { pasteMsg.textContent = ''; }, 4000);
+      }
+    };
+    document.addEventListener('visibilitychange', function () { if (document.hidden) leave(); else back(); });
+    window.addEventListener('blur', leave);
+    window.addEventListener('focus', back);
+  }
+
   /* ═══ 편집기 ═══════════════════════════════════
      CodeMirror 를 textarea 위에 씌운다. 스크립트가 안 뜨면 평범한 textarea 가
      그대로 남아 학생이 코드를 쓸 수 있다 — 평가 중에 입력조차 못 하는 일을 막는다. */

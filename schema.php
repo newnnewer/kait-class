@@ -44,7 +44,8 @@ function ensure_schema(PDO $p): void {
       group_id INTEGER REFERENCES groups(id),
       source   TEXT    NOT NULL DEFAULT 'admin',  -- 'admin' | 'signup'
       approved INTEGER NOT NULL DEFAULT 1,        -- 0 이면 승인 대기
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      login_token TEXT                            -- 마지막 로그인 표시 (2.1.0, 엄격 모드 평가의 동시 접속 확인)
     );
     CREATE INDEX IF NOT EXISTS idx_users_pending ON users(approved, id DESC);
   ");
@@ -101,12 +102,20 @@ function ensure_schema(PDO $p): void {
 
   /* ── 문제 묶음 (수업 / 평가) ────────────────────
      visibility  'groups' 면 set_targets 에 적힌 반만 본다.
-                 반이 한 건도 없으면 아무도 못 본다 — 편집 화면에서
-                 반을 고르지 않으면 저장을 막으므로 그런 상태는 생기지 않는다.
+                 반이 한 건도 없으면 아무 학생도 못 본다 (2.1.0 부터 그렇게 저장할 수 있다 —
+                 편집 화면이 저장한 뒤 알려 주고, 목록에 '대상 없음'으로 보인다).
                  'all' 이면 외부 가입 회원을 포함한 모든 회원이 본다.
      no_paste    붙여넣기를 막을지. 수업은 0, 평가는 1 로 만든다.
                  평가에서 붙여넣기를 허용하면 required_ac 는 1 로 고정한다 —
-                 같은 코드를 여러 번 붙여넣어 횟수를 채울 수 있기 때문이다. */
+                 같은 코드를 여러 번 붙여넣어 횟수를 채울 수 있기 때문이다.
+
+     아래 셋은 평가의 부정행위 방지 (2.1.0). 수업에서는 쓰지 않는다.
+     strict      엄격 모드. 동시 접속 제한 + 화면 이탈 기록 + 기기 · IP 기록을 함께 켠다.
+     allow_ips   들어올 수 있는 IP (쉼표 구분). 비면 제한 없음.
+     entry_code  입장 코드. 비면 묻지 않음.
+
+     set_problems.banned  이 묶음에서 이 문제를 풀 때 쓸 수 없는 단어 (쉼표 구분, 2.1.0).
+                 수업 · 평가 모두. 같은 문제라도 묶음마다 따로 정한다. */
   $p->exec("
     CREATE TABLE IF NOT EXISTS sets(
       id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,7 +128,10 @@ function ensure_schema(PDO $p): void {
       show_diff  INTEGER NOT NULL DEFAULT 1,
       visibility TEXT    NOT NULL DEFAULT 'groups',-- 'groups' | 'all'
       no_paste   INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      strict     INTEGER NOT NULL DEFAULT 0,
+      allow_ips  TEXT    NOT NULL DEFAULT '',
+      entry_code TEXT    NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS set_targets(
@@ -134,8 +146,26 @@ function ensure_schema(PDO $p): void {
       problem_id  INTEGER NOT NULL REFERENCES problems(id),
       required_ac INTEGER NOT NULL DEFAULT 2,   -- 평가에서만 의미
       sort        INTEGER NOT NULL DEFAULT 0,
+      banned      TEXT    NOT NULL DEFAULT '',
       UNIQUE(set_id, problem_id)
     );
+
+    /* 엄격 모드 평가의 접속 · 이탈 기록 (2.1.0). 현황 화면의 '살펴볼 점'이 여기서 나온다.
+       kind  'enter' 평가에 들어옴 (ip · device 를 적는다)
+             'away'  화면을 떠났다 돌아옴 (ms = 떠나 있던 시간)
+             'kick'  다른 곳에서 로그인해 이 접속이 끊김
+       device 는 브라우저에 심어 둔 무작위 값. 같은 값이 두 계정에 나오면 같은 브라우저를 쓴 것이다. */
+    CREATE TABLE IF NOT EXISTS set_events(
+      id      INTEGER PRIMARY KEY AUTOINCREMENT,
+      set_id  INTEGER NOT NULL REFERENCES sets(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind    TEXT NOT NULL,
+      at      TEXT NOT NULL,
+      ms      INTEGER NOT NULL DEFAULT 0,
+      ip      TEXT NOT NULL DEFAULT '',
+      device  TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_set_events ON set_events(set_id, user_id);
   ");
 
   /* ── 제출 ──────────────────────────────────────
@@ -256,6 +286,15 @@ function ensure_schema(PDO $p): void {
     );
   ");
 
+  /* 이미 쓰고 있는 DB 에 나중에 생긴 칸 더하기 ------------------
+     CREATE TABLE IF NOT EXISTS 는 있는 표를 건드리지 않으므로, 위 정의에 칸을 더했으면
+     여기에도 한 줄 적는다. 새로 만든 DB 는 이미 칸이 있어 건너뛴다. */
+  schema_add_col($p, 'users',        'login_token', "TEXT");                          /* 2.1.0 */
+  schema_add_col($p, 'sets',         'strict',      "INTEGER NOT NULL DEFAULT 0");    /* 2.1.0 */
+  schema_add_col($p, 'sets',         'allow_ips',   "TEXT NOT NULL DEFAULT ''");      /* 2.1.0 */
+  schema_add_col($p, 'sets',         'entry_code',  "TEXT NOT NULL DEFAULT ''");      /* 2.1.0 */
+  schema_add_col($p, 'set_problems', 'banned',      "TEXT NOT NULL DEFAULT ''");      /* 2.1.0 */
+
   /* 처음 만들 때만 넣는 것 ------------------------------------ */
 
   if ((int)$p->query("SELECT COUNT(*) FROM languages")->fetchColumn() === 0) {
@@ -284,4 +323,17 @@ function schema_has_table(PDO $p, string $t): bool {
   $r = (bool)$st->fetch();
   $st->closeCursor();
   return $r;
+}
+
+/* 표에 칸이 없을 때만 더한다. 두 요청이 동시에 들어와 한쪽이 먼저 더했으면 조용히 넘어간다. */
+function schema_add_col(PDO $p, string $table, string $col, string $def): void {
+  $st = $p->query("PRAGMA table_info($table)");
+  $names = array_column($st->fetchAll(PDO::FETCH_ASSOC), 'name');
+  $st->closeCursor();
+  if (in_array($col, $names, true)) return;
+  try {
+    $p->exec("ALTER TABLE $table ADD COLUMN $col $def");
+  } catch (Throwable $e) {
+    if (stripos($e->getMessage(), 'duplicate column') === false) throw $e;
+  }
 }

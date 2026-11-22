@@ -49,14 +49,14 @@ const DEMO_BLOCKED = '체험 서버에서는 이 기능을 쓸 수 없습니다.
 define('UPLOAD_DIR', __DIR__ . '/uploads');
 
 /* 스키마를 바꿀 때마다 1씩 올린다. DB 에 기록된 값과 같으면 점검을 건너뛴다. */
-define('SCHEMA_VERSION', 1);
+define('SCHEMA_VERSION', 2);   /* 2 = 2.1.0 (평가 부정행위 방지 · 사용 금지 단어) */
 
 /* ── 프로그램 신원 ───────────────────────────────
    설치한 학교가 정하는 '사이트 이름'과는 다르다.
    사이트 이름은 운영 > 설정에서 바꾸고, 이것은 프로그램 자체의 이름이다.
    저장소 이름이 바뀌면 여기만 고치면 된다. */
 const APP_NAME    = 'KAIT-CLASS';
-const APP_VERSION = '2.0.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
+const APP_VERSION = '2.1.0';   // 주.부.수 (유의적 버전). 꼬리말에는 앞 두 자리만 나간다
 const APP_REPO    = 'https://github.com/newnnewer/kait-class';
 
 /* ── 저작권과 라이선스 ───────────────────────────
